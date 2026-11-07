@@ -24,13 +24,6 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
-      - name: Check out private media repository
-        uses: actions/checkout@v4
-        with:
-          repository: Rsychs/TV-OFF-Media
-          token: ${{ secrets.MEDIA_REPO_TOKEN }}
-          path: private-media
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -44,7 +37,7 @@ jobs:
 
       - name: Generate original TV OFF ambience tracks
         env:
-          SOURCE_AUDIO_DIR: ${{ github.workspace }}/private-media/audio
+          SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
         run: python generate_original_ambience.py
 
       - name: Build 10-hour black-screen videos
