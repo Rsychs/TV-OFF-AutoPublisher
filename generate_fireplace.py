@@ -22,7 +22,6 @@ def run():
     wav_path = ROOT / "fireplace_temp.wav"
     rng = np.random.default_rng(20261108)
     chunk_seconds = 10
-    previous = 0.0
 
     with wave.open(str(wav_path), "wb") as wav:
         wav.setnchannels(1)
@@ -31,12 +30,13 @@ def run():
         for _ in range(DURATION // chunk_seconds):
             count = RATE * chunk_seconds
             white = rng.normal(0, 1, count).astype(np.float32)
-            # Soft, filtered fire-bed with a warm low-frequency body.
-            smooth = np.empty_like(white)
-            smooth[0] = previous
-            for i in range(1, count):
-                smooth[i] = 0.985 * smooth[i - 1] + 0.015 * white[i]
-            previous = float(smooth[-1])
+            # Smooth, slowly changing noise creates the warm body of the fire.
+            control = rng.normal(0, 1, 164).astype(np.float32)
+            smooth = np.interp(
+                np.arange(count, dtype=np.float32),
+                np.linspace(0, count - 1, len(control), dtype=np.float32),
+                control
+            ).astype(np.float32)
             bed = 0.12 * white + 0.34 * smooth
             # Irregular short crackles with natural exponential tails.
             crackles = np.zeros(count, dtype=np.float32)
@@ -47,7 +47,6 @@ def run():
                     amp = rng.uniform(0.35, 1.0) * rng.choice([-1.0, 1.0])
                     decay = np.exp(-np.arange(length, dtype=np.float32) / (RATE * rng.uniform(0.008, 0.035)))
                     crackles[pos:pos + length] += amp * decay
-            # Gentle slow variation avoids a static, loop-like texture.
             t = np.arange(count, dtype=np.float32) / RATE
             warmth = 0.82 + 0.12 * np.sin(2 * np.pi * 0.07 * t + rng.uniform(0, 6.28))
             signal = (bed * warmth + 0.20 * crackles) * 0.22
