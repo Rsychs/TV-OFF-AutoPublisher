@@ -5,14 +5,11 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/publish.yml"
-      - "generate_fireplace.py"
-      - "generate_ambience.py"
+      - "build_real_ambience.py"
       - "generate_thumbnails.py"
       - "validate_media.py"
       - "schedule.csv"
       - "uploader.py"
-  schedule:
-    - cron: "7 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -25,6 +22,13 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
+      - name: Check out private media repository
+        uses: actions/checkout@v4
+        with:
+          repository: Rsychs/TV-OFF-Media
+          token: ${{ secrets.MEDIA_REPO_TOKEN }}
+          path: private-media
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -34,15 +38,18 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
-          pip install -r requirements.txt numpy pillow
+          pip install -r requirements.txt pillow
 
-      - name: Generate scheduled video assets
-        run: |
-          python generate_fireplace.py
-          python generate_ambience.py
-          python generate_thumbnails.py
+      - name: Build 10-hour videos from licensed source recordings
+        env:
+          SOURCE_AUDIO_DIR: ${{ github.workspace }}/private-media/audio
+          MEDIA_DIR: ${{ github.workspace }}/videos
+        run: python build_real_ambience.py
 
-      - name: Validate generated video and audio before upload
+      - name: Generate consistent thumbnails
+        run: python generate_thumbnails.py
+
+      - name: Validate videos before upload
         run: |
           for file in videos/*.mp4; do
             [ -f "$file" ] || continue
