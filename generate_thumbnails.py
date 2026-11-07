@@ -72,7 +72,7 @@ def make_thumbnail(row):
 
     # Thin accent rule and identical descriptor on every thumbnail.
     d.rounded_rectangle((560, 474, 720, 478), radius=2, fill=(*accent, 210))
-    descriptor = "1 HOUR  •  BLACK SCREEN"
+    descriptor = "10 HOURS  •  BLACK SCREEN"
     bbox = d.textbbox((0, 0), descriptor, font=font(25))
     d.text((640 - (bbox[2] - bbox[0]) / 2, 516), descriptor,
            font=font(25), fill=(164, 171, 172, 255))
