@@ -40,13 +40,16 @@ jobs:
           SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
         run: python generate_original_ambience.py
 
-      - name: Build 10-hour black-screen videos
+      - name: Build test black-screen video
         env:
-          SOURCE_AUDIO_DIR: ${{ github.workspace }}/private-media/audio
+          SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
           MEDIA_DIR: ${{ github.workspace }}/videos
+          SCHEDULE_FILE: ${{ github.workspace }}/test_schedule.csv
         run: python build_real_ambience.py
 
-      - name: Generate consistent thumbnails
+      - name: Generate test thumbnail
+        env:
+          SCHEDULE_FILE: ${{ github.workspace }}/test_schedule.csv
         run: python generate_thumbnails.py
 
       - name: Validate videos before upload
@@ -56,7 +59,7 @@ jobs:
             python validate_media.py "$file"
           done
 
-      - name: Upload videos and set custom thumbnails
+      - name: Upload test video immediately
         env:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
