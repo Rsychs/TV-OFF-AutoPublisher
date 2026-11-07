@@ -62,6 +62,7 @@ jobs:
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
           MEDIA_DIR: ${{ github.workspace }}/videos
+          SOURCE_AUDIO_DIR: ${{ github.workspace }}/private-media/audio
         run: python uploader.py
 
       - name: Save upload state
