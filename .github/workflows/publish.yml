@@ -53,7 +53,9 @@ jobs:
           SCHEDULE_FILE: ${{ github.workspace }}/test_schedule.csv
         run: python generate_thumbnails.py
 
-      - name: Validate videos before upload
+      - name: Validate test video before upload
+        env:
+          EXPECTED_DURATION_SECONDS: 600
         run: |
           for file in videos/*.mp4; do
             [ -f "$file" ] || continue
