@@ -10,7 +10,7 @@ from googleapiclient.http import MediaFileUpload
 from google.auth.transport.requests import Request
 
 ROOT = Path(__file__).resolve().parent
-STATE_FILE = ROOT / "state.json"
+STATE_FILE = Path(os.environ.get("STATE_FILE", ROOT / "state.json"))
 MEDIA_DIR = Path(os.environ.get("MEDIA_DIR", ROOT / "videos")).resolve()
 THUMB_DIR = ROOT / "thumbnails"
 SOURCE_AUDIO_DIR = Path(os.environ.get("SOURCE_AUDIO_DIR", ROOT / "audio"))
