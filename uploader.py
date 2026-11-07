@@ -13,6 +13,8 @@ ROOT = Path(__file__).resolve().parent
 STATE_FILE = ROOT / "state.json"
 MEDIA_DIR = Path(os.environ.get("MEDIA_DIR", ROOT / "videos")).resolve()
 THUMB_DIR = ROOT / "thumbnails"
+SOURCE_AUDIO_DIR = Path(os.environ.get("SOURCE_AUDIO_DIR", ROOT / "audio"))
+MANIFEST_FILE = SOURCE_AUDIO_DIR / "manifest.json"
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
 def load_credentials():
@@ -38,6 +40,7 @@ def main():
         return
     youtube = build("youtube", "v3", credentials=load_credentials())
     now = datetime.now(timezone.utc)
+    manifest = json.loads(MANIFEST_FILE.read_text(encoding="utf-8")) if MANIFEST_FILE.is_file() else {}
 
     for row in rows:
         key = row["filename"].strip()
@@ -65,10 +68,14 @@ def main():
         if publish_at.tzinfo is None:
             raise ValueError(f"{key}: publish_at must include a timezone offset")
         future_publish = publish_at.astimezone(timezone.utc) > now
+        source = manifest.get(row.get("soundscape", ""), {})
+        description = row.get("description", "")
+        for field in ("creator", "source_url", "license"):
+            description = description.replace("{" + field + "}", str(source.get(field, "Not provided")))
         body = {
             "snippet": {
                 "title": row["title"][:100],
-                "description": row.get("description", ""),
+                "description": description,
                 "tags": [x.strip() for x in row.get("tags", "").split(";") if x.strip()],
                 "categoryId": "10"
             },
