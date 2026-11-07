@@ -11,7 +11,9 @@ from google.auth.transport.requests import Request
 
 ROOT = Path(__file__).resolve().parent
 STATE_FILE = ROOT / "state.json"
+MEDIA_DIR = Path(os.environ.get("MEDIA_DIR", ROOT / "videos")).resolve()
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+
 
 def load_credentials():
     required = ["YT_CLIENT_ID", "YT_CLIENT_SECRET", "YT_REFRESH_TOKEN"]
@@ -29,30 +31,37 @@ def load_credentials():
     creds.refresh(Request())
     return creds
 
+
 def load_state():
     if STATE_FILE.exists():
         return json.loads(STATE_FILE.read_text(encoding="utf-8"))
     return {}
 
+
 def main():
+    if not MEDIA_DIR.is_dir():
+        raise RuntimeError(f"Media directory not found: {MEDIA_DIR}")
+
     creds = load_credentials()
     youtube = build("youtube", "v3", credentials=creds)
     state = load_state()
     now = datetime.now(timezone.utc)
+
     with (ROOT / "schedule.csv").open(newline="", encoding="utf-8-sig") as f:
         rows = list(csv.DictReader(f))
 
     for row in rows:
-        filename = (ROOT / row["filename"]).resolve()
-        if not filename.is_relative_to(ROOT):
-            raise ValueError("Video path must remain inside the repository")
-        key = row["filename"]
+        key = row["filename"].strip()
+        filename = (MEDIA_DIR / key).resolve()
+        if not filename.is_relative_to(MEDIA_DIR):
+            raise ValueError("Video path must remain inside the private media directory")
         if key in state:
             print(f"SKIP already uploaded: {key} -> {state[key]}")
             continue
         if not filename.is_file():
-            print(f"WAIT missing file: {key}")
+            print(f"WAIT missing file in private media repo: {key}")
             continue
+
         publish_at = datetime.fromisoformat(row["publish_at"])
         if publish_at.tzinfo is None:
             raise ValueError(f"{key}: publish_at must include a timezone offset")
@@ -80,6 +89,7 @@ def main():
         state[key] = video_id
         STATE_FILE.write_text(json.dumps(state, indent=2), encoding="utf-8")
         print(f"UPLOADED {key}: https://youtu.be/{video_id}")
+
 
 if __name__ == "__main__":
     main()
