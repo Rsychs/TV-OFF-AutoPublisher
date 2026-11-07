@@ -25,7 +25,9 @@ jobs:
 
       - name: Upload scheduled videos
         env:
-          YT_TOKEN_JSON: ${{ secrets.YT_TOKEN_JSON }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
         run: python uploader.py
 
       - name: Save upload state
