@@ -1,85 +1,96 @@
 from pathlib import Path
+import csv
 import math
 import re
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 ROOT = Path(__file__).resolve().parent
 OUT = ROOT / "thumbnails"
 W, H = 1280, 720
 
+# TV OFF visual identity: almost-black, quiet, typographic, consistent.
+ACCENTS = {
+    "fireplace": (166, 112, 72),
+    "rain": (105, 145, 165),
+    "thunderstorm": (124, 133, 158),
+    "wind": (132, 151, 151),
+}
+
 def font(size, bold=False):
     path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
     return ImageFont.truetype(path, size)
 
-def draw_scene(draw, kind):
-    if kind == "fireplace":
-        # Hearth glow, logs, and stylized flame.
-        draw.ellipse((760, 110, 1190, 600), fill=(82, 34, 13))
-        draw.ellipse((820, 170, 1130, 560), fill=(150, 57, 14))
-        draw.ellipse((885, 230, 1080, 540), fill=(240, 123, 25))
-        draw.polygon([(930, 515), (875, 380), (930, 290), (970, 385), (1020, 245), (1080, 390), (1045, 515)], fill=(255, 196, 82))
-        draw.line((790, 545, 1130, 545), fill=(49, 26, 19), width=38)
-        draw.line((825, 590, 1110, 500), fill=(77, 43, 27), width=30)
-    elif kind == "rain":
-        for x in range(720, 1240, 42):
-            for y in range(110 + (x % 3) * 20, 660, 95):
-                draw.line((x, y, x-28, y+74), fill=(102, 181, 211), width=7)
-        draw.ellipse((820, 90, 1190, 300), fill=(46, 74, 94))
-        draw.ellipse((900, 65, 1195, 280), fill=(56, 91, 111))
-    elif kind in ("thunderstorm", "storm", "thunder"):
-        draw.ellipse((760, 95, 1200, 340), fill=(47, 57, 77))
-        draw.ellipse((860, 70, 1240, 320), fill=(35, 43, 63))
-        draw.polygon([(1000, 240), (930, 405), (1015, 380), (965, 565), (1110, 340), (1025, 365)], fill=(244, 208, 104))
-        for x in range(780, 1210, 75):
-            draw.line((x, 440, x-30, 560), fill=(102, 153, 187), width=5)
-    else:  # wind
-        for i in range(5):
-            y = 210 + i * 75
-            pts = []
-            for x in range(700, 1230, 12):
-                yy = y + 26 * math.sin((x / 95) + i * 0.7)
-                pts.append((x, yy))
-            draw.line(pts, fill=(112, 178, 190), width=8)
-        draw.ellipse((980, 80, 1160, 260), outline=(83, 132, 151), width=5)
+def detect_kind(filename, title):
+    text = (filename + " " + title).lower()
+    if "fire" in text:
+        return "fireplace"
+    if "rain" in text:
+        return "rain"
+    if "thunder" in text or "storm" in text:
+        return "thunderstorm"
+    return "wind"
+
+def make_thumbnail(row):
+    filename = row["filename"].strip()
+    stem = Path(filename).stem
+    title = (row.get("thumbnail_title") or row.get("title") or stem).split("|")[0].strip()
+    title = re.sub(r"[_-]+", " ", title)
+    kind = detect_kind(stem, title)
+    accent = ACCENTS[kind]
+
+    # Deep black background with a very restrained central glow.
+    im = Image.new("RGB", (W, H), (3, 4, 5))
+    glow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    gd = ImageDraw.Draw(glow)
+    gd.ellipse((310, 80, 970, 740), fill=(*accent, 22))
+    glow = glow.filter(ImageFilter.GaussianBlur(130))
+    im = Image.alpha_composite(im.convert("RGBA"), glow)
+    d = ImageDraw.Draw(im, "RGBA")
+
+    # Quiet sound-wave mark: identical construction on every video.
+    center_x, center_y = 640, 215
+    for i, height in enumerate([18, 30, 46, 62, 46, 30, 18]):
+        x = center_x - 66 + i * 22
+        d.rounded_rectangle(
+            (x, center_y - height // 2, x + 5, center_y + height // 2),
+            radius=3, fill=(*accent, 190)
+        )
+
+    # Wordmark and title hierarchy remain fixed across the whole series.
+    wordmark = "TV OFF"
+    bbox = d.textbbox((0, 0), wordmark, font=font(34, True))
+    d.text((640 - (bbox[2] - bbox[0]) / 2, 292), wordmark,
+           font=font(34, True), fill=(238, 240, 239, 255))
+
+    display_title = title.upper()
+    title_font = font(58, True)
+    while d.textbbox((0, 0), display_title, font=title_font)[2] > 1080 and len(display_title) > 12:
+        display_title = display_title[:-4].rstrip() + "…"
+    bbox = d.textbbox((0, 0), display_title, font=title_font)
+    d.text((640 - (bbox[2] - bbox[0]) / 2, 374), display_title,
+           font=title_font, fill=(248, 248, 245, 255))
+
+    # Thin accent rule and identical descriptor on every thumbnail.
+    d.rounded_rectangle((560, 474, 720, 478), radius=2, fill=(*accent, 210))
+    descriptor = "1 HOUR  •  BLACK SCREEN"
+    bbox = d.textbbox((0, 0), descriptor, font=font(25))
+    d.text((640 - (bbox[2] - bbox[0]) / 2, 516), descriptor,
+           font=font(25), fill=(164, 171, 172, 255))
+
+    tagline = "SOUND TO SWITCH OFF TO"
+    bbox = d.textbbox((0, 0), tagline, font=font(17, True))
+    d.text((640 - (bbox[2] - bbox[0]) / 2, 640), tagline,
+           font=font(17, True), fill=(102, 111, 113, 255))
+
+    OUT.mkdir(exist_ok=True)
+    target = OUT / (stem + ".jpg")
+    im.convert("RGB").save(target, quality=94, optimize=True)
+    print(f"Thumbnail ready: {target}")
 
 def main():
-    OUT.mkdir(exist_ok=True)
-    import csv
     with (ROOT / "schedule.csv").open(newline="", encoding="utf-8-sig") as f:
-        rows = list(csv.DictReader(f))
-    for row in rows:
-        filename = row["filename"].strip()
-        stem = Path(filename).stem
-        label = re.sub(r"[_-]+", " ", stem)
-        kind_text = (stem + " " + row.get("title", "")).lower()
-        if "fire" in kind_text: kind = "fireplace"
-        elif "rain" in kind_text: kind = "rain"
-        elif any(k in kind_text for k in ("thunder", "storm")): kind = "thunderstorm"
-        else: kind = "wind"
-
-        im = Image.new("RGB", (W, H))
-        px = im.load()
-        left, right = (9, 17, 27), (18, 38, 49)
-        for x in range(W):
-            t = x / (W - 1)
-            c = tuple(int(left[i] * (1-t) + right[i] * t) for i in range(3))
-            for y in range(H):
-                shade = int(8 * (1 - y / H))
-                px[x, y] = tuple(min(255, v + shade) for v in c)
-        d = ImageDraw.Draw(im, "RGBA")
-        d.rounded_rectangle((54, 48, 1226, 672), radius=34, outline=(135, 173, 187, 95), width=3)
-        draw_scene(d, kind)
-        d.rounded_rectangle((78, 82, 590, 148), radius=20, fill=(5, 12, 19, 210))
-        d.text((105, 96), "TV OFF  •  AMBIENT SERIES", font=font(28, True), fill=(215, 232, 238))
-        title = row.get("thumbnail_title") or row.get("title") or label
-        title = title.split("|")[0].strip()
-        while d.textbbox((0,0), title, font=font(58, True))[2] > 690 and len(title) > 12:
-            title = title[:-4].rstrip() + "…"
-        d.text((92, 300), title.upper(), font=font(58, True), fill=(250, 250, 246), stroke_width=2, stroke_fill=(8, 17, 24))
-        d.text((96, 390), "1 HOUR  •  BLACK SCREEN", font=font(30, True), fill=(170, 205, 216))
-        d.text((96, 610), "SOUND TO SWITCH OFF TO", font=font(22, True), fill=(132, 165, 177))
-        im.save(OUT / (stem + ".jpg"), quality=92, optimize=True)
-        print(f"Thumbnail ready: {OUT / (stem + '.jpg')}")
+        for row in csv.DictReader(f):
+            make_thumbnail(row)
 
 if __name__ == "__main__":
     main()
