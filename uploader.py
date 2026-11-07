@@ -14,13 +14,19 @@ STATE_FILE = ROOT / "state.json"
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
 def load_credentials():
-    token_raw = os.environ["YT_TOKEN_JSON"]
-    token = json.loads(token_raw)
-    creds = Credentials.from_authorized_user_info(token, SCOPES)
-    if creds.expired and creds.refresh_token:
-        creds.refresh(Request())
-    if not creds.valid:
-        raise RuntimeError("OAuth token is invalid; repeat get_token.py and update YT_TOKEN_JSON.")
+    required = ["YT_CLIENT_ID", "YT_CLIENT_SECRET", "YT_REFRESH_TOKEN"]
+    missing = [name for name in required if not os.environ.get(name)]
+    if missing:
+        raise RuntimeError("Missing GitHub Actions secrets: " + ", ".join(missing))
+    creds = Credentials(
+        token=None,
+        refresh_token=os.environ["YT_REFRESH_TOKEN"],
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=os.environ["YT_CLIENT_ID"],
+        client_secret=os.environ["YT_CLIENT_SECRET"],
+        scopes=SCOPES,
+    )
+    creds.refresh(Request())
     return creds
 
 def load_state():
@@ -38,6 +44,8 @@ def main():
 
     for row in rows:
         filename = (ROOT / row["filename"]).resolve()
+        if not filename.is_relative_to(ROOT):
+            raise ValueError("Video path must remain inside the repository")
         key = row["filename"]
         if key in state:
             print(f"SKIP already uploaded: {key} -> {state[key]}")
