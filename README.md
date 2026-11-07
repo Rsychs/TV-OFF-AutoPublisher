@@ -22,9 +22,8 @@ This project cannot authorize itself into your Google/YouTube account. The chann
    ```
    Sign in with the Google account that owns/manages **TV OFF (@tvoffsounds)** and approve access. This creates `token.json`.
 5. In GitHub, open the repository → Settings → Secrets and variables → Actions. Add:
-   - `YT_CLIENT_JSON` — the entire contents of `client_secret.json`
-   - `YT_TOKEN_JSON` — the entire contents of `token.json`
-6. Upload MP4 files into `videos/` and edit `schedule.csv`. Use ISO 8601 times with the Riga offset, e.g. `2026-11-08T20:00:00+02:00`.
+   - `YT_TOKEN_JSON` — the entire contents of `token.json` (it includes the OAuth client details)
+6. Make the repository private before adding videos. Then upload MP4 files into `videos/` and edit `schedule.csv`. Use ISO 8601 times with the Riga offset, e.g. `2026-11-08T20:00:00+02:00`.
 7. Commit and push. The workflow checks hourly. You can also run it manually from Actions.
 
 **Important:** Do not commit `client_secret.json`, `token.json`, or private video files to a public repository. Keep the repository private. YouTube/Google may require API project verification before videos uploaded by a newly created API project can be made public. Until that is resolved, uploads may be restricted to private visibility.
