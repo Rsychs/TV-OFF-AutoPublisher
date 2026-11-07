@@ -28,7 +28,7 @@ def prepare_loop(source, target):
     )
     run(["ffmpeg","-y","-hide_banner","-i",str(source),"-filter_complex",graph,
          "-map","[out]","-ar","48000","-ac","2","-b:a","96k",str(target)])
-    if duration(target) < length - CROSSFADE - 0.3:
+    if duration(target) < length - (2 * CROSSFADE) - 0.3:
         raise RuntimeError(f"{source.name}: loop preparation shortened unexpectedly")
 
 def main():
