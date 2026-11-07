@@ -1,6 +1,5 @@
 client_secret.json
 token.json
 state.json
-videos/
 __pycache__/
 *.pyc
