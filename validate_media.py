@@ -1,7 +1,7 @@
-import json, subprocess, sys
+import json, os, subprocess, sys
 from pathlib import Path
 
-EXPECTED = 10 * 60 * 60
+EXPECTED = int(os.environ.get("EXPECTED_DURATION_SECONDS", 10 * 60 * 60))
 
 def probe(path):
     p=subprocess.run(["ffprobe","-v","error","-show_streams","-show_format","-of","json",str(path)],check=True,capture_output=True,text=True)
@@ -13,7 +13,7 @@ def validate(path):
     video=[s for s in streams if s.get("codec_type")=="video"]
     if not audio or not video: raise RuntimeError(f"{path}: missing audio/video stream")
     duration=float(data["format"]["duration"])
-    if abs(duration-EXPECTED)>3: raise RuntimeError(f"{path}: expected 10 hours, got {duration:.1f}s")
+    if abs(duration-EXPECTED)>3: raise RuntimeError(f"{path}: expected {EXPECTED}s, got {duration:.1f}s")
     if video[0].get("width")!=1280 or video[0].get("height")!=720: raise RuntimeError(f"{path}: expected 1280x720")
     if audio[0].get("channels",0)<1: raise RuntimeError(f"{path}: invalid audio channels")
     check=subprocess.run(["ffmpeg","-v","error","-i",str(path),"-f","null","-"],capture_output=True,text=True)
