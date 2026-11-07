@@ -6,6 +6,7 @@ on:
     paths:
       - ".github/workflows/publish.yml"
       - "generate_fireplace.py"
+      - "generate_ambience.py"
       - "generate_thumbnails.py"
       - "validate_media.py"
       - "schedule.csv"
@@ -38,13 +39,15 @@ jobs:
       - name: Generate scheduled video assets
         run: |
           python generate_fireplace.py
+          python generate_ambience.py
           python generate_thumbnails.py
 
       - name: Validate generated video and audio before upload
         run: |
-          if [ -f "videos/TV-OFF_Fireplace_1-Hour.mp4" ]; then
-            python validate_media.py "videos/TV-OFF_Fireplace_1-Hour.mp4"
-          fi
+          for file in videos/*.mp4; do
+            [ -f "$file" ] || continue
+            python validate_media.py "$file"
+          done
 
       - name: Upload videos and set custom thumbnails
         env:
