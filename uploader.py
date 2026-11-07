@@ -12,8 +12,8 @@ from google.auth.transport.requests import Request
 ROOT = Path(__file__).resolve().parent
 STATE_FILE = ROOT / "state.json"
 MEDIA_DIR = Path(os.environ.get("MEDIA_DIR", ROOT / "videos")).resolve()
+THUMB_DIR = ROOT / "thumbnails"
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
-
 
 def load_credentials():
     required = ["YT_CLIENT_ID", "YT_CLIENT_SECRET", "YT_REFRESH_TOKEN"]
@@ -21,52 +21,50 @@ def load_credentials():
     if missing:
         raise RuntimeError("Missing GitHub Actions secrets: " + ", ".join(missing))
     creds = Credentials(
-        token=None,
-        refresh_token=os.environ["YT_REFRESH_TOKEN"],
+        token=None, refresh_token=os.environ["YT_REFRESH_TOKEN"],
         token_uri="https://oauth2.googleapis.com/token",
-        client_id=os.environ["YT_CLIENT_ID"],
-        client_secret=os.environ["YT_CLIENT_SECRET"],
+        client_id=os.environ["YT_CLIENT_ID"], client_secret=os.environ["YT_CLIENT_SECRET"],
         scopes=SCOPES,
     )
     creds.refresh(Request())
     return creds
 
-
-def load_state():
-    if STATE_FILE.exists():
-        return json.loads(STATE_FILE.read_text(encoding="utf-8"))
-    return {}
-
-
 def main():
-    if not MEDIA_DIR.is_dir():
-        raise RuntimeError(f"Media directory not found: {MEDIA_DIR}")
-
-    creds = load_credentials()
-    youtube = build("youtube", "v3", credentials=creds)
-    state = load_state()
-    now = datetime.now(timezone.utc)
-
+    state = json.loads(STATE_FILE.read_text(encoding="utf-8")) if STATE_FILE.exists() else {}
     with (ROOT / "schedule.csv").open(newline="", encoding="utf-8-sig") as f:
         rows = list(csv.DictReader(f))
+    if not rows:
+        print("No scheduled videos.")
+        return
+    youtube = build("youtube", "v3", credentials=load_credentials())
+    now = datetime.now(timezone.utc)
 
     for row in rows:
         key = row["filename"].strip()
+        video_id = state.get(key)
+        thumbnail = THUMB_DIR / (Path(key).stem + ".jpg")
+
+        if video_id:
+            if thumbnail.is_file():
+                youtube.thumbnails().set(
+                    videoId=video_id,
+                    media_body=MediaFileUpload(str(thumbnail), mimetype="image/jpeg")
+                ).execute()
+                print(f"THUMBNAIL UPDATED {key}: https://youtu.be/{video_id}")
+            else:
+                raise RuntimeError(f"Missing thumbnail for already uploaded video: {thumbnail}")
+            continue
+
         filename = (MEDIA_DIR / key).resolve()
-        if not filename.is_relative_to(MEDIA_DIR):
-            raise ValueError("Video path must remain inside the private media directory")
-        if key in state:
-            print(f"SKIP already uploaded: {key} -> {state[key]}")
-            continue
-        if not filename.is_file():
-            print(f"WAIT missing file in private media repo: {key}")
-            continue
+        if not filename.is_relative_to(MEDIA_DIR) or not filename.is_file():
+            raise RuntimeError(f"Video file missing or outside media directory: {key}")
+        if not thumbnail.is_file():
+            raise RuntimeError(f"Missing thumbnail: {thumbnail}")
 
         publish_at = datetime.fromisoformat(row["publish_at"])
         if publish_at.tzinfo is None:
             raise ValueError(f"{key}: publish_at must include a timezone offset")
         future_publish = publish_at.astimezone(timezone.utc) > now
-
         body = {
             "snippet": {
                 "title": row["title"][:100],
@@ -88,8 +86,11 @@ def main():
         video_id = response["id"]
         state[key] = video_id
         STATE_FILE.write_text(json.dumps(state, indent=2), encoding="utf-8")
-        print(f"UPLOADED {key}: https://youtu.be/{video_id}")
-
+        youtube.thumbnails().set(
+            videoId=video_id,
+            media_body=MediaFileUpload(str(thumbnail), mimetype="image/jpeg")
+        ).execute()
+        print(f"UPLOADED {key}: https://youtu.be/{video_id} (thumbnail set)")
 
 if __name__ == "__main__":
     main()
