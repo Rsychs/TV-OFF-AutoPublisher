@@ -1,6 +1,13 @@
 name: YouTube AutoPublisher
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/publish.yml"
+      - "generate_fireplace.py"
+      - "schedule.csv"
+      - "uploader.py"
   schedule:
     - cron: "7 * * * *"
   workflow_dispatch:
