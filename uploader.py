@@ -33,7 +33,8 @@ def load_credentials():
 
 def main():
     state = json.loads(STATE_FILE.read_text(encoding="utf-8")) if STATE_FILE.exists() else {}
-    with (ROOT / "schedule.csv").open(newline="", encoding="utf-8-sig") as f:
+    schedule_path = Path(os.environ.get("SCHEDULE_FILE", ROOT / "schedule.csv"))
+    with schedule_path.open(newline="", encoding="utf-8-sig") as f:
         rows = list(csv.DictReader(f))
     if not rows:
         print("No scheduled videos.")
