@@ -33,7 +33,7 @@ def prepare_loop(source, target):
 
 def main():
     if not MANIFEST.is_file():
-        raise SystemExit(f"STOPPED: {MANIFEST} is missing. Add licensed recordings and manifest.json to private-media/audio.")
+        raise SystemExit(f"STOPPED: {MANIFEST} is missing. Audio generation step did not complete.")
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     rows = list(csv.DictReader((ROOT/"schedule.csv").open(newline="",encoding="utf-8-sig")))
     OUTPUT_DIR.mkdir(parents=True,exist_ok=True)
@@ -56,7 +56,7 @@ def main():
              "-c:v","libx264","-preset","ultrafast","-tune","stillimage","-pix_fmt","yuv420p",
              "-r","1","-c:a","aac","-b:a","96k","-movflags","+faststart",str(target)])
         loop.unlink(missing_ok=True)
-        print(f"BUILT {target} from {item['source_url']} ({item['license']})")
+        print(f"BUILT {target} from original TV OFF generated audio ({item['license']})")
 
 if __name__ == "__main__":
     main()
