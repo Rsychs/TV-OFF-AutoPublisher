@@ -6,9 +6,11 @@ on:
     paths:
       - ".github/workflows/publish.yml"
       - "build_real_ambience.py"
+      - "generate_original_ambience.py"
       - "generate_thumbnails.py"
       - "validate_media.py"
       - "schedule.csv"
+      - "requirements.txt"
       - "uploader.py"
   workflow_dispatch:
 
@@ -40,7 +42,12 @@ jobs:
           sudo apt-get install -y ffmpeg
           pip install -r requirements.txt pillow
 
-      - name: Build 10-hour videos from licensed source recordings
+      - name: Generate original TV OFF ambience tracks
+        env:
+          SOURCE_AUDIO_DIR: ${{ github.workspace }}/private-media/audio
+        run: python generate_original_ambience.py
+
+      - name: Build 10-hour black-screen videos
         env:
           SOURCE_AUDIO_DIR: ${{ github.workspace }}/private-media/audio
           MEDIA_DIR: ${{ github.workspace }}/videos
