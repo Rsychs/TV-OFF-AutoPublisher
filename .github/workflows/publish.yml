@@ -10,6 +10,7 @@ on:
       - "generate_thumbnails.py"
       - "validate_media.py"
       - "schedule.csv"
+      - "test_schedule.csv"
       - "requirements.txt"
       - "uploader.py"
   workflow_dispatch:
@@ -75,4 +76,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add state.json
           git diff --cached --quiet || git commit -m "Update upload state"
+          git pull --rebase origin main
           git push
