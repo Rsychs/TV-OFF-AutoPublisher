@@ -72,7 +72,7 @@ def make_thumbnail(row):
 
     # Thin accent rule and identical descriptor on every thumbnail.
     d.rounded_rectangle((560, 474, 720, 478), radius=2, fill=(*accent, 210))
-    descriptor = "10 HOURS  •  BLACK SCREEN"
+    descriptor = (row.get("thumbnail_descriptor") or "10 HOURS  •  BLACK SCREEN")
     bbox = d.textbbox((0, 0), descriptor, font=font(25))
     d.text((640 - (bbox[2] - bbox[0]) / 2, 516), descriptor,
            font=font(25), fill=(164, 171, 172, 255))
@@ -88,7 +88,8 @@ def make_thumbnail(row):
     print(f"Thumbnail ready: {target}")
 
 def main():
-    with (ROOT / "schedule.csv").open(newline="", encoding="utf-8-sig") as f:
+    schedule_path = Path(__import__("os").environ.get("SCHEDULE_FILE", ROOT / "schedule.csv"))
+    with schedule_path.open(newline="", encoding="utf-8-sig") as f:
         for row in csv.DictReader(f):
             make_thumbnail(row)
 
