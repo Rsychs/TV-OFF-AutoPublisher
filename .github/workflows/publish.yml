@@ -12,8 +12,15 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
+      - name: Check out code
         uses: actions/checkout@v4
+
+      - name: Check out private media
+        uses: actions/checkout@v4
+        with:
+          repository: Rsychs/TV-OFF-Media
+          token: ${{ secrets.MEDIA_REPO_TOKEN }}
+          path: media-repo
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -28,6 +35,7 @@ jobs:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          MEDIA_DIR: ${{ github.workspace }}/media-repo/videos
         run: python uploader.py
 
       - name: Save upload state
