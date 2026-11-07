@@ -15,27 +15,26 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
-      - name: Check out private media
-        uses: actions/checkout@v4
-        with:
-          repository: Rsychs/TV-OFF-Media
-          token: ${{ secrets.MEDIA_REPO_TOKEN }}
-          path: media-repo
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      - name: Install FFmpeg and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          pip install -r requirements.txt numpy
+
+      - name: Generate fireplace video if not uploaded yet
+        run: python generate_fireplace.py
 
       - name: Upload scheduled videos
         env:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-          MEDIA_DIR: ${{ github.workspace }}/media-repo/videos
+          MEDIA_DIR: ${{ github.workspace }}/videos
         run: python uploader.py
 
       - name: Save upload state
