@@ -35,7 +35,8 @@ def main():
     if not MANIFEST.is_file():
         raise SystemExit(f"STOPPED: {MANIFEST} is missing. Audio generation step did not complete.")
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
-    rows = list(csv.DictReader((ROOT/"schedule.csv").open(newline="",encoding="utf-8-sig")))
+    schedule_path = Path(os.environ.get("SCHEDULE_FILE", ROOT / "schedule.csv"))
+    rows = list(csv.DictReader(schedule_path.open(newline="",encoding="utf-8-sig")))
     OUTPUT_DIR.mkdir(parents=True,exist_ok=True)
     for row in rows:
         item = manifest.get(row["soundscape"])
@@ -52,7 +53,7 @@ def main():
         target = OUTPUT_DIR / row["filename"]
         prepare_loop(source,loop)
         run(["ffmpeg","-y","-hide_banner","-f","lavfi","-i","color=c=black:s=1280x720:r=1",
-             "-stream_loop","-1","-i",str(loop),"-t",str(DURATION),"-map","0:v:0","-map","1:a:0",
+             "-stream_loop","-1","-i",str(loop),"-t",str(int(row.get("duration_seconds") or DURATION)),"-map","0:v:0","-map","1:a:0",
              "-c:v","libx264","-preset","ultrafast","-tune","stillimage","-pix_fmt","yuv420p",
              "-r","1","-c:a","aac","-b:a","96k","-movflags","+faststart",str(target)])
         loop.unlink(missing_ok=True)
