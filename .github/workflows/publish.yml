@@ -6,6 +6,8 @@ on:
     paths:
       - ".github/workflows/publish.yml"
       - "generate_fireplace.py"
+      - "generate_thumbnails.py"
+      - "validate_media.py"
       - "schedule.csv"
       - "uploader.py"
   schedule:
@@ -31,12 +33,20 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
-          pip install -r requirements.txt numpy
+          pip install -r requirements.txt numpy pillow
 
-      - name: Generate fireplace video if not uploaded yet
-        run: python generate_fireplace.py
+      - name: Generate scheduled video assets
+        run: |
+          python generate_fireplace.py
+          python generate_thumbnails.py
 
-      - name: Upload scheduled videos
+      - name: Validate generated video and audio before upload
+        run: |
+          if [ -f "videos/TV-OFF_Fireplace_1-Hour.mp4" ]; then
+            python validate_media.py "videos/TV-OFF_Fireplace_1-Hour.mp4"
+          fi
+
+      - name: Upload videos and set custom thumbnails
         env:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
@@ -45,6 +55,7 @@ jobs:
         run: python uploader.py
 
       - name: Save upload state
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
