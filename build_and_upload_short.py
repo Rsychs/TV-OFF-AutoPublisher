@@ -26,21 +26,22 @@ def main():
         print(f"SHORT ALREADY PUBLISHED FOR SLOT {slot}: {state[slot]}")
         return
 
-    # Scheduled runs must not start until the 10-hour thunderstorm upload is recorded.
+    # Shorts stay gated until the main 10-hour video has actually been uploaded.
     main_state = json.loads((ROOT / "state.json").read_text(encoding="utf-8"))
-    long_video = next((v for k, v in main_state.items()
-                       if k.startswith("TV-OFF_Thunderstorm_") and "_10-Hours.mp4" in k), None)
+    long_video = next((v for k, v in main_state.items() if "_10-Hours.mp4" in k), None)
     if not long_video:
-        raise RuntimeError("10-hour thunderstorm video is not recorded as uploaded; Shorts are gated.")
+        raise RuntimeError("No 10-hour video is recorded as uploaded; Shorts are gated.")
 
     manifest_path = AUDIO_DIR / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    source = AUDIO_DIR / manifest["thunderstorm"]["file"]
+    kind = next(iter(manifest))
+    info = manifest[kind]
+    source = AUDIO_DIR / info["file"]
     if not source.is_file():
         raise RuntimeError(f"Thunderstorm audio is missing: {source}")
 
     OUT.mkdir(exist_ok=True)
-    filename = f"TV-OFF_Thunderstorm_Short_{slot}.mp4"
+    filename = f"TV-OFF_{kind.title()}_Short_{slot}.mp4"
     target = OUT / filename
     # A minimal vertical TV OFF visual: black canvas, restrained blue-grey animated waveform.
     graph = (
@@ -49,7 +50,7 @@ def main():
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
         "text='TV OFF':fontcolor=white:fontsize=76:x=(w-text_w)/2:y=590,"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:"
-        "text='THUNDERSTORM  /  RAIN':fontcolor=0xAAB2C4:fontsize=30:"
+        "text='NATURE SOUNDS  /  TV OFF':fontcolor=0xAAB2C4:fontsize=30:"
         "x=(w-text_w)/2:y=1110[v]"
     )
     run([
@@ -80,7 +81,7 @@ def main():
     youtube = build("youtube", "v3", credentials=creds)
     info = manifest["thunderstorm"]
     description = (
-        "27 seconds of thunderstorm ambience from a CC0 Freesound recording. "
+        f"27 seconds of {kind} ambience from a verified CC0 field recording. "
         "TV OFF — sound to switch off to.\n\n"
         f"Original recording: {info.get('creator', 'Not credited')}\n"
         f"Source: {info.get('source_url', '')}\n"
@@ -89,9 +90,9 @@ def main():
     )
     body = {
         "snippet": {
-            "title": "Thunderstorm & Heavy Rain | TV OFF #Shorts",
+            "title": f"{kind.title()} Nature Sounds | TV OFF #Shorts",
             "description": description,
-            "tags": ["Shorts", "Thunderstorm", "Heavy Rain", "TV OFF", "Ambient Sounds"],
+            "tags": ["Shorts", kind.title(), "Nature Sounds", "TV OFF", "Ambient Sounds"],
             "categoryId": "10"
         },
         "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False}
