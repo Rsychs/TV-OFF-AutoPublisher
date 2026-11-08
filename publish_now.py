@@ -9,7 +9,7 @@ from google.auth.transport.requests import Request
 ROOT = Path(__file__).resolve().parent
 STATE_FILE = Path(os.environ.get("STATE_FILE", ROOT / "production_state.json"))
 VIDEO_KEY = "TV-OFF_Rain_FieldRecording_10-Hours.mp4"
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+SCOPES = ["https://www.googleapis.com/auth/youtube.force-ssl"]
 
 def main():
     if not STATE_FILE.is_file():
