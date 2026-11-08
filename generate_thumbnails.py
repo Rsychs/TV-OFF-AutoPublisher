@@ -14,6 +14,9 @@ ACCENTS = {
     "rain": (105, 145, 165),
     "thunderstorm": (124, 133, 158),
     "wind": (132, 151, 151),
+    "ocean": (78, 139, 171),
+    "forest": (103, 143, 104),
+    "river": (82, 153, 164),
 }
 
 def font(size, bold=False):
@@ -24,6 +27,12 @@ def detect_kind(filename, title):
     text = (filename + " " + title).lower()
     if "fire" in text:
         return "fireplace"
+    if "ocean" in text or "wave" in text or "sea" in text:
+        return "ocean"
+    if "forest" in text or "bird" in text or "woodland" in text:
+        return "forest"
+    if "river" in text or "stream" in text:
+        return "river"
     if "rain" in text:
         return "rain"
     if "thunder" in text or "storm" in text:
