@@ -5,7 +5,7 @@ on:
   push:
     branches: [main]
     paths:
-      - ".github/workflows/daily-soundscape.yml"
+      - ".github/workflows/daily-soundscape.yml"\n      - "generate_daily_schedule.py"
 
 permissions:
   contents: write
@@ -66,7 +66,7 @@ jobs:
           filename="$(python -c 'import csv; print(next(csv.DictReader(open("daily_schedule.csv", encoding="utf-8")))[ "filename"])')"
           python validate_media.py "videos/$filename"
 
-      - name: Upload and schedule the fireplace video on YouTube
+      - name: Upload and publish the fireplace video immediately on YouTube
         env:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
