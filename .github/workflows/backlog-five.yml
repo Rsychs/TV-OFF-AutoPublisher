@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/backlog-five.yml"
+      - "download_batch_audio.py"
 
 permissions:
   contents: write
