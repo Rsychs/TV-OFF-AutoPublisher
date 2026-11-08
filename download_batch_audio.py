@@ -31,16 +31,23 @@ APPROVED = ("public domain", "publicdomain/zero", "publicdomain/zero/1.0", "cc0"
 def fetch_json(url, params=None):
     if params:
         url += ("&" if "?" in url else "?") + urlencode(params, doseq=True)
-    for attempt in range(5):
+    # Long backoff for Wikimedia/Archive throttling on hosted CI runners.
+    for attempt in range(9):
         try:
-            req = Request(url, headers={"User-Agent": UA})
+            req = Request(url, headers={"User-Agent": UA, "Accept": "application/json"})
             with urlopen(req, timeout=90) as response:
                 return json.load(response)
         except Exception as exc:
-            if attempt == 4:
+            code = getattr(exc, "code", None)
+            if attempt == 8:
                 raise
-            delay = min(30, 3 * (2 ** attempt))
-            print(f"Retry API request in {delay}s: {exc}")
+            if code == 429:
+                delay = min(180, 20 * (attempt + 1))
+            elif code in (502, 503, 504):
+                delay = min(90, 10 * (attempt + 1))
+            else:
+                delay = min(60, 5 * (2 ** attempt))
+            print(f"Retry API request in {delay}s (attempt {attempt + 1}/9): {exc}")
             time.sleep(delay)
 
 def clean(value):
@@ -113,37 +120,32 @@ def freesound_candidates(kind, used):
             print(f"Freesound metadata skip {sound_id}: {exc}")
 
 def commons_candidates(kind, query, used):
+    # Sequential, small Commons requests avoid bulk-query bursts that trigger HTTP 429.
     data = fetch_json(COMMONS_API, {"format":"json","maxlag":5,"action":"query",
-        "list":"search","srnamespace":6,"srsearch":query,"srlimit":50})
-    titles = [x["title"] for x in data.get("query",{}).get("search",[])
-              if x["title"] not in used]
-    for offset in range(0, len(titles), 40):
-        pages = fetch_json(COMMONS_API, {"format":"json","maxlag":5,"action":"query",
-            "titles":"|".join(titles[offset:offset+40]),"prop":"imageinfo",
-            "iiprop":"url|mime|extmetadata"}).get("query",{}).get("pages",{})
+        "list":"search","srnamespace":6,"srsearch":query,"srlimit":25})
+    titles = [x["title"] for x in data.get("query",{}).get("search",[]) if x["title"] not in used]
+    for title in titles:
+        time.sleep(2.5)
+        try:
+            pages = fetch_json(COMMONS_API, {"format":"json","maxlag":5,"action":"query",
+                "titles":title,"prop":"imageinfo","iiprop":"url|mime|extmetadata"}).get("query",{}).get("pages",{})
+        except Exception as exc:
+            print(f"Commons metadata unavailable for {title}: {exc}")
+            continue
         for page in pages.values():
-            info = (page.get("imageinfo") or [{}])[0]
+            info=(page.get("imageinfo") or [{}])[0]
             if not (info.get("mime","").startswith("audio/") or info.get("mime")=="application/ogg"):
                 continue
-            meta = info.get("extmetadata",{})
-            lic = clean(meta.get("LicenseShortName",{}).get("value")) or clean(meta.get("UsageTerms",{}).get("value"))
-            combined = (page.get("title","") + " " + lic).lower()
-            if approved(lic) and info.get("url") and any(word in (page.get("title","").lower()) for word in RELEVANCE.get(kind, ())) and not any(word in page.get("title","").lower() for word in IRRELEVANT):
-                yield {"url":info["url"],"title":page.get("title",""),
-                       "source_url":"https://commons.wikimedia.org/wiki/"+page.get("title","").replace(" ","_"),
+            meta=info.get("extmetadata",{})
+            lic=clean(meta.get("LicenseShortName",{}).get("value")) or clean(meta.get("UsageTerms",{}).get("value"))
+            title_text=page.get("title","")
+            combined=(title_text+" "+clean(meta.get("ImageDescription",{}).get("value"))).lower()
+            if (approved(lic) and info.get("url") and any(word in combined for word in RELEVANCE.get(kind,()))
+                and not any(word in title_text.lower() for word in IRRELEVANT)):
+                yield {"url":info["url"],"title":title_text,
+                       "source_url":"https://commons.wikimedia.org/wiki/"+title_text.replace(" ","_"),
                        "creator":clean(meta.get("Artist",{}).get("value")) or clean(meta.get("Credit",{}).get("value")) or "Not credited",
                        "license":lic,"platform":"Wikimedia Commons"}
-
-RELEVANCE = {
-    "ocean": ("ocean","wave","sea","surf","beach","shore"),
-    "forest": ("forest","bird","woodland","dawn","nature"),
-    "river": ("river","stream","water","brook","rapids","creek"),
-    "fireplace": ("fire","fireplace","firewood","crackle","campfire","wood"),
-    "wind": ("wind","tree","forest","leaves","gust"),
-    "rain": ("rain","rainfall","storm","patter","water"),
-    "thunderstorm": ("thunder","storm","lightning","rain"),
-}
-IRRELEVANT = ("audiobook","audio book","novel","chapter","war and peace","speech","lecture","podcast","music","song","album")
 
 def archive_candidates(kind, query, used):
     terms = RELEVANCE[kind]
