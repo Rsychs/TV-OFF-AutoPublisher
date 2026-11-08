@@ -22,8 +22,8 @@ def main():
     publish_day = now.date()
     if now.time() >= time(18, 0):
         publish_day += timedelta(days=1)
-    # Monday=0; rotate through all seven distinct sound categories.
-    kind, title, tags = next(item for item in SOUNDS if item[0] == "thunderstorm")
+    # Rotate predictably through all seven soundscapes: Monday=0 through Sunday=6.
+    kind, title, tags = SOUNDS[publish_day.weekday()]
     date_key = publish_day.strftime("%Y%m%d")
     filename = f"TV-OFF_{kind.title()}_{date_key}_10-Hours.mp4"
     description = (
