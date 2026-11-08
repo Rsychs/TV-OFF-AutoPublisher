@@ -96,7 +96,7 @@ def freesound_candidates(kind, used):
             previews = data.get("previews") or {}
             preview = previews.get("preview-hq-mp3") or previews.get("preview-lq-mp3")
             title = data.get("name", "")
-            if not approved(lic) or "cc0" not in lic.lower().replace("-", "").replace(" ", ""):
+            if not approved(lic):
                 print(f"Freesound skip {sound_id}: license is not confirmed CC0 ({lic})")
                 continue
             if not preview or not title or title in used:
