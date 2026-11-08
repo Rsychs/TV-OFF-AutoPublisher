@@ -1,0 +1,72 @@
+name: Build and upload new TV OFF soundscapes
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install FFmpeg and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          pip install -r requirements.txt pillow
+
+      - name: Download four distinct licensed field recordings
+        env:
+          SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
+        run: python download_open_audio.py
+
+      - name: Build four 10-hour black-screen videos
+        env:
+          SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
+          MEDIA_DIR: ${{ github.workspace }}/videos
+          SCHEDULE_FILE: ${{ github.workspace }}/schedule.csv
+        run: python build_real_ambience.py
+
+      - name: Generate thumbnails
+        env:
+          SCHEDULE_FILE: ${{ github.workspace }}/schedule.csv
+        run: python generate_thumbnails.py
+
+      - name: Validate all four videos
+        env:
+          EXPECTED_DURATION_SECONDS: 36000
+        run: |
+          for file in videos/TV-OFF_Ocean_Waves_10-Hours.mp4 videos/TV-OFF_Forest_Birds_10-Hours.mp4 videos/TV-OFF_Flowing_River_10-Hours.mp4 videos/TV-OFF_Fireplace_Crackling_10-Hours.mp4; do
+            python validate_media.py "$file"
+          done
+
+      - name: Upload and schedule new videos
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          MEDIA_DIR: ${{ github.workspace }}/videos
+          SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
+          SCHEDULE_FILE: ${{ github.workspace }}/schedule.csv
+          STATE_FILE: ${{ github.workspace }}/state.json
+        run: python uploader.py
+
+      - name: Save upload state
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f state.json || true
+          git diff --cached --quiet || git commit -m "Save new soundscape upload state"
+          git pull --rebase origin main
+          git push
