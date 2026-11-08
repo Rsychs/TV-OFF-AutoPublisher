@@ -6,7 +6,7 @@ on:
     paths:
       - ".github/workflows/publish.yml"
       - "build_real_ambience.py"
-      - "generate_original_ambience.py"
+      - "download_open_audio.py"
       - "generate_thumbnails.py"
       - "validate_media.py"
       - "schedule.csv"
@@ -36,10 +36,10 @@ jobs:
           sudo apt-get install -y ffmpeg
           pip install -r requirements.txt pillow
 
-      - name: Generate original TV OFF ambience tracks
+      - name: Download real-world public-domain ambience recordings
         env:
           SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
-        run: python generate_original_ambience.py
+        run: python download_open_audio.py
 
       - name: Build test black-screen video
         env:
@@ -78,7 +78,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add state.json test_state.json
+          git add -f state.json test_state.json || true
           git diff --cached --quiet || git commit -m "Update upload state"
           git pull --rebase origin main
           git push
