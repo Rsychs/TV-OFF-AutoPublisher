@@ -40,6 +40,7 @@ jobs:
         run: python generate_daily_schedule.py
 
       - name: Select preferred CC0 thunderstorm recording from Freesound, with verified fallback search
+        timeout-minutes: 8
         env:
           FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
           SOUNDSCAPE: thunderstorm
