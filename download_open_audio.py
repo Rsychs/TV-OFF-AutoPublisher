@@ -9,7 +9,10 @@ ROOT = Path(os.environ.get("SOURCE_AUDIO_DIR", "generated-audio"))
 ROOT.mkdir(parents=True, exist_ok=True)
 UA = "TV-OFF-AutoPublisher/1.0 (licensed ambience downloader)"
 QUERIES = {
- "rain": ["incategory:\"Sounds of rain\" rain", "rain ambience", "rainfall recording"],
+ "ocean": ["ocean waves field recording", "sea waves beach ambience", "waves shore recording"],
+ "forest": ["forest birds dawn ambience", "woodland birds field recording", "birds forest soundscape"],
+ "river": ["flowing river stream water field recording", "forest stream water ambience", "river rapids recording"],
+ "fireplace": ["fireplace crackling wood fire recording", "wood fire crackling ambience", "campfire crackling sound"],
 }
 APPROVED = ("public domain", "cc0", "cc-zero", "cc zero")
 
@@ -28,7 +31,7 @@ def main():
  manifest={}
  for kind, queries in QUERIES.items():
   selected=None; seen=set()
-  seeded = ["File:Urban Street on a Rainy Afternoon.flac"] if kind == "rain" else []
+  seeded = []
   for q in (["__seed__"] + queries):
    data=({"query":{"search":[{"title":t} for t in seeded]}} if q == "__seed__" else api({"action":"query","list":"search","srnamespace":6,"srsearch":q,"srlimit":50}))
    titles=[x["title"] for x in data.get("query",{}).get("search",[]) if x["title"] not in seen]
