@@ -26,11 +26,11 @@ QUERIES = {
     "thunderstorm": ["thunderstorm field recording", "distant thunder and rain recording", "storm ambience field recording"],
     "wind": ["wind in trees field recording", "wind through forest recording", "strong wind nature ambience"],
 }
-APPROVED = ("public domain", "cc0", "cc-zero", "cc zero", "cc0 1.0")
+APPROVED = ("public domain", "publicdomain/zero", "publicdomain/zero/1.0", "cc0", "cc-zero", "cc zero", "cc0 1.0")
 
 def fetch_json(url, params=None):
     if params:
-        url += ("&" if "?" in url else "?") + urlencode(params)
+        url += ("&" if "?" in url else "?") + urlencode(params, doseq=True)
     req = Request(url, headers={"User-Agent": UA})
     with urlopen(req, timeout=90) as response:
         return json.load(response)
