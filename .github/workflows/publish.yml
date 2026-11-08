@@ -1,19 +1,6 @@
-name: YouTube AutoPublisher
+name: Legacy YouTube AutoPublisher (manual only)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/publish.yml"
-      - "build_real_ambience.py"
-      - "download_open_audio.py"
-      - "generate_thumbnails.py"
-      - "validate_media.py"
-      - "schedule.csv"
-      - "test_schedule.csv"
-      - "requirements.txt"
-      - "uploader.py"
-      - "publish_now.py"
   workflow_dispatch:
 
 permissions:
@@ -25,98 +12,7 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install FFmpeg and dependencies
+      - name: Legacy workflow disabled
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-          pip install -r requirements.txt pillow
-
-      - name: Download real-world public-domain ambience recordings
-        env:
-          SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
-        run: python download_open_audio.py
-
-      - name: Build test black-screen video
-        env:
-          SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
-          MEDIA_DIR: ${{ github.workspace }}/videos
-          SCHEDULE_FILE: ${{ github.workspace }}/test_schedule.csv
-        run: python build_real_ambience.py
-
-      - name: Generate test thumbnail
-        env:
-          SCHEDULE_FILE: ${{ github.workspace }}/test_schedule.csv
-        run: python generate_thumbnails.py
-
-      - name: Validate test video before upload
-        env:
-          EXPECTED_DURATION_SECONDS: 600
-        run: |
-          for file in videos/*.mp4; do
-            [ -f "$file" ] || continue
-            python validate_media.py "$file"
-          done
-
-      - name: Upload test video immediately
-        env:
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-          MEDIA_DIR: ${{ github.workspace }}/videos
-          SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
-          SCHEDULE_FILE: ${{ github.workspace }}/test_schedule.csv
-          STATE_FILE: ${{ github.workspace }}/test_state.json
-        run: python uploader.py
-
-      - name: Build 10-hour real rain video
-        env:
-          SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
-          MEDIA_DIR: ${{ github.workspace }}/videos
-          SCHEDULE_FILE: ${{ github.workspace }}/production_schedule.csv
-        run: python build_real_ambience.py
-
-      - name: Generate 10-hour video thumbnail
-        env:
-          SCHEDULE_FILE: ${{ github.workspace }}/production_schedule.csv
-        run: python generate_thumbnails.py
-
-      - name: Validate 10-hour video before upload
-        env:
-          EXPECTED_DURATION_SECONDS: 36000
-        run: |
-          python validate_media.py videos/TV-OFF_Rain_FieldRecording_10-Hours.mp4
-
-      - name: Upload 10-hour rain video
-        env:
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-          MEDIA_DIR: ${{ github.workspace }}/videos
-          SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
-          SCHEDULE_FILE: ${{ github.workspace }}/production_schedule.csv
-          STATE_FILE: ${{ github.workspace }}/production_state.json
-        run: python uploader.py
-
-      - name: Publish 10-hour rain video now
-        env:
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-          STATE_FILE: ${{ github.workspace }}/production_state.json
-        run: python publish_now.py
-
-      - name: Save upload state
-        if: always()
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f state.json test_state.json production_state.json || true
-          git diff --cached --quiet || git commit -m "Update upload state"
-          git pull --rebase origin main
-          git push
+          echo "This legacy batch workflow is retained for reference only."
+          echo "Use the daily-soundscape workflow for new uploads."
