@@ -261,3 +261,5 @@ def main():
 
 if __name__=="__main__":
     main()
+
+# Freesound API credentials are supplied securely through the FREESOUND_API_KEY Actions secret.
