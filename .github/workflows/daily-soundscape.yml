@@ -1,11 +1,12 @@
-name: TV OFF — One Fireplace Video
+name: TV OFF — 10-Hour Thunderstorm Video
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - ".github/workflows/daily-soundscape.yml"\n      - "generate_daily_schedule.py"
+      - ".github/workflows/daily-soundscape.yml"
+      - "generate_daily_schedule.py"
 
 permissions:
   contents: write
@@ -33,28 +34,29 @@ jobs:
           sudo apt-get install -y ffmpeg
           pip install -r requirements.txt pillow
 
-      - name: Create one fireplace publishing slot
+      - name: Create one thunderstorm publishing slot
         env:
           SCHEDULE_FILE: ${{ github.workspace }}/daily_schedule.csv
         run: python generate_daily_schedule.py
 
-      - name: Find and download one CC0 fireplace recording from Freesound
+      - name: Select preferred CC0 thunderstorm recording from Freesound, with verified fallback search
         env:
           FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
-          SOUNDSCAPE: fireplace
+          SOUNDSCAPE: thunderstorm
+          PREFERRED_FREESOUND_ID: "737690"
           SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
           SCHEDULE_FILE: ${{ github.workspace }}/daily_schedule.csv
           USED_SOURCES_FILE: ${{ github.workspace }}/used_sources.json
         run: python download_one_audio.py
 
-      - name: Build one 10-hour black-screen fireplace video
+      - name: Build one 10-hour black-screen thunderstorm video
         env:
           SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
           MEDIA_DIR: ${{ github.workspace }}/videos
           SCHEDULE_FILE: ${{ github.workspace }}/daily_schedule.csv
         run: python build_real_ambience.py
 
-      - name: Generate fireplace thumbnail
+      - name: Generate thunderstorm thumbnail
         env:
           SCHEDULE_FILE: ${{ github.workspace }}/daily_schedule.csv
         run: python generate_thumbnails.py
@@ -66,7 +68,7 @@ jobs:
           filename="$(python -c 'import csv; print(next(csv.DictReader(open("daily_schedule.csv", encoding="utf-8")))[ "filename"])')"
           python validate_media.py "videos/$filename"
 
-      - name: Upload and publish the fireplace video immediately on YouTube
+      - name: Upload and publish the thunderstorm video immediately on YouTube
         env:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
@@ -84,7 +86,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -f state.json used_sources.json || true
           if ! git diff --cached --quiet; then
-            git commit -m "Record TV OFF fireplace video and source"
+            git commit -m "Record TV OFF thunderstorm video and source"
           fi
           git pull --rebase origin main
           git push
