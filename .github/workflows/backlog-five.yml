@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: tv-off-backlog-five
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build-and-publish:
