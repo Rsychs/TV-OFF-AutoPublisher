@@ -36,8 +36,8 @@ def main():
     schedule_path = Path(os.environ.get("SCHEDULE_FILE", ROOT / "schedule.csv"))
     with schedule_path.open(newline="", encoding="utf-8-sig") as f:
         rows = list(csv.DictReader(f))
-    if len(rows) != 1:
-        raise RuntimeError(f"Expected exactly one daily upload row, found {len(rows)}")
+    if not rows:
+        raise RuntimeError("Schedule contains no upload rows")
     youtube = build("youtube", "v3", credentials=load_credentials())
     now = datetime.now(timezone.utc)
     manifest = json.loads(MANIFEST_FILE.read_text(encoding="utf-8")) if MANIFEST_FILE.is_file() else {}
