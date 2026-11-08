@@ -35,6 +35,10 @@ QUERIES = {
         "heavy rain and rolling thunder ambience no speech",
         "steady rain with distant thunderstorm field recording",
     ],
+    "ocean": ["ocean waves shore field recording", "gentle sea waves beach ambience", "rolling ocean surf no speech"],
+    "forest": ["forest birds dawn field recording", "woodland birds ambience no speech", "night forest insects nature ambience"],
+    "river": ["flowing river stream field recording", "forest stream water ambience", "river rapids nature sound"],
+    "wind": ["wind in trees field recording", "wind through forest ambience", "strong wind nature recording"],
 }
 CC0_MARKERS = ("creativecommons.org/publicdomain/zero", "cc0", "public domain")
 
