@@ -39,6 +39,7 @@ jobs:
           SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
           SCHEDULE_FILE: ${{ github.workspace }}/backlog_schedule.csv
           USED_SOURCES_FILE: ${{ github.workspace }}/used_sources.json
+          FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
         run: python download_batch_audio.py
 
       - name: Build five 10-hour black-screen videos
