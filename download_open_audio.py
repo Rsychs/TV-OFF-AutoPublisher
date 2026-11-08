@@ -9,10 +9,7 @@ ROOT = Path(os.environ.get("SOURCE_AUDIO_DIR", "generated-audio"))
 ROOT.mkdir(parents=True, exist_ok=True)
 UA = "TV-OFF-AutoPublisher/1.0 (licensed ambience downloader)"
 QUERIES = {
- "rain": ["rain filetype:audio", "rainfall filetype:audio"],
- "fireplace": ["fire crackling filetype:audio", "fireplace sound filetype:audio"],
- "thunderstorm": ["thunderstorm filetype:audio", "thunder rumble filetype:audio"],
- "wind": ["wind in trees filetype:audio", "wind blowing filetype:audio"],
+ "rain": ["incategory:\"Sounds of rain\" rain", "rain ambience", "rainfall recording"],
 }
 APPROVED = ("public domain", "cc0", "cc-zero", "cc zero")
 
@@ -31,16 +28,17 @@ def main():
  manifest={}
  for kind, queries in QUERIES.items():
   selected=None; seen=set()
-  for q in queries:
-   data=api({"action":"query","list":"search","srnamespace":6,"srsearch":q,"srlimit":15})
+  seeded = ["File:Urban Street on a Rainy Afternoon.flac"] if kind == "rain" else []
+  for q in (["__seed__"] + queries):
+   data=({"query":{"search":[{"title":t} for t in seeded]}} if q == "__seed__" else api({"action":"query","list":"search","srnamespace":6,"srsearch":q,"srlimit":50}))
    titles=[x["title"] for x in data.get("query",{}).get("search",[]) if x["title"] not in seen]
    seen.update(titles)
    print(f"SEARCH {kind}: {q} -> {len(titles)} unique candidates")
    if not titles: continue
-   pages=api({"action":"query","titles":"|".join(titles),"prop":"imageinfo","iiprop":"url|mime|extmetadata","iiextmetadatafilter":"LicenseShortName|UsageTerms|Artist|Credit"}).get("query",{}).get("pages",{})
+   pages=api({"action":"query","titles":"|".join(titles),"prop":"imageinfo","iiprop":"url|mime|extmetadata"}).get("query",{}).get("pages",{})
    for page in pages.values():
     info=(page.get("imageinfo") or [{}])[0]
-    if not info.get("mime","").startswith("audio/"): continue
+    if not (info.get("mime","").startswith("audio/") or info.get("mime") == "application/ogg"): continue
     meta=info.get("extmetadata",{})
     lic=clean(meta.get("LicenseShortName",{}).get("value"))
     usage=clean(meta.get("UsageTerms",{}).get("value"))
