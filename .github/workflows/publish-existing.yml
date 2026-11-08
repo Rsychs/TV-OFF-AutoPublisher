@@ -1,0 +1,36 @@
+name: Publish existing YouTube video
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_id:
+        description: "Existing YouTube video ID (leave blank to use production_state.json)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish-existing:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install API dependencies only
+        run: pip install -r requirements.txt
+
+      - name: Publish existing video
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          STATE_FILE: ${{ github.workspace }}/production_state.json
+          VIDEO_ID: ${{ inputs.video_id }}
+        run: python publish_now.py
