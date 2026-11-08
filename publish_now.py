@@ -9,8 +9,6 @@ from google.auth.transport.requests import Request
 ROOT = Path(__file__).resolve().parent
 STATE_FILE = Path(os.environ.get("STATE_FILE", ROOT / "production_state.json"))
 VIDEO_KEY = "TV-OFF_Rain_FieldRecording_10-Hours.mp4"
-SCOPES = ["https://www.googleapis.com/auth/youtube.force-ssl"]
-
 def main():
     if not STATE_FILE.is_file():
         raise RuntimeError(f"Upload state file not found: {STATE_FILE}")
@@ -25,7 +23,6 @@ def main():
         token_uri="https://oauth2.googleapis.com/token",
         client_id=os.environ["YT_CLIENT_ID"],
         client_secret=os.environ["YT_CLIENT_SECRET"],
-        scopes=SCOPES,
     )
     creds.refresh(Request())
     youtube = build("youtube", "v3", credentials=creds)
