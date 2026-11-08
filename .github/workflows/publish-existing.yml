@@ -2,11 +2,6 @@ name: Publish existing YouTube video
 
 on:
   workflow_dispatch:
-    inputs:
-      video_id:
-        description: "Existing YouTube video ID (leave blank to use production_state.json)"
-        required: false
-        type: string
 
 permissions:
   contents: read
@@ -32,5 +27,4 @@ jobs:
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
           STATE_FILE: ${{ github.workspace }}/production_state.json
-          VIDEO_ID: ${{ inputs.video_id }}
         run: python publish_now.py
