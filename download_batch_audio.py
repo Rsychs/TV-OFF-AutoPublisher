@@ -31,9 +31,17 @@ APPROVED = ("public domain", "publicdomain/zero", "publicdomain/zero/1.0", "cc0"
 def fetch_json(url, params=None):
     if params:
         url += ("&" if "?" in url else "?") + urlencode(params, doseq=True)
-    req = Request(url, headers={"User-Agent": UA})
-    with urlopen(req, timeout=90) as response:
-        return json.load(response)
+    for attempt in range(5):
+        try:
+            req = Request(url, headers={"User-Agent": UA})
+            with urlopen(req, timeout=90) as response:
+                return json.load(response)
+        except Exception as exc:
+            if attempt == 4:
+                raise
+            delay = min(30, 3 * (2 ** attempt))
+            print(f"Retry API request in {delay}s: {exc}")
+            time.sleep(delay)
 
 def clean(value):
     return re.sub(r"<[^>]+>", "", str(value or "")).strip()
@@ -64,7 +72,7 @@ def approved(text):
     value = text.lower().replace("-", " ")
     return any(term in value for term in APPROVED)
 
-def commons_candidates(query, used):
+def commons_candidates(kind, query, used):
     data = fetch_json(COMMONS_API, {"format":"json","maxlag":5,"action":"query",
         "list":"search","srnamespace":6,"srsearch":query,"srlimit":50})
     titles = [x["title"] for x in data.get("query",{}).get("search",[])
@@ -79,22 +87,39 @@ def commons_candidates(query, used):
                 continue
             meta = info.get("extmetadata",{})
             lic = clean(meta.get("LicenseShortName",{}).get("value")) or clean(meta.get("UsageTerms",{}).get("value"))
-            if approved(lic) and info.get("url"):
+            combined = (page.get("title","") + " " + lic).lower()
+            if approved(lic) and info.get("url") and any(word in (page.get("title","").lower()) for word in RELEVANCE.get(kind, ())) and not any(word in page.get("title","").lower() for word in IRRELEVANT):
                 yield {"url":info["url"],"title":page.get("title",""),
                        "source_url":"https://commons.wikimedia.org/wiki/"+page.get("title","").replace(" ","_"),
                        "creator":clean(meta.get("Artist",{}).get("value")) or clean(meta.get("Credit",{}).get("value")) or "Not credited",
                        "license":lic,"platform":"Wikimedia Commons"}
 
-def archive_candidates(query, used):
-    terms = query.replace('"','')
-    data = fetch_json(IA_SEARCH, {"q":f'mediatype:audio AND ({terms})',
+RELEVANCE = {
+    "ocean": ("ocean","wave","sea","surf","beach","shore"),
+    "forest": ("forest","bird","woodland","dawn","nature"),
+    "river": ("river","stream","water","brook","rapids","creek"),
+    "fireplace": ("fire","fireplace","firewood","crackle","campfire","wood"),
+    "wind": ("wind","tree","forest","leaves","gust"),
+    "rain": ("rain","rainfall","storm","patter","water"),
+    "thunderstorm": ("thunder","storm","lightning","rain"),
+}
+IRRELEVANT = ("audiobook","audio book","novel","chapter","war and peace","speech","lecture","podcast","music","song","album")
+
+def archive_candidates(kind, query, used):
+    terms = RELEVANCE[kind]
+    clauses = " OR ".join(f'title:{term} OR description:{term}' for term in terms[:4])
+    data = fetch_json(IA_SEARCH, {"q":f'mediatype:audio AND ({clauses})',
         "fl[]":["identifier","title","creator","licenseurl","description"],
-        "rows":50,"page":1,"output":"json"})
+        "rows":100,"page":1,"output":"json"})
     for item in data.get("response",{}).get("docs",[]):
         identifier = item.get("identifier","")
         lic = item.get("licenseurl","")
         title = item.get("title",identifier)
-        if not identifier or identifier in used or not approved(lic):
+        desc = clean(item.get("description",""))
+        combined = (title + " " + desc).lower()
+        if (not identifier or identifier in used or not approved(lic)
+            or any(word in combined for word in IRRELEVANT)
+            or not any(word in combined for word in terms)):
             continue
         try:
             meta = fetch_json("https://archive.org/metadata/"+quote(identifier,safe=""))
@@ -155,11 +180,11 @@ def main():
             print(f"SEARCH {kind}: {query}")
             candidates=[]
             try:
-                candidates.extend(commons_candidates(query,used))
+                candidates.extend(commons_candidates(kind,query,used))
             except Exception as e:
                 print(f"Commons search unavailable: {e}")
             try:
-                candidates.extend(archive_candidates(query,used))
+                candidates.extend(archive_candidates(kind,query,used))
             except Exception as e:
                 print(f"Internet Archive search unavailable: {e}")
             for candidate in candidates:
