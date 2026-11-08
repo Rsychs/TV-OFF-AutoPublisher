@@ -58,8 +58,10 @@ def digest(path):
             h.update(chunk)
     return h.hexdigest()
 
-def download_original(sound_id, target):
-    url = f"{API}/sounds/{sound_id}/download/?token={TOKEN}"
+def download_preview(previews, target):
+    url = (previews or {}).get("preview-hq-mp3") or (previews or {}).get("preview-hq-ogg")
+    if not url:
+        raise RuntimeError("Freesound returned no high-quality preview URL")
     req = Request(url, headers={"User-Agent": "TV-OFF-AutoPublisher/4.0"})
     with urlopen(req, timeout=120) as response, target.open("wb") as output:
         while True:
@@ -86,7 +88,7 @@ def main():
             "filter": 'license:"Creative Commons 0" duration:[90 TO *]',
             "sort": "rating_desc",
             "page_size": 30,
-            "fields": "id,name,username,duration,license,url,avg_rating,num_downloads",
+            "fields": "id,name,username,duration,license,url,avg_rating,num_downloads,previews",
         })
         sounds = result.get("results", [])
         print(f"FREESOUND RESULTS: {len(sounds)}", flush=True)
@@ -106,10 +108,10 @@ def main():
             if original_duration < MIN_SECONDS:
                 continue
 
-            target = ROOT / f"{KIND}_source_{sid}.audio"
+            target = ROOT / f"{KIND}_source_{sid}.mp3"
             try:
-                print(f"DOWNLOAD ORIGINAL: {sid} | {sound.get('name')} | {original_duration:.1f}s", flush=True)
-                download_original(sid, target)
+                print(f"DOWNLOAD HIGH-QUALITY PREVIEW: {sid} | {sound.get('name')} | {original_duration:.1f}s", flush=True)
+                download_preview(sound.get("previews"), target)
                 actual_duration = probe_seconds(target)
                 if actual_duration < MIN_SECONDS:
                     raise RuntimeError(f"Downloaded audio too short: {actual_duration:.1f}s")
@@ -117,7 +119,7 @@ def main():
                     "file": target.name,
                     "creator": sound.get("username") or "Not credited",
                     "source_url": source_url,
-                    "license": "CC0 1.0 (verified by Freesound API)",
+                    "license": "CC0 1.0 (verified by Freesound API; high-quality Freesound preview)",
                     "title": sound.get("name") or f"Freesound {sid}",
                     "platform": "Freesound",
                     "freesound_id": sid,
@@ -125,7 +127,7 @@ def main():
                     "sha256": digest(target),
                     "downloaded_at": datetime.now(timezone.utc).isoformat(),
                 }
-                print(f"SELECTED: {selected['title']} | {actual_duration:.1f}s | CC0", flush=True)
+                print(f"SELECTED: {selected['title']} | {actual_duration:.1f}s | CC0 high-quality preview", flush=True)
                 break
             except Exception as exc:
                 target.unlink(missing_ok=True)
