@@ -1,0 +1,116 @@
+name: TV OFF - Publish One Video
+
+on:
+  workflow_dispatch:
+    inputs:
+      soundscape:
+        description: Sound to publish
+        required: true
+        type: choice
+        options:
+          - rain
+        default: rain
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tv-off-single-video
+  cancel-in-progress: false
+
+jobs:
+  publish-one:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install FFmpeg and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          pip install -r requirements.txt pillow
+
+      - name: Select exactly one scheduled video
+        env:
+          SOUNDSCAPE: ${{ inputs.soundscape }}
+        run: |
+          python - <<'PY'
+          import csv, os
+          source = "backlog_schedule.csv"
+          target = "selected_schedule.csv"
+          kind = os.environ["SOUNDSCAPE"]
+          with open(source, newline="", encoding="utf-8-sig") as f:
+              reader = csv.DictReader(f)
+              fields = reader.fieldnames
+              rows = [r for r in reader if r["soundscape"] == kind]
+          if len(rows) != 1:
+              raise SystemExit(f"Expected exactly one {kind} row; found {len(rows)}")
+          with open(target, "w", newline="", encoding="utf-8") as f:
+              writer = csv.DictWriter(f, fieldnames=fields)
+              writer.writeheader()
+              writer.writerows(rows)
+          print(f"ONE VIDEO SELECTED: {rows[0]['filename']}")
+          PY
+
+      - name: Find and verify one CC0 recording via Freesound API
+        env:
+          SOUNDSCAPE: ${{ inputs.soundscape }}
+          SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
+          USED_SOURCES_FILE: ${{ github.workspace }}/used_sources.json
+          FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
+        run: python download_one_audio.py
+
+      - name: Build one 10-hour black-screen video
+        env:
+          SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
+          MEDIA_DIR: ${{ github.workspace }}/videos
+          SCHEDULE_FILE: ${{ github.workspace }}/selected_schedule.csv
+        run: python build_real_ambience.py
+
+      - name: Generate one thumbnail
+        env:
+          SCHEDULE_FILE: ${{ github.workspace }}/selected_schedule.csv
+        run: python generate_thumbnails.py
+
+      - name: Validate the 10-hour video
+        env:
+          EXPECTED_DURATION_SECONDS: "36000"
+        run: |
+          python - <<'PY'
+          import csv, subprocess
+          with open("selected_schedule.csv", newline="", encoding="utf-8-sig") as f:
+              rows = list(csv.DictReader(f))
+          if len(rows) != 1:
+              raise SystemExit("Safety check failed: expected exactly one video")
+          subprocess.run(["python", "validate_media.py", "videos/" + rows[0]["filename"]], check=True)
+          PY
+
+      - name: Upload and schedule one video
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          MEDIA_DIR: ${{ github.workspace }}/videos
+          SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
+          SCHEDULE_FILE: ${{ github.workspace }}/selected_schedule.csv
+          STATE_FILE: ${{ github.workspace }}/state.json
+        run: python uploader.py
+
+      - name: Persist upload and source history
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f state.json used_sources.json || true
+          if ! git diff --cached --quiet; then
+            git commit -m "Record single TV OFF video and source history"
+          fi
+          git pull --rebase origin main
+          git push
