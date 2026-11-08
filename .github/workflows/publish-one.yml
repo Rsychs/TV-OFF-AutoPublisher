@@ -21,8 +21,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: tv-off-backlog-five
-  cancel-in-progress: true
+  group: tv-off-single-video
+  cancel-in-progress: false
 
 jobs:
   publish-one:
