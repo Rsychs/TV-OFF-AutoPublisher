@@ -67,7 +67,7 @@ jobs:
 
       - name: Find and verify one CC0 recording via Freesound API
         env:
-          SOUNDSCAPE: ${{ inputs.soundscape }}
+          SOUNDSCAPE: ${{ inputs.soundscape || 'rain' }}
           SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
           USED_SOURCES_FILE: ${{ github.workspace }}/used_sources.json
           FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
