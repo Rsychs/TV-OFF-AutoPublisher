@@ -1,90 +1,14 @@
-name: TV OFF Five-Video Backlog
+name: DEPRECATED - Use Publish One Video
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/backlog-five.yml"
-      - "download_batch_audio.py"
-
-permissions:
-  contents: write
-
-concurrency:
-  group: tv-off-backlog-five
-  cancel-in-progress: true
 
 jobs:
-  build-and-publish:
+  retired:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
     steps:
-      - name: Check out code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install FFmpeg and dependencies
+      - name: Stop deprecated five-video batch
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-          pip install -r requirements.txt pillow
-
-      - name: Find and verify five licensed field recordings
-        env:
-          SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
-          SCHEDULE_FILE: ${{ github.workspace }}/backlog_schedule.csv
-          USED_SOURCES_FILE: ${{ github.workspace }}/used_sources.json
-          FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
-        run: python download_batch_audio.py
-
-      - name: Build five 10-hour black-screen videos
-        env:
-          SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
-          MEDIA_DIR: ${{ github.workspace }}/videos
-          SCHEDULE_FILE: ${{ github.workspace }}/backlog_schedule.csv
-        run: python build_real_ambience.py
-
-      - name: Generate five thumbnails
-        env:
-          SCHEDULE_FILE: ${{ github.workspace }}/backlog_schedule.csv
-        run: python generate_thumbnails.py
-
-      - name: Validate every 10-hour video
-        env:
-          EXPECTED_DURATION_SECONDS: "36000"
-        run: |
-          python - <<'PY'
-          import csv, subprocess
-          with open("backlog_schedule.csv", newline="", encoding="utf-8-sig") as f:
-              rows = list(csv.DictReader(f))
-          for row in rows:
-              subprocess.run(["python", "validate_media.py", "videos/" + row["filename"]], check=True)
-          PY
-
-      - name: Upload and schedule all five videos
-        env:
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-          MEDIA_DIR: ${{ github.workspace }}/videos
-          SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
-          SCHEDULE_FILE: ${{ github.workspace }}/backlog_schedule.csv
-          STATE_FILE: ${{ github.workspace }}/state.json
-        run: python uploader.py
-
-      - name: Persist upload and source history
-        if: always()
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f state.json used_sources.json || true
-          if ! git diff --cached --quiet; then
-            git commit -m "Record TV OFF backlog uploads and licensed sources"
-          fi
-          git pull --rebase origin main
-          git push
+          echo "This five-video batch workflow has been retired."
+          echo "Use the 'TV OFF - Publish One Video' workflow instead."
+          exit 1
