@@ -34,9 +34,10 @@ def main():
 
     # Shorts stay gated until the main 10-hour video has actually been uploaded.
     main_state = json.loads((ROOT / "state.json").read_text(encoding="utf-8"))
-    long_video = next((v for k, v in main_state.items() if "_10-Hours.mp4" in k), None)
+    long_video = next((v for k, v in main_state.items()
+                       if k.startswith("TV-OFF_Thunderstorm_") and "_10-Hours.mp4" in k), None)
     if not long_video:
-        raise RuntimeError("No 10-hour video is recorded as uploaded; Shorts are gated.")
+        raise RuntimeError("The current 10-hour thunderstorm video is not recorded as uploaded; Shorts are gated.")
 
     manifest_path = AUDIO_DIR / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
