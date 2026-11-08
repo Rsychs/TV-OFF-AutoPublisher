@@ -32,12 +32,14 @@ def main():
             print(f"Two-hour cooldown active; next Short in {int(7200 - elapsed)} seconds.")
             return
 
-    # Shorts stay gated until the main 10-hour video has actually been uploaded.
+    # Shorts stay gated until at least one 10-hour soundscape video is recorded as uploaded.
     main_state = json.loads((ROOT / "state.json").read_text(encoding="utf-8"))
-    long_video = next((v for k, v in main_state.items()
-                       if k.startswith("TV-OFF_Thunderstorm_") and "_10-Hours.mp4" in k), None)
+    long_video = next((
+        value for key, value in main_state.items()
+        if isinstance(key, str) and key.startswith("TV-OFF_") and "_10-Hours.mp4" in key
+    ), None)
     if not long_video:
-        raise RuntimeError("The current 10-hour thunderstorm video is not recorded as uploaded; Shorts are gated.")
+        raise RuntimeError("No 10-hour soundscape video is recorded as uploaded; Shorts are gated.")
 
     manifest_path = AUDIO_DIR / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -45,7 +47,7 @@ def main():
     info = manifest[kind]
     source = AUDIO_DIR / info["file"]
     if not source.is_file():
-        raise RuntimeError(f"Thunderstorm audio is missing: {source}")
+        raise RuntimeError(f"Selected {kind} audio is missing: {source}")
 
     OUT.mkdir(exist_ok=True)
     filename = f"TV-OFF_{kind.title()}_Short_{slot}.mp4"
@@ -86,14 +88,13 @@ def main():
     )
     creds.refresh(Request())
     youtube = build("youtube", "v3", credentials=creds)
-    info = manifest["thunderstorm"]
     description = (
         f"27 seconds of {kind} ambience from a verified CC0 field recording. "
         "TV OFF — sound to switch off to.\n\n"
         f"Original recording: {info.get('creator', 'Not credited')}\n"
         f"Source: {info.get('source_url', '')}\n"
         f"License: {info.get('license', 'CC0')}\n\n"
-        "#Shorts #Thunderstorm #RainSounds #TVOff #AmbientSounds"
+        f"#Shorts #{kind.title().replace(' ', '')} #NatureSounds #TVOff #AmbientSounds"
     )
     body = {
         "snippet": {
@@ -112,7 +113,7 @@ def main():
     state[slot] = video_id
     state["_last_published_at"] = now.isoformat()
     STATE.write_text(json.dumps(state, indent=2), encoding="utf-8")
-    print(f"SHORT PUBLISHED: https://youtu.be/{video_id} | slot={slot}")
+    print(f"SHORT PUBLISHED: https://youtu.be/{video_id} | slot={slot} | soundscape={kind}")
 
 if __name__ == "__main__":
     main()
