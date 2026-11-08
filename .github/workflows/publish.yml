@@ -13,6 +13,7 @@ on:
       - "test_schedule.csv"
       - "requirements.txt"
       - "uploader.py"
+      - "publish_now.py"
   workflow_dispatch:
 
 permissions:
@@ -101,6 +102,14 @@ jobs:
           SCHEDULE_FILE: ${{ github.workspace }}/production_schedule.csv
           STATE_FILE: ${{ github.workspace }}/production_state.json
         run: python uploader.py
+
+      - name: Publish 10-hour rain video now
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          STATE_FILE: ${{ github.workspace }}/production_state.json
+        run: python publish_now.py
 
       - name: Save upload state
         if: always()
