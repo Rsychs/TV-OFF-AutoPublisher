@@ -15,7 +15,9 @@ KIND = os.environ.get("SOUNDSCAPE", "rain").strip().lower()
 ROOT = Path(os.environ.get("SOURCE_AUDIO_DIR", "generated-audio"))
 ROOT.mkdir(parents=True, exist_ok=True)
 HISTORY = Path(os.environ.get("USED_SOURCES_FILE", "used_sources.json"))
-MIN_SECONDS = 90
+MIN_SOURCE_SECONDS = 90
+MIN_PREVIEW_SECONDS = 20
+MAX_DOWNLOAD_ATTEMPTS = 6
 QUERIES = {
     "rain": [
         "steady rain falling outdoors field recording",
@@ -63,7 +65,7 @@ def download_preview(previews, target):
     if not url:
         raise RuntimeError("Freesound returned no high-quality preview URL")
     req = Request(url, headers={"User-Agent": "TV-OFF-AutoPublisher/4.0"})
-    with urlopen(req, timeout=120) as response, target.open("wb") as output:
+    with urlopen(req, timeout=25) as response, target.open("wb") as output:
         while True:
             chunk = response.read(1024 * 1024)
             if not chunk:
@@ -80,6 +82,7 @@ def main():
     used = set(history.get("used", []))
     seen = set()
     selected = None
+    download_attempts = 0
 
     for query in QUERIES[KIND]:
         print(f"FREESOUND SEARCH: {query}", flush=True)
@@ -87,7 +90,7 @@ def main():
             "query": query,
             "filter": 'license:"Creative Commons 0" duration:[90 TO *]',
             "sort": "rating_desc",
-            "page_size": 30,
+            "page_size": 15,
             "fields": "id,name,username,duration,license,url,avg_rating,num_downloads,previews",
         })
         sounds = result.get("results", [])
@@ -105,16 +108,19 @@ def main():
                 print(f"SKIP {sid}: source already used", flush=True)
                 continue
             original_duration = float(sound.get("duration") or 0)
-            if original_duration < MIN_SECONDS:
+            if original_duration < MIN_SOURCE_SECONDS:
                 continue
 
+            download_attempts += 1
+            if download_attempts > MAX_DOWNLOAD_ATTEMPTS:
+                break
             target = ROOT / f"{KIND}_source_{sid}.mp3"
             try:
                 print(f"DOWNLOAD HIGH-QUALITY PREVIEW: {sid} | {sound.get('name')} | {original_duration:.1f}s", flush=True)
                 download_preview(sound.get("previews"), target)
                 actual_duration = probe_seconds(target)
-                if actual_duration < MIN_SECONDS:
-                    raise RuntimeError(f"Downloaded audio too short: {actual_duration:.1f}s")
+                if actual_duration < MIN_PREVIEW_SECONDS:
+                    raise RuntimeError(f"Downloaded preview too short: {actual_duration:.1f}s")
                 selected = {
                     "file": target.name,
                     "creator": sound.get("username") or "Not credited",
