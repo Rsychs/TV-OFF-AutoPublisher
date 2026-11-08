@@ -11,7 +11,8 @@ from urllib.request import Request, urlopen
 
 API = "https://freesound.org/apiv2"
 TOKEN = os.environ.get("FREESOUND_API_KEY", "").strip()
-KIND = os.environ.get("SOUNDSCAPE", "fireplace").strip().lower()
+KIND = os.environ.get("SOUNDSCAPE", "thunderstorm").strip().lower()
+PREFERRED_SOUND_ID = os.environ.get("PREFERRED_FREESOUND_ID", "737690").strip()
 ROOT = Path(os.environ.get("SOURCE_AUDIO_DIR", "generated-audio"))
 ROOT.mkdir(parents=True, exist_ok=True)
 HISTORY = Path(os.environ.get("USED_SOURCES_FILE", "used_sources.json"))
@@ -28,6 +29,11 @@ QUERIES = {
         "steady rain falling outdoors field recording",
         "rain on window or roof continuous field recording",
         "heavy rainfall nature ambience",
+    ],
+    "thunderstorm": [
+        "heavy rain thunderstorm continuous field recording distant rolling thunder",
+        "heavy rain and rolling thunder ambience no speech",
+        "steady rain with distant thunderstorm field recording",
     ],
 }
 CC0_MARKERS = ("creativecommons.org/publicdomain/zero", "cc0", "public domain")
@@ -88,6 +94,15 @@ def main():
     seen = set()
     selected = None
     download_attempts = 0
+    preferred_sound = None
+    if KIND == "thunderstorm" and PREFERRED_SOUND_ID:
+        try:
+            preferred_sound = api_json(f"sounds/{PREFERRED_SOUND_ID}/", {
+                "fields": "id,name,username,duration,license,url,avg_rating,num_downloads,previews",
+            })
+            print(f"PREFERRED FREESOUND SOURCE FOUND: {PREFERRED_SOUND_ID}", flush=True)
+        except Exception as exc:
+            print(f"PREFERRED SOURCE LOOKUP FAILED; falling back to CC0 search: {exc}", flush=True)
 
     for query in QUERIES[KIND]:
         print(f"FREESOUND SEARCH: {query}", flush=True)
@@ -99,7 +114,10 @@ def main():
             "fields": "id,name,username,duration,license,url,avg_rating,num_downloads,previews",
         })
         sounds = result.get("results", [])
-        print(f"FREESOUND RESULTS: {len(sounds)}", flush=True)
+        if preferred_sound is not None:
+            sounds = [preferred_sound] + sounds
+            preferred_sound = None
+        print(f"FREESOUND RESULTS: {len(sounds)} (including preferred source when available)", flush=True)
         for sound in sounds:
             sid = sound.get("id")
             source_url = f"https://freesound.org/sounds/{sid}/"
