@@ -26,6 +26,7 @@ concurrency:
 
 jobs:
   publish-one:
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
