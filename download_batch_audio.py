@@ -72,6 +72,46 @@ def approved(text):
     value = text.lower().replace("-", " ")
     return any(term in value for term in APPROVED)
 
+FREESOUND_API = "https://freesound.org/apiv2/sounds/"
+FREESOUND_IDS = {
+    "ocean": [531015, 724582],
+    "forest": [816088, 547472],
+    "river": [325182],
+    "fireplace": [800660],
+    "wind": [757474, 858679],
+}
+
+def freesound_candidates(kind, used):
+    token = os.environ.get("FREESOUND_API_KEY", "").strip()
+    if not token:
+        print("Freesound disabled: FREESOUND_API_KEY is not configured")
+        return
+    for sound_id in FREESOUND_IDS.get(kind, []):
+        try:
+            data = fetch_json(FREESOUND_API + str(sound_id) + "/", {
+                "token": token,
+                "fields": "id,name,url,username,duration,license,previews"
+            })
+            lic = str(data.get("license", ""))
+            previews = data.get("previews") or {}
+            preview = previews.get("preview-hq-mp3") or previews.get("preview-lq-mp3")
+            title = data.get("name", "")
+            if not approved(lic) or "cc0" not in lic.lower().replace("-", "").replace(" ", ""):
+                print(f"Freesound skip {sound_id}: license is not confirmed CC0 ({lic})")
+                continue
+            if not preview or not title or title in used:
+                continue
+            yield {
+                "url": preview,
+                "title": title,
+                "source_url": data.get("url") or f"https://freesound.org/sounds/{sound_id}/",
+                "creator": data.get("username") or "Not credited",
+                "license": "CC0 (Freesound)",
+                "platform": "Freesound",
+            }
+        except Exception as exc:
+            print(f"Freesound metadata skip {sound_id}: {exc}")
+
 def commons_candidates(kind, query, used):
     data = fetch_json(COMMONS_API, {"format":"json","maxlag":5,"action":"query",
         "list":"search","srnamespace":6,"srsearch":query,"srlimit":50})
@@ -179,6 +219,10 @@ def main():
         for query in QUERIES[kind]:
             print(f"SEARCH {kind}: {query}")
             candidates=[]
+            try:
+                candidates.extend(freesound_candidates(kind, used))
+            except Exception as e:
+                print(f"Freesound unavailable: {e}")
             try:
                 candidates.extend(commons_candidates(kind,query,used))
             except Exception as e:
