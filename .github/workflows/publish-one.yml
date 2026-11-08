@@ -32,6 +32,12 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
+      - name: Prevent accidental backlog publishing on repository pushes
+        if: github.event_name == 'push'
+        run: |
+          echo "Push-triggered backlog publishing is disabled for safety."
+          exit 0
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
