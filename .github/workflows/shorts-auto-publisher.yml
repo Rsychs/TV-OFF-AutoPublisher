@@ -2,7 +2,7 @@ name: TV OFF — Shorts Auto Publisher
 
 on:
   workflow_run:
-    workflows: ["TV OFF — 10-Hour Thunderstorm Video"]
+    workflows: ["TV OFF — 10-Hour Soundscape Video"]
     types: [completed]
   schedule:
     - cron: "0 */2 * * *"
@@ -21,8 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Check out code
+      - name: Check out the latest main branch state
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -35,13 +37,43 @@ jobs:
           sudo apt-get install -y ffmpeg fonts-dejavu-core
           pip install -r requirements.txt
 
+      - name: Check Shorts slot and two-hour cooldown
+        id: cooldown
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          path = Path("shorts_state.json")
+          state = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+          now = datetime.now(timezone.utc)
+          slot = now.strftime("%Y%m%d%H")
+          reason = ""
+          if slot in state:
+              reason = f"Short already published for slot {slot}: {state[slot]}"
+          else:
+              last = state.get("_last_published_at")
+              if last:
+                  elapsed = (now - datetime.fromisoformat(last)).total_seconds()
+                  if elapsed < 7200:
+                      reason = f"Two-hour cooldown active; {int(7200 - elapsed)} seconds remain."
+          skip = "true" if reason else "false"
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"skip={skip}\n")
+          print(reason if reason else f"Short slot {slot} is ready.")
+          PY
+
       - name: Select a different soundscape every two-hour slot
+        if: steps.cooldown.outputs.skip != 'true'
         run: |
           KIND=$(python -c 'from datetime import datetime, timezone; kinds=["ocean","forest","river","fireplace","rain","thunderstorm","wind"]; print(kinds[(int(datetime.now(timezone.utc).timestamp()) // 7200) % len(kinds)])')
           echo "SOUNDSCAPE=$KIND" >> "$GITHUB_ENV"
           echo "Selected soundscape: $KIND"
 
       - name: Download a fresh verified CC0 Freesound recording
+        if: steps.cooldown.outputs.skip != 'true'
         env:
           FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
           SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
@@ -49,6 +81,7 @@ jobs:
         run: python download_one_audio.py
 
       - name: Build and publish one unique 27-second Short
+        if: steps.cooldown.outputs.skip != 'true'
         env:
           SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
