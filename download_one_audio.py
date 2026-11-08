@@ -11,7 +11,7 @@ from urllib.request import Request, urlopen
 
 API = "https://freesound.org/apiv2"
 TOKEN = os.environ.get("FREESOUND_API_KEY", "").strip()
-KIND = os.environ.get("SOUNDSCAPE", "rain").strip().lower()
+KIND = os.environ.get("SOUNDSCAPE", "fireplace").strip().lower()
 ROOT = Path(os.environ.get("SOURCE_AUDIO_DIR", "generated-audio"))
 ROOT.mkdir(parents=True, exist_ok=True)
 HISTORY = Path(os.environ.get("USED_SOURCES_FILE", "used_sources.json"))
@@ -19,6 +19,11 @@ MIN_SOURCE_SECONDS = 90
 MIN_PREVIEW_SECONDS = 20
 MAX_DOWNLOAD_ATTEMPTS = 6
 QUERIES = {
+    "fireplace": [
+        "fireplace crackling burning wood close up field recording",
+        "wood fire crackling in fireplace continuous ambience",
+        "cozy indoor fireplace fire burning and crackling",
+    ],
     "rain": [
         "steady rain falling outdoors field recording",
         "rain on window or roof continuous field recording",
@@ -97,7 +102,7 @@ def main():
         print(f"FREESOUND RESULTS: {len(sounds)}", flush=True)
         for sound in sounds:
             sid = sound.get("id")
-            source_url = sound.get("url") or f"https://freesound.org/s/{sid}/"
+            source_url = f"https://freesound.org/sounds/{sid}/"
             if not sid or sid in seen:
                 continue
             seen.add(sid)
@@ -143,7 +148,7 @@ def main():
             break
 
     if not selected:
-        raise RuntimeError("No usable CC0 rain recording found after 3 focused Freesound searches.")
+        raise RuntimeError(f"No usable CC0 {KIND} recording found after {len(QUERIES[KIND])} focused Freesound searches.")
 
     manifest = {KIND: selected}
     (ROOT / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
