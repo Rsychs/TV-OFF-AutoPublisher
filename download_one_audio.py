@@ -41,14 +41,14 @@ CC0_MARKERS = ("creativecommons.org/publicdomain/zero", "cc0", "public domain")
 def api_json(path, params):
     url = f"{API}/{path.lstrip('/')}?{urlencode(params)}"
     req = Request(url, headers={"Authorization": f"Token {TOKEN}", "User-Agent": "TV-OFF-AutoPublisher/4.0"})
-    for attempt in range(4):
+    for attempt in range(3):
         try:
-            with urlopen(req, timeout=35) as response:
+            with urlopen(req, timeout=18) as response:
                 return json.load(response)
         except Exception as exc:
-            if attempt == 3:
+            if attempt == 2:
                 raise
-            delay = (5, 12, 25)[attempt]
+            delay = (4, 10)[attempt]
             print(f"API retry {attempt + 1}/3 in {delay}s: {exc}", flush=True)
             time.sleep(delay)
 
@@ -76,7 +76,7 @@ def download_preview(previews, target):
     if not url:
         raise RuntimeError("Freesound returned no high-quality preview URL")
     req = Request(url, headers={"User-Agent": "TV-OFF-AutoPublisher/4.0"})
-    with urlopen(req, timeout=25) as response, target.open("wb") as output:
+    with urlopen(req, timeout=20) as response, target.open("wb") as output:
         while True:
             chunk = response.read(1024 * 1024)
             if not chunk:
@@ -106,17 +106,19 @@ def main():
 
     for query in QUERIES[KIND]:
         print(f"FREESOUND SEARCH: {query}", flush=True)
-        result = api_json("search/text/", {
-            "query": query,
-            "filter": 'license:"Creative Commons 0" duration:[90 TO *]',
-            "sort": "rating_desc",
-            "page_size": 15,
-            "fields": "id,name,username,duration,license,url,avg_rating,num_downloads,previews",
-        })
-        sounds = result.get("results", [])
         if preferred_sound is not None:
-            sounds = [preferred_sound] + sounds
+            # Try the explicitly selected recording immediately; do not wait for search first.
+            sounds = [preferred_sound]
             preferred_sound = None
+        else:
+            result = api_json("search/text/", {
+                "query": query,
+                "filter": 'license:"Creative Commons 0" duration:[90 TO *]',
+                "sort": "rating_desc",
+                "page_size": 15,
+                "fields": "id,name,username,duration,license,url,avg_rating,num_downloads,previews",
+            })
+            sounds = result.get("results", [])
         print(f"FREESOUND RESULTS: {len(sounds)} (including preferred source when available)", flush=True)
         for sound in sounds:
             sid = sound.get("id")
