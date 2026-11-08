@@ -1,6 +1,12 @@
 name: TV OFF - Publish One Video
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/publish-one.yml"
+      - "download_one_audio.py"
+      - "backlog_schedule.csv"
   workflow_dispatch:
     inputs:
       soundscape:
@@ -15,8 +21,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: tv-off-single-video
-  cancel-in-progress: false
+  group: tv-off-backlog-five
+  cancel-in-progress: true
 
 jobs:
   publish-one:
@@ -39,7 +45,7 @@ jobs:
 
       - name: Select exactly one scheduled video
         env:
-          SOUNDSCAPE: ${{ inputs.soundscape }}
+          SOUNDSCAPE: ${{ inputs.soundscape || 'rain' }}
         run: |
           python - <<'PY'
           import csv, os
