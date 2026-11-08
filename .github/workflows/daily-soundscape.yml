@@ -5,7 +5,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "README.md"
+      - "generate_daily_schedule.py"
 
 permissions:
   contents: write
