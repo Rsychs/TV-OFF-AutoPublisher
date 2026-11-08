@@ -25,6 +25,12 @@ def main():
     if slot in state:
         print(f"SHORT ALREADY PUBLISHED FOR SLOT {slot}: {state[slot]}")
         return
+    last = state.get("_last_published_at")
+    if last:
+        elapsed = (now - datetime.fromisoformat(last)).total_seconds()
+        if elapsed < 7200:
+            print(f"Two-hour cooldown active; next Short in {int(7200 - elapsed)} seconds.")
+            return
 
     # Shorts stay gated until the main 10-hour video has actually been uploaded.
     main_state = json.loads((ROOT / "state.json").read_text(encoding="utf-8"))
@@ -103,6 +109,7 @@ def main():
     ).execute()
     video_id = response["id"]
     state[slot] = video_id
+    state["_last_published_at"] = now.isoformat()
     STATE.write_text(json.dumps(state, indent=2), encoding="utf-8")
     print(f"SHORT PUBLISHED: https://youtu.be/{video_id} | slot={slot}")
 
