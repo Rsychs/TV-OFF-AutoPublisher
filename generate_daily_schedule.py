@@ -34,7 +34,8 @@ def main():
         "Subscribe to TV OFF for more long-form ambient soundscapes.\n\n"
         "#SleepSounds #NatureSounds #BlackScreen #TVOff"
     )
-    # Publish immediately after the upload completes; do not schedule for 18:00.\n    publish_at = now.isoformat()
+    # Publish immediately after the upload completes; do not schedule for 18:00.
+    publish_at = now.isoformat()
     OUT.parent.mkdir(parents=True, exist_ok=True)
     with OUT.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=[
