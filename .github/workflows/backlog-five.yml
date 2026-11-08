@@ -2,6 +2,10 @@ name: TV OFF Five-Video Backlog
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/backlog-five.yml"
 
 permissions:
   contents: write
