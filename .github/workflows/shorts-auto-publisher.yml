@@ -2,6 +2,9 @@ name: TV OFF — Shorts Auto Publisher
 # Run at minute 17 each hour to avoid GitHub Actions top-of-hour congestion.
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
