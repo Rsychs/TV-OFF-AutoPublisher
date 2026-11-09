@@ -210,7 +210,7 @@ def make_music(path, seconds, seed):
             if (bar_index+1)%200==0:
                 print(f"Music composition: {bar_index+1}/{bars} bars",flush=True)
 
-def make_thumbnail(base_path):
+def make_thumbnail(base_path, filename=FILENAME, duration_label="10 HOURS"):
     im=Image.open(base_path).convert("RGB")
     d=ImageDraw.Draw(im,"RGBA")
     d.rectangle((0,0,WIDTH,150),fill=(0,0,0,85))
@@ -220,15 +220,15 @@ def make_thumbnail(base_path):
     f=font(76,True)
     box=d.textbbox((0,0),headline,font=f)
     d.text(((WIDTH-(box[2]-box[0]))/2,480),headline,font=f,fill=(255,248,236,255),stroke_width=2,stroke_fill=(24,18,14,180))
-    sub="COZY LO-FI  •  10 HOURS"
+    sub=f"COZY LO-FI  •  {duration_label}"
     f2=font(28,True); box=d.textbbox((0,0),sub,font=f2)
     d.text(((WIDTH-(box[2]-box[0]))/2,580),sub,font=f2,fill=(244,196,133,255))
     THUMB.mkdir(parents=True,exist_ok=True)
-    im.save(THUMB/(Path(FILENAME).stem+".jpg"),quality=94,optimize=True)
+    im.save(THUMB/(Path(filename).stem+".jpg"),quality=94,optimize=True)
 
 def main():
     parser=argparse.ArgumentParser()
-    parser.add_argument("--mode",choices=["preview","full"],required=True)
+    parser.add_argument("--mode",choices=["preview","test10","full"],required=True)
     parser.add_argument("--test-id",required=True)
     args=parser.parse_args()
     if not args.test_id or len(args.test_id)>32 or not all(c.isalnum() or c in "_-" for c in args.test_id):
@@ -239,8 +239,8 @@ def main():
     fx=AUDIO/"winter_cabin_fx.mp4"
     cabin_background(base)
     make_fx(fx,seed)
-    duration=180 if args.mode=="preview" else 36000
-    music_seconds=180 if args.mode=="preview" else 3600
+    duration=180 if args.mode=="preview" else 600 if args.mode=="test10" else 36000
+    music_seconds=180 if args.mode=="preview" else 600 if args.mode=="test10" else 3600
     wav=AUDIO/"winter_cabin_lofi.wav"
     audio=AUDIO/"winter_cabin_lofi.m4a"
     print(f"Generating original Lo-Fi composition: {music_seconds} seconds")
@@ -249,6 +249,9 @@ def main():
     wav.unlink(missing_ok=True)
     if args.mode=="preview":
         filename=f"TV-OFF_Winter_Cabin_Preview_{args.test_id}.mp4"
+        target=VIDEO/filename
+    elif args.mode=="test10":
+        filename=f"TV-OFF_Winter_Cabin_Test_10min_{args.test_id}.mp4"
         target=VIDEO/filename
     else:
         filename=FILENAME
@@ -265,31 +268,45 @@ def main():
     if args.mode=="preview":
         print(f"PREVIEW_READY {target} ({duration}s); not uploaded.")
         return
-    make_thumbnail(base)
-    schedule=WORK/"schedule.csv"
-    description=(
-        "Settle into a quiet winter cabin with warm, original lo-fi music, a softly glowing fireplace "
-        "and snow drifting beyond the window. A long, gentle soundscape for relaxing, studying, reading "
-        "or winding down. No voice, no abrupt transitions.\\n\\n"
-        "Music: original TV OFF composition, synthesized for this video. No third-party recordings or samples.\\n"
-        "Visuals: original TV OFF artwork and animation.\\n\\n"
-        "🎧 Keep the volume comfortable.\\n"
-        "🪵 10 hours • Cozy winter cabin • Original Lo-Fi\\n\\n"
-        "Subscribe to TV OFF for more long-form soundscapes.\\n\\n"
-        "#LoFi #WinterCabin #CozyAmbience #StudyMusic #RelaxingMusic"
-    )
+    if args.mode=="test10":
+        make_thumbnail(base, filename, "10 MIN")
+        schedule=WORK/"test_schedule.csv"
+        title="Winter Cabin — Cozy Lo-Fi Music (10-Minute Test) | TV OFF"
+        description=(
+            "A 10-minute test of the TV OFF Winter Cabin soundscape: original cozy lo-fi music, "
+            "a warm fireplace and snowfall outside the window. This test upload is unlisted.\\n\\n"
+            "Music and visuals are original TV OFF creations; no third-party recordings or samples.\\n"
+            "#LoFi #WinterCabin #CozyAmbience #TVOff"
+        )
+        privacy_status="unlisted"
+    else:
+        make_thumbnail(base, filename, "10 HOURS")
+        schedule=WORK/"schedule.csv"
+        title=TITLE
+        privacy_status=""
+        description=(
+            "Settle into a quiet winter cabin with warm, original lo-fi music, a softly glowing fireplace "
+            "and snow drifting beyond the window. A long, gentle soundscape for relaxing, studying, reading "
+            "or winding down. No voice, no abrupt transitions.\\n\\n"
+            "Music: original TV OFF composition, synthesized for this video. No third-party recordings or samples.\\n"
+            "Visuals: original TV OFF artwork and animation.\\n\\n"
+            "🎧 Keep the volume comfortable.\\n"
+            "🪵 10 hours • Cozy winter cabin • Original Lo-Fi\\n\\n"
+            "Subscribe to TV OFF for more long-form soundscapes.\\n\\n"
+            "#LoFi #WinterCabin #CozyAmbience #StudyMusic #RelaxingMusic"
+        )
     with schedule.open("w",newline="",encoding="utf-8") as f:
-        writer=csv.DictWriter(f,fieldnames=["filename","soundscape","title","description","tags","publish_at"])
+        writer=csv.DictWriter(f,fieldnames=["filename","soundscape","title","description","tags","publish_at","privacy_status"])
         writer.writeheader()
         from datetime import datetime,timezone
-        writer.writerow({"filename":FILENAME,"soundscape":"winter_cabin","title":TITLE,
+        writer.writerow({"filename":filename,"soundscape":"winter_cabin","title":title,
                          "description":description,"tags":"winter cabin;cozy lofi;lofi music;study music;relaxing music;fireplace ambience;snow ambience;TV OFF",
-                         "publish_at":datetime.now(timezone.utc).isoformat()})
+                         "publish_at":datetime.now(timezone.utc).isoformat(),"privacy_status":privacy_status})
     manifest={"winter_cabin":{"file":"winter_cabin_lofi.m4a","creator":"TV OFF — original synthesized Lo-Fi music",
         "source_url":"https://github.com/Rsychs/TV-OFF-AutoPublisher/tree/main/winter_cabin",
         "license":"Original TV OFF composition and artwork; no third-party samples or recordings."}}
     (AUDIO/"manifest.json").write_text(json.dumps(manifest,indent=2),encoding="utf-8")
-    print(f"FULL_VIDEO_READY {target} ({duration}s); awaiting validated uploader step.")
+    print(f"{'TEST10' if args.mode=='test10' else 'FULL_VIDEO'}_READY {target} ({duration}s); awaiting validated uploader step.")
 
 if __name__=="__main__":
     main()
