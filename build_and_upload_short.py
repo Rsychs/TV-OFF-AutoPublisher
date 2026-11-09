@@ -108,8 +108,31 @@ def main():
             f"{info.get('license', 'Original synthetic audio; no third-party sample used.')}\n\n"
             f"#Shorts #{kind.replace('_', '')} #SleepSounds #FocusSounds #TVOff #AmbientSounds"
         )
-        short_use = "Sleep & Relaxation" if kind == "brown_noise" else "Sleep & Focus"
-        short_title = f"{display_kind} for {short_use} | {now.strftime('%b %d, %H:%M')} #Shorts"
+        short_title_variants = {
+            "white_noise": [
+                "A Steady White Noise Sound for Quiet Focus",
+                "White Noise for a Calm and Peaceful Night",
+                "A Soft White Noise Background for Sleep",
+                "White Noise When You Need a Little Quiet",
+                "A Gentle White Noise Sound for Rest and Focus",
+                "White Noise for Reading, Resting and Unwinding",
+                "A Consistent White Noise Sound to Settle In",
+                "White Noise for a Quieter Night",
+            ],
+            "brown_noise": [
+                "Deep Brown Noise for a Quiet Night",
+                "Brown Noise for a Calm Moment and Better Focus",
+                "A Deep Brown Noise Sound to Wind Down To",
+                "Brown Noise for Work Without the Distractions",
+                "A Steady Brown Noise Background for Rest",
+                "Brown Noise for Reading and Quiet Focus",
+                "Low, Deep Brown Noise for a Peaceful Evening",
+                "Brown Noise When You Need Some Quiet",
+            ],
+        }
+        variants = short_title_variants.get(kind, [f"{display_kind} for Sleep and Focus"])
+        short_slot = int(now.timestamp() // 3600)
+        short_title = f"{variants[short_slot % len(variants)]} #Shorts"
         short_tags = ["Shorts", display_kind, "Sleep Sounds", "Focus Sounds", "TV OFF", "Ambient Sounds"]
     else:
         description = (
