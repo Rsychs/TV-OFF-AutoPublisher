@@ -150,9 +150,15 @@ def make_music(path, seconds, seed):
     scale=[0,2,4,5,7,9,11,12,14,16,17,19,21,23,24]
     with wave.open(str(path),"wb") as wf:
         wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(SR)
+        section = 0
         for bar_index in range(bars):
-            section=(bar_index//16)%len(progressions)
-            chord=progressions[section][(bar_index//4)%4]
+            if bar_index % 4 == 0:
+                section = int(rng.integers(0, len(progressions)))
+            chord=list(progressions[section][(bar_index//4)%4])
+            if rng.random() < 0.38:
+                chord = chord[1:] + [chord[0] + 12]
+            if rng.random() < 0.22:
+                chord = [n - 12 for n in chord]
             t=np.arange(bar_samples,dtype=np.float32)/SR
             beat_phase=(bar_index%4)*0.19
             mix=np.zeros(bar_samples,dtype=np.float32)
@@ -180,21 +186,24 @@ def make_music(path, seconds, seed):
                 pluck=note_wave(freq,tt,phase=float(rng.uniform(0,1)))*env*0.12
                 mix[start:start+length]+=pluck.astype(np.float32)
             # Dusty boom-bap drums: soft kick, brushed snare and low-level hats.
-            for beat in (0,2):
+            kick_beats = (0, 2) if rng.random() < 0.62 else ((0, 3) if rng.random() < 0.5 else (0,))
+            for beat in kick_beats:
                 start=int(beat*BEAT*SR)
                 length=min(int(0.30*SR),bar_samples-start)
                 tt=np.arange(length,dtype=np.float32)/SR
                 freq=88*np.exp(-tt*13)+42
                 kick=np.sin(2*np.pi*freq*tt)*np.exp(-tt*12)*0.20
                 mix[start:start+length]+=kick.astype(np.float32)
-            for beat in (1,3):
+            snare_beats = (1, 3) if rng.random() < 0.58 else ((3,) if rng.random() < 0.5 else (1,))
+            for beat in snare_beats:
                 start=int(beat*BEAT*SR)
                 length=min(int(0.20*SR),bar_samples-start)
                 tt=np.arange(length,dtype=np.float32)/SR
                 noise=rng.normal(0,1,length).astype(np.float32)
                 snare=noise*np.exp(-tt*22)*0.055
                 mix[start:start+length]+=snare
-            for beat in range(4):
+            hat_beats = [beat for beat in range(4) if rng.random() < (0.78 if beat in (1, 3) else 0.34)]
+            for beat in hat_beats:
                 start=int(beat*BEAT*SR+0.5*BEAT*SR)
                 if start>=bar_samples: continue
                 length=min(int(0.055*SR),bar_samples-start)
@@ -228,7 +237,7 @@ def make_thumbnail(base_path, filename=FILENAME, duration_label="10 HOURS"):
 
 def main():
     parser=argparse.ArgumentParser()
-    parser.add_argument("--mode",choices=["preview","test10","full"],required=True)
+    parser.add_argument("--mode",choices=["preview","test10","hour1","full"],required=True)
     parser.add_argument("--test-id",required=True)
     args=parser.parse_args()
     if not args.test_id or len(args.test_id)>32 or not all(c.isalnum() or c in "_-" for c in args.test_id):
@@ -239,8 +248,8 @@ def main():
     fx=AUDIO/"winter_cabin_fx.mp4"
     cabin_background(base)
     make_fx(fx,seed)
-    duration=180 if args.mode=="preview" else 600 if args.mode=="test10" else 36000
-    music_seconds=180 if args.mode=="preview" else 600 if args.mode=="test10" else 3600
+    duration=180 if args.mode=="preview" else 600 if args.mode=="test10" else 3600 if args.mode=="hour1" else 36000
+    music_seconds=duration if args.mode=="hour1" else (180 if args.mode=="preview" else 600 if args.mode=="test10" else 3600)
     wav=AUDIO/"winter_cabin_lofi.wav"
     audio=AUDIO/"winter_cabin_lofi.m4a"
     print(f"Generating original Lo-Fi composition: {music_seconds} seconds")
@@ -252,6 +261,9 @@ def main():
         target=VIDEO/filename
     elif args.mode=="test10":
         filename=f"TV-OFF_Winter_Cabin_Test_10min_{args.test_id}.mp4"
+        target=VIDEO/filename
+    elif args.mode=="hour1":
+        filename="TV-OFF_Winter_Cabin_Cozy_LoFi_1-Hour.mp4"
         target=VIDEO/filename
     else:
         filename=FILENAME
@@ -279,6 +291,17 @@ def main():
             "#LoFi #WinterCabin #CozyAmbience #TVOff"
         )
         privacy_status="unlisted"
+    elif args.mode=="hour1":
+        make_thumbnail(base, filename, "1 HOUR")
+        schedule=WORK/"hour1_schedule.csv"
+        title="Winter Cabin — Cozy Lo-Fi for Relaxing, Studying & Sleeping (1 Hour) | TV OFF"
+        privacy_status="public"
+        description=(
+            "Step into a quiet winter cabin: warm fireplace light, soft snowfall beyond the window, and an original, evolving lo-fi soundtrack. "
+            "A one-hour cozy escape for relaxing, reading, studying or winding down. The music is composed for this video and does not repeat a short loop.\\n\\n"
+            "Music and visuals are original TV OFF creations. No third-party recordings or samples.\\n\\n"
+            "#LoFi #WinterCabin #CozyAmbience #StudyMusic #RelaxingMusic"
+        )
     else:
         make_thumbnail(base, filename, "10 HOURS")
         schedule=WORK/"schedule.csv"
