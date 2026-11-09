@@ -16,8 +16,9 @@ on:
 permissions:
   contents: write
 
+# Share the production lock with long videos so both formats cannot select the same source concurrently.
 concurrency:
-  group: tv-off-shorts-publisher
+  group: tv-off-single-video
   cancel-in-progress: false
 
 jobs:
