@@ -53,7 +53,7 @@ def main():
         raise RuntimeError(f"Selected {kind} audio is missing: {source}")
 
     OUT.mkdir(exist_ok=True)
-    filename = f"TV-OFF_{kind.title()}_Short_{slot}.mp4"
+    filename = f"TV-OFF_{kind.replace(chr(95), '').title()}_Short_{slot}.mp4"
     target = OUT / filename
     # A minimal vertical TV OFF visual: black canvas, restrained blue-grey animated waveform.
     graph = (
@@ -101,7 +101,8 @@ def main():
             f"{info.get('license', 'Original synthetic audio; no third-party sample used.')}\n\n"
             f"#Shorts #{kind.replace('_', '')} #SleepSounds #FocusSounds #TVOff #AmbientSounds"
         )
-        short_title = f"{display_kind} for Sleep & Focus | TV OFF #Shorts"
+        short_use = "Sleep & Relaxation" if kind == "brown_noise" else "Sleep & Focus"
+        short_title = f"{display_kind} for {short_use} | TV OFF #Shorts"
         short_tags = ["Shorts", display_kind, "Sleep Sounds", "Focus Sounds", "TV OFF", "Ambient Sounds"]
     else:
         description = (
