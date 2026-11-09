@@ -67,7 +67,7 @@ def freesound_id_from_source(value):
     text = str(value or "").strip().split("?", 1)[0].rstrip("/")
     if text.isdigit():
         return text
-    match = re.search(r"(?:^|/)sounds/(\\d+)$", text)
+    match = re.search(r"(?:^|/)sounds/(\d+)$", text)
     return match.group(1) if match else None
 
 def is_cc0(value):
