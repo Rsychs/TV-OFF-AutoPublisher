@@ -2,11 +2,6 @@ name: TV OFF — Shorts Auto Publisher
 # Run at minute 17 each hour to avoid GitHub Actions top-of-hour congestion.
 
 on:
-  workflow_run:
-    workflows: ["TV OFF — 10-Hour Soundscape Video"]
-    types: [completed]
-  schedule:
-    - cron: "17 * * * *"
   workflow_dispatch:
 
 permissions:
