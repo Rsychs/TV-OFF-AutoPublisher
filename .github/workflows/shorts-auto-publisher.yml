@@ -65,7 +65,7 @@ jobs:
                       reason = f"One-hour cooldown active; {int(3600 - elapsed)} seconds remain."
           skip = "true" if reason else "false"
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"skip={skip}\\n")
+              output.write(f"skip={skip}\n")
           print(reason if reason else f"Short slot {slot} is ready.")
           PY
 
