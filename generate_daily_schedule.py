@@ -10,7 +10,13 @@ OUT = Path(os.environ.get("SCHEDULE_FILE", ROOT / "daily_schedule.csv"))
 TZ = ZoneInfo("Europe/Riga")
 
 # White and brown noise are mandatory first-priority releases until each is published.
-WHITE_NOISE = ("white_noise", "White Noise for Sleep, Study & Focus", "white noise for sleep;white noise for focus;WhiteNoise;SleepSounds;FocusSounds")
+WHITE_NOISE_VARIANTS = [
+    ("White Noise for Sleep, Study & Focus", "white noise for sleep;white noise for focus;WhiteNoise;SleepSounds;FocusSounds", "A steady, even white-noise sound bed for sleep, study and focused listening. 10 uninterrupted hours with a completely black screen."),
+    ("Soft White Noise for Newborn Sleep", "newborn white noise;white noise for newborns;newborn sleep sounds;WhiteNoise;BabySleepSounds", "A continuous, gentle white-noise background for a calm sleep environment. 10 uninterrupted hours with a completely black screen. For infant use, keep playback at a low volume and place the device well away from the baby's head and sleep space. Follow current safe-sleep guidance from your healthcare professional."),
+    ("Gentle White Noise for Baby Sleep", "white noise for baby sleep;white noise for babies;baby sleep sounds;WhiteNoise;BabySleepSounds", "A steady white-noise background for quiet listening during a baby's rest time. 10 uninterrupted hours with a completely black screen. For infant use, keep playback at a low volume and place the device well away from the baby's head and sleep space. Follow current safe-sleep guidance from your healthcare professional."),
+    ("White Noise for Newborns | Soft, Steady Background Sound", "white noise for newborns;newborn white noise;soft white noise;WhiteNoise;BabySleepSounds", "Soft, consistent white noise for a quiet listening environment. 10 uninterrupted hours with a completely black screen. For infant use, keep playback at a low volume and place the device well away from the baby's head and sleep space. Follow current safe-sleep guidance from your healthcare professional."),
+]
+WHITE_NOISE = ("white_noise", WHITE_NOISE_VARIANTS[0][0], WHITE_NOISE_VARIANTS[0][1])
 BROWN_NOISE_VARIANTS = [
     ("Deep Brown Noise for Sleep & Overnight Relaxation", "brown noise for deep sleep;brown noise overnight;deep sleep sounds;BrownNoise;SleepSounds", "A steady, deep brown-noise sound bed for calm nighttime listening. 10 uninterrupted hours with a completely black screen."),
     ("Brown Noise for Focus, Work & Blocking Distractions", "brown noise for focus;brown noise for concentration;study sounds;work sounds;BrownNoise;FocusSounds", "A consistent low-frequency brown-noise background for focused work, reading and concentration. 10 uninterrupted hours with a completely black screen."),
@@ -31,6 +37,7 @@ STANDARD_SOUNDS = [
     ("thunderstorm", "Thunderstorm Sounds for Sleep | Heavy Rain & Distant Thunder", "thunderstorm sounds for sleep;rain and thunder;Thunderstorm;StormSounds"),
     ("wind", "Wind in the Trees | Calm Nature Sounds for Sleep & Focus", "wind sounds in trees;wind ambience;WindSounds;NatureSounds"),
     ("brown_noise", None, None),
+    ("white_noise", None, None),
 ]
 def published_soundscapes():
     state_path = ROOT / "state.json"
@@ -60,6 +67,7 @@ def main():
     slot_key = slot_start.strftime("%H")
     published = published_soundscapes()
     brown_description = None
+    white_description = None
     if not published["white_noise"]:
         kind, title, tags = WHITE_NOISE
         print("PRIORITY QUEUE: white noise is not yet published; selecting it first.")
@@ -71,6 +79,8 @@ def main():
         kind, title, tags = STANDARD_SOUNDS[slot_number % len(STANDARD_SOUNDS)]
         if kind == "brown_noise":
             title, tags, brown_description = BROWN_NOISE_VARIANTS[(slot_number // len(STANDARD_SOUNDS)) % len(BROWN_NOISE_VARIANTS)]
+        elif kind == "white_noise":
+            title, tags, white_description = WHITE_NOISE_VARIANTS[(slot_number // len(STANDARD_SOUNDS)) % len(WHITE_NOISE_VARIANTS)]
         print("PRIORITY QUEUE COMPLETE: both white and brown noise are published; using expanded standard rotation.")
     file_kind = kind.replace("_", "").title()
     display_kind = kind.replace("_", " ").title()
@@ -78,13 +88,14 @@ def main():
 
     if kind in {"white_noise", "brown_noise"}:
         description_intro = (
-            brown_description or (
+            brown_description or white_description or (
                 f"10 hours of steady, original {display_kind.lower()} sound for sleep, relaxation and focus. "
                 "A continuous sound bed with a completely black screen for overnight listening."
             )
         )
         noise_hashtag = "#WhiteNoise" if kind == "white_noise" else "#BrownNoise"
-        hashtags = f"{noise_hashtag} #SleepSounds #FocusSounds #BlackScreen #TVOff"
+        audience_hashtag = " #BabySleep" if kind == "white_noise" and white_description and ("newborn" in title.lower() or "baby" in title.lower()) else ""
+        hashtags = f"{noise_hashtag} #SleepSounds #FocusSounds{audience_hashtag} #BlackScreen #TVOff"
         thumbnail_descriptor = f"{display_kind.upper()} • 10 HOURS"
     else:
         description_intro = (
