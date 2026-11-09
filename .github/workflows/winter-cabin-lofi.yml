@@ -160,7 +160,7 @@ jobs:
         run: python uploader.py
 
       - name: Persist confirmed YouTube ID to both deduplication ledgers
-        if: always() && (env.MODE == 'full' || env.MODE == 'test10')
+        if: always() && (env.MODE == 'full' || env.MODE == 'test10' || env.MODE == 'hour1')
         env:
           MODE: ${{ env.MODE }}
           TEST_ID: ${{ env.TEST_ID }}
