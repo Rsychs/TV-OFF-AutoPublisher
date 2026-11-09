@@ -1,6 +1,6 @@
 import csv
 import os
-from datetime import datetime, time, timedelta
+from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -19,22 +19,22 @@ SOUNDS = [
 
 def main():
     now = datetime.now(TZ)
-    publish_day = now.date()
-    if now.time() >= time(18, 0):
-        publish_day += timedelta(days=1)
-    # Rotate predictably through all seven soundscapes: Monday=0 through Sunday=6.
-    kind, title, tags = SOUNDS[publish_day.weekday()]
-    date_key = publish_day.strftime("%Y%m%d")
-    filename = f"TV-OFF_{kind.title()}_{date_key}_10-Hours.mp4"
+    slot_hour = (now.hour // 3) * 3
+    slot_start = now.replace(hour=slot_hour, minute=0, second=0, microsecond=0)
+    date_key = slot_start.strftime("%Y%m%d")
+    slot_key = slot_start.strftime("%H")
+    # Rotate through all seven soundscapes between successive 3-hour slots.
+    slot_number = int(slot_start.timestamp() // (3 * 3600))
+    kind, title, tags = SOUNDS[slot_number % len(SOUNDS)]
+    filename = f"TV-OFF_{kind.title()}_{date_key}_{slot_key}_10-Hours.mp4"
     description = (
         f"10 hours of real {kind} ambience from a newly selected field recording, "
-        "smoothly looped for uninterrupted listening. Completely black screen throughout.\n\n"
-        "Original recording: {creator}\nSource: {source_url}\nLicense: {license}\n\n"
-        "🎧 Keep the volume comfortable.\n🖤 10 hours • Black screen • No visuals\n\n"
-        "Subscribe to TV OFF for more long-form ambient soundscapes.\n\n"
+        "smoothly looped for uninterrupted listening. Completely black screen throughout.\\n\\n"
+        "Original recording: {creator}\\nSource: {source_url}\\nLicense: {license}\\n\\n"
+        "🎧 Keep the volume comfortable.\\n🖤 10 hours • Black screen • No visuals\\n\\n"
+        "Subscribe to TV OFF for more long-form ambient soundscapes.\\n\\n"
         "#SleepSounds #NatureSounds #BlackScreen #TVOff"
     )
-    # Publish immediately after the upload completes; do not schedule for 18:00.
     publish_at = now.isoformat()
     OUT.parent.mkdir(parents=True, exist_ok=True)
     with OUT.open("w", newline="", encoding="utf-8") as handle:
@@ -54,7 +54,7 @@ def main():
             "publish_at": publish_at,
             "thumbnail_descriptor": "10 HOURS • BLACK SCREEN"
         })
-    print(f"DAILY SCHEDULE: {kind} | {filename} | {publish_at}")
+    print(f"3-HOUR SLOT: {slot_start.isoformat()} | {kind} | {filename} | {publish_at}")
 
 if __name__ == "__main__":
     main()
