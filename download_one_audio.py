@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 import re
+import secrets
 import subprocess
 import time
 from datetime import datetime, timezone
@@ -104,19 +105,23 @@ def download_preview(previews, target):
 
 def generate_synthetic_noise():
     color = SYNTHETIC_NOISE[KIND]
-    duration = 600
-    target = ROOT / f"{KIND}_original.mp3"
+    # A fresh explicit seed makes every release's random waveform independently reproducible.
+    # One hour of source audio greatly reduces the repetition cadence in the final 10-hour video.
+    duration = 3600
+    seed = secrets.randbelow(2**32 - 1) + 1
+    target = ROOT / f"{KIND}_original_{seed}.mp3"
     print(
-        f"GENERATE ORIGINAL SYNTHETIC AUDIO: {KIND} | FFmpeg anoisesrc color={color} | {duration}s",
+        f"GENERATE ORIGINAL SYNTHETIC AUDIO: {KIND} | FFmpeg anoisesrc color={color} | "
+        f"{duration}s | seed={seed}",
         flush=True,
     )
     subprocess.run(
         [
             "ffmpeg", "-y", "-hide_banner", "-f", "lavfi", "-i",
-            f"anoisesrc=color={color}:amplitude=0.12:sample_rate=48000:duration={duration}",
+            f"anoisesrc=color={color}:amplitude=0.12:sample_rate=48000:duration={duration}:seed={seed}",
             "-ac", "2", "-c:a", "libmp3lame", "-b:a", "192k", str(target),
         ],
-        check=True, timeout=180,
+        check=True, timeout=480,
     )
     actual_duration = probe_seconds(target)
     if actual_duration < duration - 1:
@@ -132,6 +137,8 @@ def generate_synthetic_noise():
         "title": f"Original {KIND.replace('_', ' ').title()}",
         "platform": "TV OFF / FFmpeg",
         "audio_type": "synthetic",
+        "noise_color": color,
+        "random_seed": seed,
         "duration_seconds": round(actual_duration, 2),
         "sha256": digest(target),
         "downloaded_at": datetime.now(timezone.utc).isoformat(),
