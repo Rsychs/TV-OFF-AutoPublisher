@@ -25,13 +25,6 @@ def main():
     if slot in state:
         print(f"SHORT ALREADY PUBLISHED FOR SLOT {slot}: {state[slot]}")
         return
-    last = state.get("_last_published_at")
-    if last:
-        elapsed = (now - datetime.fromisoformat(last)).total_seconds()
-        if elapsed < 3600:
-            print(f"One-hour cooldown active; next Short in {int(3600 - elapsed)} seconds.")
-            return
-
     # Shorts stay gated until at least one 10-hour soundscape video is recorded as uploaded.
     main_state = json.loads((ROOT / "state.json").read_text(encoding="utf-8"))
     long_video = next((
@@ -133,6 +126,13 @@ def main():
     state[slot] = video_id
     state["_last_published_at"] = now.isoformat()
     STATE.write_text(json.dumps(state, indent=2), encoding="utf-8")
+    if info.get("platform") == "Freesound" and info.get("source_url"):
+        history_path = ROOT / "shorts_used_sources.json"
+        history = json.loads(history_path.read_text(encoding="utf-8")) if history_path.exists() else {"used": []}
+        used = history.setdefault("used", [])
+        if info["source_url"] not in used:
+            used.append(info["source_url"])
+            history_path.write_text(json.dumps(history, indent=2), encoding="utf-8")
     print(f"SHORT PUBLISHED: https://youtu.be/{video_id} | slot={slot} | soundscape={kind}")
 
 if __name__ == "__main__":
