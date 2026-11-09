@@ -11,7 +11,16 @@ TZ = ZoneInfo("Europe/Riga")
 
 # White and brown noise are mandatory first-priority releases until each is published.
 WHITE_NOISE = ("white_noise", "White Noise for Deep Sleep & Focus", "white noise for sleep;white noise for focus;WhiteNoise;SleepSounds;FocusSounds")
-BROWN_NOISE = ("brown_noise", "Brown Noise for Deep Sleep & Relaxation", "brown noise for sleep;brown noise for relaxation;BrownNoise;SleepSounds;RelaxationSounds")
+BROWN_NOISE_VARIANTS = [
+    ("Brown Noise for Deep Sleep & Overnight Relaxation", "brown noise for deep sleep;brown noise overnight;deep sleep sounds;BrownNoise;SleepSounds", "A steady, deep brown-noise sound bed for calm nighttime listening. 10 uninterrupted hours with a completely black screen."),
+    ("Brown Noise for Focus & Concentration While Working", "brown noise for focus;brown noise for concentration;study sounds;work sounds;BrownNoise;FocusSounds", "A consistent low-frequency brown-noise background for focused work, reading and concentration. 10 uninterrupted hours with a completely black screen."),
+    ("Deep Brown Noise for Studying & Reading", "deep brown noise for studying;brown noise for reading;study ambience;concentration sounds;BrownNoise;StudySounds", "Deep, even brown noise for study sessions, reading and quiet background listening. 10 uninterrupted hours with a completely black screen."),
+    ("Brown Noise for Relaxation & Unwinding After a Long Day", "brown noise for relaxation;calming brown noise;unwind sounds;relaxing background noise;BrownNoise;RelaxationSounds", "A smooth brown-noise sound bed for slowing down and unwinding. 10 uninterrupted hours with a completely black screen."),
+    ("Brown Noise for Blocking Background Distractions", "brown noise to block distractions;background noise for focus;steady noise;BrownNoise;FocusSounds", "Steady brown noise as a consistent background layer when you want fewer interruptions from everyday environmental sounds. 10 uninterrupted hours with a completely black screen."),
+    ("Low Frequency Brown Noise for Calm Nighttime Listening", "low frequency brown noise;deep brown noise at night;night sounds;BrownNoise;SleepSounds", "A deep, steady brown-noise ambience for quiet evenings and nighttime listening. 10 uninterrupted hours with a completely black screen."),
+    ("Brown Noise for a Quiet Home Office & Deep Work", "brown noise for deep work;home office background noise;focus ambience;BrownNoise;WorkSounds", "A continuous brown-noise background for deep-work blocks and home-office tasks. 10 uninterrupted hours with a completely black screen."),
+    ("Brown Noise for Sleep, Rest & a Peaceful Night", "brown noise for sleep;brown noise for rest;peaceful night sounds;BrownNoise;SleepSounds", "A steady brown-noise soundscape for rest and peaceful nighttime listening. 10 uninterrupted hours with a completely black screen."),
+]
 STANDARD_SOUNDS = [
     ("ocean", "Ocean Waves for Deep Sleep & Relaxation", "ocean waves for sleep;sea sounds;OceanWaves;SleepSounds"),
     ("forest", "Forest Birds for Relaxation & Focus", "forest birds;birdsong for relaxation;ForestBirds;NatureSounds"),
@@ -20,6 +29,7 @@ STANDARD_SOUNDS = [
     ("rain", "Rain Sounds for Deep Sleep & Relaxation", "rain sounds for sleep;relaxing rain;RainSounds;SleepSounds"),
     ("thunderstorm", "Thunderstorm Sounds for Sleep | Rain & Distant Thunder", "thunderstorm sounds for sleep;rain and thunder;Thunderstorm;StormSounds"),
     ("wind", "Wind Sounds in Trees for Relaxation & Focus", "wind sounds in trees;wind ambience;WindSounds;NatureSounds"),
+    ("brown_noise", None, None),
 ]
 def published_soundscapes():
     state_path = ROOT / "state.json"
@@ -57,15 +67,20 @@ def main():
     else:
         slot_number = int(slot_start.timestamp() // (3 * 3600))
         kind, title, tags = STANDARD_SOUNDS[slot_number % len(STANDARD_SOUNDS)]
-        print("PRIORITY QUEUE COMPLETE: both white and brown noise are published; using standard rotation.")
+        brown_description = None
+        if kind == "brown_noise":
+            title, tags, brown_description = BROWN_NOISE_VARIANTS[(slot_number // len(STANDARD_SOUNDS)) % len(BROWN_NOISE_VARIANTS)]
+        print("PRIORITY QUEUE COMPLETE: both white and brown noise are published; using expanded standard rotation.")
     file_kind = kind.replace("_", "").title()
     display_kind = kind.replace("_", " ").title()
     filename = f"TV-OFF_{file_kind}_{date_key}_{slot_key}_10-Hours.mp4"
 
     if kind in {"white_noise", "brown_noise"}:
         description_intro = (
-            f"10 hours of steady, original {display_kind.lower()} sound for sleep, relaxation and focus. "
-            "A continuous sound bed with a completely black screen for overnight listening."
+            brown_description or (
+                f"10 hours of steady, original {display_kind.lower()} sound for sleep, relaxation and focus. "
+                "A continuous sound bed with a completely black screen for overnight listening."
+            )
         )
         noise_hashtag = "#WhiteNoise" if kind == "white_noise" else "#BrownNoise"
         hashtags = f"{noise_hashtag} #SleepSounds #FocusSounds #BlackScreen #TVOff"
