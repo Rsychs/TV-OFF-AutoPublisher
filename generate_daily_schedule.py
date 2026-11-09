@@ -8,11 +8,9 @@ ROOT = Path(__file__).resolve().parent
 OUT = Path(os.environ.get("SCHEDULE_FILE", ROOT / "daily_schedule.csv"))
 TZ = ZoneInfo("Europe/Riga")
 
-# Top-tier categories have 2x rotation weight; standard nature categories remain in rotation.
-TOP_SOUNDS = [
-    ("white_noise", "White Noise for Deep Sleep & Focus", "WhiteNoise;SleepSounds;FocusSounds"),
-    ("brown_noise", "Brown Noise for Deep Sleep & Relaxation", "BrownNoise;SleepSounds;RelaxationSounds"),
-]
+# White and brown noise are mandatory first-priority releases until each is published.
+WHITE_NOISE = ("white_noise", "White Noise for Deep Sleep & Focus", "WhiteNoise;SleepSounds;FocusSounds")
+BROWN_NOISE = ("brown_noise", "Brown Noise for Deep Sleep & Relaxation", "BrownNoise;SleepSounds;RelaxationSounds")
 STANDARD_SOUNDS = [
     ("ocean", "Ocean Waves for Sleep & Relaxation", "OceanWaves;SeaSounds;SleepSounds"),
     ("forest", "Forest Birds at Dawn", "ForestBirds;Birdsong;NatureSounds"),
@@ -22,7 +20,18 @@ STANDARD_SOUNDS = [
     ("thunderstorm", "Distant Thunderstorm & Rain Sounds", "Thunderstorm;RainAndThunder;StormSounds"),
     ("wind", "Wind in the Trees | Nature Sounds", "WindSounds;WindInTrees;NatureSounds"),
 ]
-SOUNDS = [TOP_SOUNDS[0], TOP_SOUNDS[1], TOP_SOUNDS[0], TOP_SOUNDS[1], *STANDARD_SOUNDS]
+def published_soundscapes():
+    state_path = ROOT / "state.json"
+    if not state_path.is_file():
+        raise RuntimeError("state.json is missing; refusing to assume priority videos were published")
+    import json
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    if not isinstance(state, dict):
+        raise RuntimeError("state.json is not a JSON object")
+    return {
+        "white_noise": any("TV-OFF_WhiteNoise_" in str(name) for name in state),
+        "brown_noise": any("TV-OFF_BrownNoise_" in str(name) for name in state),
+    }
 
 def main():
     now = datetime.now(TZ)
@@ -30,9 +39,17 @@ def main():
     slot_start = now.replace(hour=slot_hour, minute=0, second=0, microsecond=0)
     date_key = slot_start.strftime("%Y%m%d")
     slot_key = slot_start.strftime("%H")
-    # Rotate through a weighted 11-slot cycle: each top-tier noise appears twice.
-    slot_number = int(slot_start.timestamp() // (3 * 3600))
-    kind, title, tags = SOUNDS[slot_number % len(SOUNDS)]
+    published = published_soundscapes()
+    if not published["white_noise"]:
+        kind, title, tags = WHITE_NOISE
+        print("PRIORITY QUEUE: white noise is not yet published; selecting it first.")
+    elif not published["brown_noise"]:
+        kind, title, tags = BROWN_NOISE
+        print("PRIORITY QUEUE: brown noise is not yet published; selecting it next.")
+    else:
+        slot_number = int(slot_start.timestamp() // (3 * 3600))
+        kind, title, tags = STANDARD_SOUNDS[slot_number % len(STANDARD_SOUNDS)]
+        print("PRIORITY QUEUE COMPLETE: both white and brown noise are published; using standard rotation.")
     file_kind = kind.replace("_", "").title()
     display_kind = kind.replace("_", " ").title()
     filename = f"TV-OFF_{file_kind}_{date_key}_{slot_key}_10-Hours.mp4"
