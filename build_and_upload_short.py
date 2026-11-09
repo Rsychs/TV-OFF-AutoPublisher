@@ -62,18 +62,49 @@ def main():
     OUT.mkdir(exist_ok=True)
     filename = f"TV-OFF_{file_kind}_Short_{slot}.mp4"
     target = OUT / filename
-    # A minimal vertical TV OFF visual: black canvas, restrained blue-grey animated waveform.
+    # Category-led vertical visual: a soft luminous frame, animated waveform and a timed end-card CTA.
+    themes = {
+        "white_noise": ("0xA9D8FF", "WHITE NOISE", "A LITTLE MORE QUIET"),
+        "brown_noise": ("0xC99563", "BROWN NOISE", "LET THE WORLD FADE OUT"),
+        "ocean": ("0x55C6D8", "OCEAN SOUNDS", "TAKE A SLOW BREATH"),
+        "rain": ("0x8CB7D8", "RAIN SOUNDS", "SETTLE INTO THE MOMENT"),
+        "thunderstorm": ("0x9B9BCB", "STORM SOUNDS", "LET THE NOISE FADE"),
+        "forest": ("0x8DBB91", "FOREST SOUNDS", "FIND A QUIETER PLACE"),
+        "river": ("0x65BFAF", "RIVER SOUNDS", "PAUSE AND UNWIND"),
+        "fireplace": ("0xE6A064", "FIREPLACE SOUNDS", "WARM UP AND SLOW DOWN"),
+        "wind": ("0xA8B7C8", "WIND SOUNDS", "BREATHE AND LET GO"),
+    }
+    accent, headline, tagline = themes.get(
+        kind, ("0xA9C7E8", display_kind.upper(), "SOUND TO SWITCH OFF TO")
+    )
     graph = (
-        "[1:a]showwaves=s=820x180:mode=line:rate=30:colors=0x7C859E,format=rgba[w];"
-        "[0:v][w]overlay=(W-w)/2:820:shortest=1,"
+        f"[1:a]showwaves=s=920x250:mode=p2p:rate=30:colors={accent},format=rgba[w];"
+        "[0:v]format=rgba,"
+        f"drawbox=x=54:y=260:w=972:h=1390:color={accent}@0.055:t=fill,"
+        f"drawbox=x=82:y=288:w=916:h=1334:color={accent}@0.30:t=3,"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
-        "text='TV OFF':fontcolor=white:fontsize=76:x=(w-text_w)/2:y=590,"
+        "text='A MOMENT FOR YOU':fontcolor=0xDCE5F2:fontsize=27:"
+        "x=(w-text_w)/2:y=390,"
+        "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
+        f"text='{headline}':fontcolor=white:fontsize=76:"
+        "x=(w-text_w)/2:y=600,"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:"
-        f"text='{visual_label}':fontcolor=0xAAB2C4:fontsize=30:"
-        "x=(w-text_w)/2:y=1110,"
+        f"text='{tagline}':fontcolor={accent}:fontsize=30:"
+        "x=(w-text_w)/2:y=735[vbase];"
+        "[vbase][w]overlay=(W-w)/2:900:shortest=1,"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
-        "text='MORE VIDEOS ON OUR CHANNEL':fontcolor=white:fontsize=30:"
-        "x=(w-text_w)/2:y=1550:box=1:boxcolor=0x252D40@0.92:boxborderw=18[v]"
+        "text='TV OFF':fontcolor=white:fontsize=44:"
+        "x=(w-text_w)/2:y=1250,"
+        "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:"
+        "text='SOUND TO SWITCH OFF TO':fontcolor=0xAAB2C4:fontsize=24:"
+        "x=(w-text_w)/2:y=1320,"
+        "drawbox=x=105:y=1535:w=870:h=112:color=0x172337@0.96:t=fill:"
+        "enable='gte(t,20)',"
+        "drawbox=x=105:y=1535:w=870:h=112:color=white@0.55:t=2:"
+        "enable='gte(t,20)',"
+        "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
+        "text='MORE SOUNDS ON OUR CHANNEL':fontcolor=white:fontsize=31:"
+        "x=(w-text_w)/2:y=1573:alpha='if(lt(t,21),t-20,1)':enable='gte(t,20)'[v]"
     )
     run([
         "ffmpeg", "-y", "-hide_banner", "-f", "lavfi", "-i",
