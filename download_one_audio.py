@@ -2,6 +2,7 @@ import csv
 import hashlib
 import json
 import os
+import re
 import subprocess
 import time
 from datetime import datetime, timezone
@@ -61,6 +62,13 @@ def api_json(path, params):
             delay = (4, 10)[attempt]
             print(f"API retry {attempt + 1}/3 in {delay}s: {exc}", flush=True)
             time.sleep(delay)
+
+def freesound_id_from_source(value):
+    text = str(value or "").strip().split("?", 1)[0].rstrip("/")
+    if text.isdigit():
+        return text
+    match = re.search(r"(?:^|/)sounds/(\\d+)$", text)
+    return match.group(1) if match else None
 
 def is_cc0(value):
     text = str(value or "").lower()
@@ -169,8 +177,14 @@ def main():
                 f"Cannot safely read cross-format Freesound history "
                 f"{other_history_path}: {exc}"
             ) from exc
+    used_ids = {
+        source_id
+        for source in used
+        if (source_id := freesound_id_from_source(source))
+    }
     print(
-        f"CROSS-FORMAT SOURCE DEDUPLICATION: {len(used)} previously used source(s) loaded.",
+        f"CROSS-FORMAT SOURCE DEDUPLICATION: {len(used)} history entries and "
+        f"{len(used_ids)} normalized Freesound ID(s) loaded.",
         flush=True,
     )
     seen = set()
@@ -210,8 +224,8 @@ def main():
             if not is_cc0(sound.get("license")):
                 print(f"SKIP {sid}: license not verified as CC0", flush=True)
                 continue
-            if source_url in used:
-                print(f"SKIP {sid}: source already used", flush=True)
+            if source_url in used or str(sid) in used_ids:
+                print(f"SKIP {sid}: source already used (normalized Freesound ID)", flush=True)
                 continue
             original_duration = float(sound.get("duration") or 0)
             if original_duration < MIN_SOURCE_SECONDS:
