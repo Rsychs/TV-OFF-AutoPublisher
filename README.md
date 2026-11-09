@@ -32,6 +32,23 @@ Open [repository Actions secrets](https://github.com/Rsychs/TV-OFF-AutoPublisher
 
 Never add these values to repository files, issues, or chat. They are stored as GitHub Actions secrets.
 
+### 3a. Enable read-only channel analytics (required for the growth dashboard)
+
+The uploader token above only requests upload permission. Do not replace it. The analytics collector uses a separate refresh token.
+
+1. In the same Google Cloud project, enable **YouTube Analytics API**.
+2. Open [Google OAuth 2.0 Playground](https://developers.google.com/oauthplayground), use the same OAuth client credentials, and enter this scope in Step 1:
+   `https://www.googleapis.com/auth/yt-analytics.readonly`
+3. Authorize with the Google account that owns TV OFF and exchange the code for tokens.
+4. Copy the new **refresh_token** privately. Do not paste it into chat or commit it.
+5. In GitHub repository Settings → Secrets and variables → Actions, add a new repository secret:
+   - `YT_ANALYTICS_REFRESH_TOKEN` = the new analytics refresh token.
+6. Leave `YT_REFRESH_TOKEN` unchanged; it continues to be used for publishing.
+
+After adding the secret, open the repository Actions tab, select **TV OFF — YouTube Analytics Collector**, and click **Run workflow**. The collector runs daily at 03:17 UTC and saves the last 28 complete days of per-video data to `analytics/youtube_daily.csv` and `analytics/youtube_daily.json`.
+
+The first collector records views, watch time, average view duration/percentage, subscribers gained/lost, likes, comments and shares. Reporting can be delayed by YouTube. Shorts feed-specific viewed-vs-swiped metrics and impression CTR are not part of this first API collector.
+
 ### 4. Add videos and schedule
 1. Add MP4 files under `videos/` in the repository.
 2. Edit `schedule.csv` using this format:
