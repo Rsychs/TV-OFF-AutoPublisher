@@ -29,10 +29,10 @@ def main():
     filename = f"TV-OFF_{kind.title()}_{date_key}_{slot_key}_10-Hours.mp4"
     description = (
         f"10 hours of real {kind} ambience from a newly selected field recording, "
-        "smoothly looped for uninterrupted listening. Completely black screen throughout.\\n\\n"
-        "Original recording: {creator}\\nSource: {source_url}\\nLicense: {license}\\n\\n"
-        "🎧 Keep the volume comfortable.\\n🖤 10 hours • Black screen • No visuals\\n\\n"
-        "Subscribe to TV OFF for more long-form ambient soundscapes.\\n\\n"
+        "smoothly looped for uninterrupted listening. Completely black screen throughout.\n\n"
+        "Original recording: {creator}\nSource: {source_url}\nLicense: {license}\n\n"
+        "🎧 Keep the volume comfortable.\n🖤 10 hours • Black screen • No visuals\n\n"
+        "Subscribe to TV OFF for more long-form ambient soundscapes.\n\n"
         "#SleepSounds #NatureSounds #BlackScreen #TVOff"
     )
     publish_at = now.isoformat()
