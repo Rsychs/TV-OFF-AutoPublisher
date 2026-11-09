@@ -45,12 +45,16 @@ def main():
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     kind = next(iter(manifest))
     info = manifest[kind]
+    display_kind = kind.replace("_", " ").title()
+    file_kind = kind.replace("_", "").title()
+    synthetic = info.get("audio_type") == "synthetic"
+    visual_label = f"{display_kind.upper()}  /  TV OFF" if synthetic else "NATURE SOUNDS  /  TV OFF"
     source = AUDIO_DIR / info["file"]
     if not source.is_file():
         raise RuntimeError(f"Selected {kind} audio is missing: {source}")
 
     OUT.mkdir(exist_ok=True)
-    filename = f"TV-OFF_{kind.title()}_Short_{slot}.mp4"
+    filename = f"TV-OFF_{file_kind}_Short_{slot}.mp4"
     target = OUT / filename
     # A minimal vertical TV OFF visual: black canvas, restrained blue-grey animated waveform.
     graph = (
@@ -59,7 +63,7 @@ def main():
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
         "text='TV OFF':fontcolor=white:fontsize=76:x=(w-text_w)/2:y=590,"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:"
-        "text='NATURE SOUNDS  /  TV OFF':fontcolor=0xAAB2C4:fontsize=30:"
+        f"text='{visual_label}':fontcolor=0xAAB2C4:fontsize=30:"
         "x=(w-text_w)/2:y=1110[v]"
     )
     run([
@@ -88,19 +92,35 @@ def main():
     )
     creds.refresh(Request())
     youtube = build("youtube", "v3", credentials=creds)
-    description = (
-        f"27 seconds of {kind} ambience from a verified CC0 field recording. "
-        "TV OFF — sound to switch off to.\n\n"
-        f"Original recording: {info.get('creator', 'Not credited')}\n"
-        f"Source: {info.get('source_url', '')}\n"
-        f"License: {info.get('license', 'CC0')}\n\n"
-        f"#Shorts #{kind.title().replace(' ', '')} #NatureSounds #TVOff #AmbientSounds"
-    )
+    if synthetic:
+        description = (
+            f"27 seconds of original digitally generated {display_kind.lower()} by TV OFF. "
+            "Created locally with FFmpeg; no third-party recording or sample is used. "
+            "TV OFF — sound to switch off to.\n\n"
+            f"Audio type: original synthetic audio\n"
+            f"Production: {info.get('creator', 'TV OFF')}\n"
+            f"{info.get('license', 'Original synthetic audio; no third-party sample used.')}\n\n"
+            f"#Shorts #{kind.replace('_', '')} #SleepSounds #FocusSounds #TVOff #AmbientSounds"
+        )
+        short_use = "Sleep & Relaxation" if kind == "brown_noise" else "Sleep & Focus"
+        short_title = f"{display_kind} for {short_use} | TV OFF #Shorts"
+        short_tags = ["Shorts", display_kind, "Sleep Sounds", "Focus Sounds", "TV OFF", "Ambient Sounds"]
+    else:
+        description = (
+            f"27 seconds of {kind} ambience from a verified CC0 field recording. "
+            "TV OFF — sound to switch off to.\n\n"
+            f"Original recording: {info.get('creator', 'Not credited')}\n"
+            f"Source: {info.get('source_url', '')}\n"
+            f"License: {info.get('license', 'CC0')}\n\n"
+            f"#Shorts #{kind.title().replace(' ', '')} #NatureSounds #TVOff #AmbientSounds"
+        )
+        short_title = f"{display_kind} Nature Sounds | TV OFF #Shorts"
+        short_tags = ["Shorts", display_kind, "Nature Sounds", "TV OFF", "Ambient Sounds"]
     body = {
         "snippet": {
-            "title": f"{kind.title()} Nature Sounds | TV OFF #Shorts",
+            "title": short_title,
             "description": description,
-            "tags": ["Shorts", kind.title(), "Nature Sounds", "TV OFF", "Ambient Sounds"],
+            "tags": short_tags,
             "categoryId": "10"
         },
         "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False}

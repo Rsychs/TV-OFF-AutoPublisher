@@ -51,7 +51,7 @@ jobs:
           echo "SOUNDSCAPE=$KIND" >> "$GITHUB_ENV"
           echo "Selected soundscape: $KIND"
 
-      - name: Select one verified CC0 recording from Freesound
+      - name: Generate original noise or select one verified CC0 recording from Freesound
         timeout-minutes: 8
         env:
           FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
