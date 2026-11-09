@@ -1,10 +1,6 @@
 name: Publish existing YouTube video
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/publish-existing.yml"
   workflow_dispatch:
 
 permissions:
