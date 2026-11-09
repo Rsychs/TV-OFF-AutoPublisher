@@ -107,7 +107,7 @@ def cabin_background(path):
 def make_fx(path, seed, seconds=20, fps=8):
     frames=seconds*fps
     rng=np.random.default_rng(seed)
-    snow=[(float(rng.uniform(0,WIDTH)),float(rng.uniform(0,HEIGHT)),float(rng.uniform(1.0,3.4)),float(rng.uniform(14,42)),float(rng.uniform(0,6.28))) for _ in range(170)]
+    snow=[(float(rng.uniform(685,1160)),float(rng.uniform(125,455)),float(rng.uniform(1.0,3.4)),float(rng.uniform(14,42)),float(rng.uniform(0,6.28))) for _ in range(170)]
     embers=[(float(rng.uniform(210,420)),float(rng.uniform(460,600)),float(rng.uniform(0.7,2.0)),float(rng.uniform(8,24)),float(rng.uniform(0,6.28))) for _ in range(34)]
     frame_dir=WORK/"fx_frames"
     frame_dir.mkdir(parents=True,exist_ok=True)
