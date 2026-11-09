@@ -48,14 +48,10 @@ def main():
         thumbnail = THUMB_DIR / (Path(key).stem + ".jpg")
 
         if video_id:
-            if thumbnail.is_file():
-                youtube.thumbnails().set(
-                    videoId=video_id,
-                    media_body=MediaFileUpload(str(thumbnail), mimetype="image/jpeg")
-                ).execute()
-                print(f"THUMBNAIL UPDATED {key}: https://youtu.be/{video_id}")
-            else:
-                raise RuntimeError(f"Missing thumbnail for already uploaded video: {thumbnail}")
+            print(
+                f"ALREADY PUBLISHED {key}: https://youtu.be/{video_id}; "
+                "skipping without modifying the existing YouTube video."
+            )
             continue
 
         filename = (MEDIA_DIR / key).resolve()
