@@ -191,4 +191,4 @@ jobs:
             git commit -m "Record Winter Cabin Lo-Fi YouTube publication"
           fi
           git pull --rebase origin main
-          git push origin HEAD:main origin HEAD:main
+          git push origin HEAD:main
