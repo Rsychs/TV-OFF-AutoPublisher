@@ -21,6 +21,7 @@ BROWN_NOISE_VARIANTS = [
     ("Brown Noise for a Quiet Home Office & Deep Work", "brown noise for deep work;home office background noise;focus ambience;BrownNoise;WorkSounds", "A continuous brown-noise background for deep-work blocks and home-office tasks. 10 uninterrupted hours with a completely black screen."),
     ("Brown Noise for Sleep, Rest & a Peaceful Night", "brown noise for sleep;brown noise for rest;peaceful night sounds;BrownNoise;SleepSounds", "A steady brown-noise soundscape for rest and peaceful nighttime listening. 10 uninterrupted hours with a completely black screen."),
 ]
+BROWN_NOISE = ("brown_noise", BROWN_NOISE_VARIANTS[0][0], BROWN_NOISE_VARIANTS[0][1])
 STANDARD_SOUNDS = [
     ("ocean", "Ocean Waves for Deep Sleep & Relaxation", "ocean waves for sleep;sea sounds;OceanWaves;SleepSounds"),
     ("forest", "Forest Birds for Relaxation & Focus", "forest birds;birdsong for relaxation;ForestBirds;NatureSounds"),
@@ -58,6 +59,7 @@ def main():
     date_key = slot_start.strftime("%Y%m%d")
     slot_key = slot_start.strftime("%H")
     published = published_soundscapes()
+    brown_description = None
     if not published["white_noise"]:
         kind, title, tags = WHITE_NOISE
         print("PRIORITY QUEUE: white noise is not yet published; selecting it first.")
@@ -67,7 +69,6 @@ def main():
     else:
         slot_number = int(slot_start.timestamp() // (3 * 3600))
         kind, title, tags = STANDARD_SOUNDS[slot_number % len(STANDARD_SOUNDS)]
-        brown_description = None
         if kind == "brown_noise":
             title, tags, brown_description = BROWN_NOISE_VARIANTS[(slot_number // len(STANDARD_SOUNDS)) % len(BROWN_NOISE_VARIANTS)]
         print("PRIORITY QUEUE COMPLETE: both white and brown noise are published; using expanded standard rotation.")
