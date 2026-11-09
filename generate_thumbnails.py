@@ -100,29 +100,44 @@ def make_thumbnail(row):
     kind = detect_kind(stem, source_title)
     accent = ACCENTS[kind]
 
-    im = Image.new("RGBA", (W, H), (3, 5, 8, 255))
+    # Cinematic dark gradient with a vivid category-colored glow and layered sound rings.
+    im = Image.new("RGBA", (W, H), (4, 8, 15, 255))
+    pixels = im.load()
+    for y in range(H):
+        for x in range(W):
+            glow_strength = max(0.0, 1.0 - math.sqrt(((x-W*0.52)/(W*0.72))**2 + ((y-H*0.28)/(H*0.95))**2))
+            edge = 1.0 - 0.22 * (abs(x-W/2)/(W/2))
+            pixels[x, y] = (
+                int(4 + accent[0] * 0.13 * glow_strength * edge),
+                int(8 + accent[1] * 0.13 * glow_strength * edge),
+                int(15 + accent[2] * 0.18 * glow_strength * edge),
+                255
+            )
     glow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     gd = ImageDraw.Draw(glow)
-    gd.ellipse((250, -80, 1030, 600), fill=(*accent, 27))
-    glow = glow.filter(ImageFilter.GaussianBlur(125))
+    for radius, alpha in ((190, 18), (145, 22), (100, 27)):
+        gd.ellipse((W//2-radius, 125-radius, W//2+radius, 125+radius), outline=(*accent, alpha), width=5)
+    glow = glow.filter(ImageFilter.GaussianBlur(18))
     im = Image.alpha_composite(im, glow)
     draw = ImageDraw.Draw(im, "RGBA")
 
+    # Soft luminous waveform across the upper half creates a clear visual hook at small sizes.
     draw_signature(draw, kind, accent)
-    centered_text(draw, "TV OFF", 285, font(30, True), (235, 240, 244, 255))
+    draw.rounded_rectangle((48, 42, 220, 91), radius=22, fill=(255, 255, 255, 18), outline=(*accent, 150), width=2)
+    draw.text((76, 51), "TV OFF", font=font(25, True), fill=(245, 248, 252, 255))
 
     headline = LABELS.get(kind, source_title.upper())
-    headline_font = font(68, True)
+    headline_font = font(72, True)
     bbox = draw.textbbox((0, 0), headline, font=headline_font)
-    while bbox[2] - bbox[0] > 1100 and headline_font.size > 48:
+    while bbox[2] - bbox[0] > 1160 and headline_font.size > 48:
         headline_font = font(headline_font.size - 2, True)
         bbox = draw.textbbox((0, 0), headline, font=headline_font)
-    centered_text(draw, headline, 365, headline_font, (250, 250, 248, 255))
+    centered_text(draw, headline, 345, headline_font, (255, 255, 255, 255))
 
-    draw.rounded_rectangle((510, 465, 770, 470), radius=2, fill=(*accent, 230))
-    descriptor = "10 HOURS  •  BLACK SCREEN"
-    centered_text(draw, descriptor, 505, font(27, True), (185, 195, 202, 255))
-    centered_text(draw, "SOUND TO SWITCH OFF TO", 642, font(17, True), (105, 117, 125, 255))
+    # A strong, readable duration pill helps the thumbnail communicate the format instantly.
+    draw.rounded_rectangle((420, 455, 860, 520), radius=28, fill=(*accent, 235))
+    centered_text(draw, "10 HOURS  •  BLACK SCREEN", 470, font(23, True), (8, 12, 19, 255))
+    centered_text(draw, "SOUND TO SWITCH OFF TO", 635, font(20, True), (190, 202, 216, 255))
 
     OUT.mkdir(exist_ok=True)
     target = OUT / (stem + ".jpg")
