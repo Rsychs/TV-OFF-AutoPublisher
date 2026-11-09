@@ -41,3 +41,11 @@ jobs:
               raise SystemExit(f"Expected 180 seconds, got {actual:.2f}")
           PY
           ffmpeg -v error -i "$file" -map 0:a:0 -t 20 -f null -
+
+      - name: Upload validated preview artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: winter-cabin-pr-preview
+          path: winter_cabin/videos/TV-OFF_Winter_Cabin_Preview_pr-validation.mp4
+          if-no-files-found: error
+          retention-days: 3
