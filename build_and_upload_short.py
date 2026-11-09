@@ -100,7 +100,7 @@ def main():
         "x=(w-text_w)/2:y=1320,"
         "drawbox=x=105:y=1490:w=870:h=112:color=0x172337@0.96:t=fill:"
         "enable='gte(t,20)',"
-        "drawbox=x=105:y=1535:w=870:h=112:color=white@0.55:t=2:"
+        "drawbox=x=105:y=1490:w=870:h=112:color=white@0.55:t=2:"
         "enable='gte(t,20)',"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
         "text='MORE SOUNDS ON OUR CHANNEL':fontcolor=white:fontsize=31:"
