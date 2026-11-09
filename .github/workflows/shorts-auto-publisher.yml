@@ -1,4 +1,5 @@
 name: TV OFF — Shorts Auto Publisher
+# Keep the hourly workflow eligible for immediate push-triggered recovery runs.
 
 on:
   workflow_run:
