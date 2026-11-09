@@ -45,6 +45,20 @@ def main():
     for row in rows:
         key = row["filename"].strip()
         video_id = state.get(key)
+        duplicate_record = next(
+            (
+                entry for entry in state.get("_duplicate_publications", [])
+                if isinstance(entry, dict) and entry.get("filename") == key
+            ),
+            None,
+        )
+        if duplicate_record and not video_id:
+            duplicate_id = duplicate_record.get("video_id", "unknown")
+            raise RuntimeError(
+                f"REFUSING TO REPUBLISH {key}: a prior duplicate upload is already recorded "
+                f"(https://youtu.be/{duplicate_id}); reconcile state before retrying."
+            )
+
         thumbnail = THUMB_DIR / (Path(key).stem + ".jpg")
 
         if video_id:
