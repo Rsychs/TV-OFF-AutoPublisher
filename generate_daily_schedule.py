@@ -42,7 +42,8 @@ def main():
             f"10 hours of original digitally generated {display_kind.lower()} "
             "for sleep, relaxation and focus. Smooth, continuous audio with a completely black screen."
         )
-        hashtags = "#WhiteNoise #BrownNoise #SleepSounds #FocusSounds #BlackScreen #TVOff"
+        noise_hashtag = "#WhiteNoise" if kind == "white_noise" else "#BrownNoise"
+        hashtags = f"{noise_hashtag} #SleepSounds #FocusSounds #BlackScreen #TVOff"
         thumbnail_descriptor = f"{display_kind.upper()} • 10 HOURS"
     else:
         description_intro = (
