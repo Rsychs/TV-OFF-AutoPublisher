@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - "generate_daily_schedule.py"
+      - "download_one_audio.py"
       - ".github/workflows/daily-soundscape.yml"
 
 permissions:
