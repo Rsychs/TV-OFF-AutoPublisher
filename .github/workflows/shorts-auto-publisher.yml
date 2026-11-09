@@ -6,6 +6,9 @@ on:
     types: [completed]
   schedule:
     - cron: "0 */2 * * *"
+  push:
+    paths:
+      - ".github/workflows/shorts-auto-publisher.yml"
   workflow_dispatch:
 
 permissions:
