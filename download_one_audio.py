@@ -253,9 +253,7 @@ def main():
 
     manifest = {KIND: selected}
     (ROOT / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
-    history.setdefault("used", [])
-    history["used"].append(selected["source_url"])
-    HISTORY.write_text(json.dumps(history, indent=2, ensure_ascii=False), encoding="utf-8")
+    # A source is marked used only after YouTube confirms a publication.
     print("AUDIO PREFLIGHT PASSED: exactly one source is ready.", flush=True)
 
 if __name__ == "__main__":
