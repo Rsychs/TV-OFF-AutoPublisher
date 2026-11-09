@@ -53,9 +53,10 @@ def main():
         hashtags = "#SleepSounds #NatureSounds #BlackScreen #TVOff"
         thumbnail_descriptor = "10 HOURS • BLACK SCREEN"
 
+    source_label = "Original audio" if kind in {"white_noise", "brown_noise"} else "Original recording"
     description = (
         description_intro + "\n\n"
-        "Original recording: {creator}\nSource: {source_url}\nLicense: {license}\n\n"
+        f"{source_label}: {{creator}}\nSource: {{source_url}}\nLicense: {{license}}\n\n"
         "🎧 Keep the volume comfortable.\n🖤 10 hours • Black screen • No visuals\n\n"
         "Subscribe to TV OFF for more long-form ambient soundscapes.\n\n"
         + hashtags
