@@ -46,6 +46,7 @@ def main():
     kind = next(iter(manifest))
     info = manifest[kind]
     display_kind = kind.replace("_", " ").title()
+    file_kind = kind.replace("_", "").title()
     synthetic = info.get("audio_type") == "synthetic"
     visual_label = f"{display_kind.upper()}  /  TV OFF" if synthetic else "NATURE SOUNDS  /  TV OFF"
     source = AUDIO_DIR / info["file"]
@@ -53,7 +54,7 @@ def main():
         raise RuntimeError(f"Selected {kind} audio is missing: {source}")
 
     OUT.mkdir(exist_ok=True)
-    filename = f"TV-OFF_{kind.replace(chr(95), '').title()}_Short_{slot}.mp4"
+    filename = f"TV-OFF_{file_kind}_Short_{slot}.mp4"
     target = OUT / filename
     # A minimal vertical TV OFF visual: black canvas, restrained blue-grey animated waveform.
     graph = (
