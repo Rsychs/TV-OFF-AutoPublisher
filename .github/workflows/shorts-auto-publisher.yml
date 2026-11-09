@@ -45,8 +45,21 @@ jobs:
 
           path = Path("shorts_state.json")
           state = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-          slot = datetime.now(timezone.utc).strftime("%Y%m%d%H")
+          now = datetime.now(timezone.utc)
+          slot = now.strftime("%Y%m%d%H")
           reason = f"Short already published for slot {slot}: {state[slot]}" if slot in state else ""
+          last_published_at = state.get("_last_published_at")
+          if not reason and last_published_at:
+              try:
+                  last_at = datetime.fromisoformat(str(last_published_at).replace("Z", "+00:00"))
+              except ValueError as exc:
+                  raise RuntimeError("Invalid _last_published_at in shorts_state.json; refusing to bypass cooldown.") from exc
+              if last_at.tzinfo is None:
+                  last_at = last_at.replace(tzinfo=timezone.utc)
+              elapsed = (now - last_at.astimezone(timezone.utc)).total_seconds()
+              if elapsed < 3600:
+                  remaining = int(3600 - elapsed + 0.999)
+                  reason = f"Short cooldown active: {remaining}s remaining."
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               output.write(f"skip={'true' if reason else 'false'}\n")
           print(reason if reason else f"Short slot {slot} is ready.")
