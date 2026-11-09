@@ -3,8 +3,8 @@ name: TV OFF — 10-Hour Soundscape Video
 on:
   workflow_dispatch:
   schedule:
-    # 06:00 UTC = 08:00 Europe/Riga during standard time.
-    - cron: "0 6 * * *"
+    # Every 3 hours (UTC; local Riga time shifts with DST).
+    - cron: "0 */3 * * *"
   push:
     branches: [main]
     paths:
