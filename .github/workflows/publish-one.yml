@@ -1,12 +1,6 @@
 name: TV OFF - Publish One Video
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/publish-one.yml"
-      - "download_one_audio.py"
-      - "backlog_schedule.csv"
   workflow_dispatch:
     inputs:
       soundscape:
