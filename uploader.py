@@ -103,6 +103,13 @@ def main():
         video_id = response["id"]
         state[key] = video_id
         STATE_FILE.write_text(json.dumps(state, indent=2), encoding="utf-8")
+        if source.get("platform") == "Freesound" and source.get("source_url"):
+            history_path = ROOT / "used_sources.json"
+            history = json.loads(history_path.read_text(encoding="utf-8")) if history_path.exists() else {"used": []}
+            used = history.setdefault("used", [])
+            if source["source_url"] not in used:
+                used.append(source["source_url"])
+                history_path.write_text(json.dumps(history, indent=2), encoding="utf-8")
         youtube.thumbnails().set(
             videoId=video_id,
             media_body=MediaFileUpload(str(thumbnail), mimetype="image/jpeg")
