@@ -100,7 +100,7 @@ def main():
     youtube = build("youtube", "v3", credentials=creds)
     if synthetic:
         description = (
-            f"27 seconds of original digitally generated {display_kind.lower()} by TV OFF. "
+            f"Short {display_kind.lower()} sound for sleep, focus and relaxation, created by TV OFF. "
             "Created locally with FFmpeg; no third-party recording or sample is used. "
             "TV OFF — sound to switch off to.\n\n"
             f"Audio type: original synthetic audio\n"
@@ -113,7 +113,7 @@ def main():
         short_tags = ["Shorts", display_kind, "Sleep Sounds", "Focus Sounds", "TV OFF", "Ambient Sounds"]
     else:
         description = (
-            f"27 seconds of {kind} ambience from a verified CC0 field recording. "
+            f"{display_kind} nature sounds for relaxation, focus and quiet moments, from a verified CC0 field recording. "
             "TV OFF — sound to switch off to.\n\n"
             f"Original recording: {info.get('creator', 'Not credited')}\n"
             f"Source: {info.get('source_url', '')}\n"
