@@ -1,0 +1,167 @@
+name: TV OFF — Winter Cabin Lo-Fi (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Preview (3 minutes, artifact only) or full 10-hour publication"
+        required: true
+        type: choice
+        options:
+          - preview
+          - full
+        default: preview
+      test_id:
+        description: "Unique run label (letters, numbers, _ or -)"
+        required: true
+        type: string
+        default: winter-cabin-test
+
+permissions:
+  contents: write
+
+# Shares the long-form production lock. It never cancels an existing video build.
+concurrency:
+  group: tv-off-single-video
+  cancel-in-progress: false
+
+jobs:
+  winter-cabin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Validate manual run parameters
+        shell: bash
+        env:
+          TEST_ID: \${{ inputs.test_id }}
+          MODE: \${{ inputs.mode }}
+        run: |
+          if [[ ! "$TEST_ID" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{2,31}$ ]]; then
+            echo "test_id must be 3–32 characters: letters, digits, underscore or hyphen."
+            exit 1
+          fi
+          echo "Mode: $MODE | Test ID: $TEST_ID"
+
+      - name: Check out the selected branch
+        uses: actions/checkout@v4
+        with:
+          ref: \${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install FFmpeg and Python dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          pip install -r requirements.txt pillow
+
+      - name: Refresh shared upload state before full production
+        if: inputs.mode == 'full'
+        run: |
+          git fetch origin main
+          git show origin/main:state.json > state.json
+          if git cat-file -e origin/main:winter_cabin/state.json 2>/dev/null; then
+            git show origin/main:winter_cabin/state.json > winter_cabin/state.json
+          fi
+
+      - name: Refuse an already-published Winter Cabin video
+        if: inputs.mode == 'full'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          key = "TV-OFF_Winter_Cabin_Cozy_LoFi_10-Hours.mp4"
+          for path in (Path("state.json"), Path("winter_cabin/state.json")):
+              state = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+              video_id = state.get(key)
+              if isinstance(video_id, str) and video_id.strip():
+                  raise SystemExit(f"REFUSING DUPLICATE: {key} already has YouTube ID {video_id} in {path}")
+          print("Deduplication check passed: no previous Winter Cabin upload is recorded.")
+          PY
+
+      - name: Generate preview or complete 10-hour Winter Cabin video
+        env:
+          MODE: \${{ inputs.mode }}
+          TEST_ID: \${{ inputs.test_id }}
+        run: python winter_cabin/create_winter_cabin.py --mode "$MODE" --test-id "$TEST_ID"
+
+      - name: Validate generated media
+        env:
+          MODE: \${{ inputs.mode }}
+        run: |
+          if [ "$MODE" = "preview" ]; then
+            file="$(find winter_cabin/videos -maxdepth 1 -name 'TV-OFF_Winter_Cabin_Preview_*.mp4' -print -quit)"
+            expected=180
+          else
+            file="winter_cabin/videos/TV-OFF_Winter_Cabin_Cozy_LoFi_10-Hours.mp4"
+            expected=36000
+          fi
+          test -n "$file" && test -s "$file"
+          actual="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$file")"
+          python - "$actual" "$expected" <<'PY'
+          import sys
+          actual, expected = map(float, sys.argv[1:])
+          if abs(actual-expected) > 2:
+              raise SystemExit(f"Duration mismatch: {actual:.2f}s, expected {expected:.0f}s")
+          print(f"Duration validated: {actual:.2f}s")
+          PY
+          ffmpeg -v error -i "$file" -map 0:a:0 -t 20 -f null -
+
+      - name: Store preview as a downloadable validation artifact
+        if: inputs.mode == 'preview'
+        uses: actions/upload-artifact@v4
+        with:
+          name: winter-cabin-lofi-preview-\${{ inputs.test_id }}
+          path: winter_cabin/videos/TV-OFF_Winter_Cabin_Preview_*.mp4
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Upload full video to YouTube
+        if: inputs.mode == 'full'
+        env:
+          YT_CLIENT_ID: \${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: \${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: \${{ secrets.YT_REFRESH_TOKEN }}
+          MEDIA_DIR: \${{ github.workspace }}/winter_cabin/videos
+          SOURCE_AUDIO_DIR: \${{ github.workspace }}/winter_cabin/audio
+          SCHEDULE_FILE: \${{ github.workspace }}/winter_cabin/schedule.csv
+          STATE_FILE: \${{ github.workspace }}/winter_cabin/state.json
+        run: python uploader.py
+
+      - name: Persist confirmed YouTube ID to both deduplication ledgers
+        if: always() && inputs.mode == 'full'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          key = "TV-OFF_Winter_Cabin_Cozy_LoFi_10-Hours.mp4"
+          local = Path("winter_cabin/state.json")
+          if not local.is_file():
+              print("No local upload state; nothing to persist.")
+              raise SystemExit(0)
+          winter = json.loads(local.read_text(encoding="utf-8"))
+          video_id = winter.get(key)
+          if not isinstance(video_id, str) or not video_id.strip():
+              print("No confirmed YouTube ID was saved; global state remains unchanged.")
+              raise SystemExit(0)
+          global_path = Path("state.json")
+          global_state = json.loads(global_path.read_text(encoding="utf-8"))
+          existing = global_state.get(key)
+          if existing and existing != video_id:
+              raise SystemExit(f"State conflict for {key}: global={existing}, winter={video_id}")
+          global_state[key] = video_id
+          global_path.write_text(json.dumps(global_state, indent=2) + "\n", encoding="utf-8")
+          print(f"Confirmed YouTube ID {video_id} persisted in both state files.")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f state.json winter_cabin/state.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Record Winter Cabin Lo-Fi YouTube publication"
+          fi
+          git pull --rebase origin main
+          git push
