@@ -28,8 +28,8 @@ def main():
     last = state.get("_last_published_at")
     if last:
         elapsed = (now - datetime.fromisoformat(last)).total_seconds()
-        if elapsed < 7200:
-            print(f"Two-hour cooldown active; next Short in {int(7200 - elapsed)} seconds.")
+        if elapsed < 3600:
+            print(f"One-hour cooldown active; next Short in {int(3600 - elapsed)} seconds.")
             return
 
     # Shorts stay gated until at least one 10-hour soundscape video is recorded as uploaded.
