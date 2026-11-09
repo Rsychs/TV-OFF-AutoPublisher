@@ -1,5 +1,6 @@
 import csv
 import os
+import re
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -28,9 +29,16 @@ def published_soundscapes():
     state = json.loads(state_path.read_text(encoding="utf-8"))
     if not isinstance(state, dict):
         raise RuntimeError("state.json is not a JSON object")
+    # Normalize filenames because Python's str.title() writes "Whitenoise"/"Brownnoise",
+    # while older releases may use "WhiteNoise"/"BrownNoise". Matching is case-insensitive
+    # and separator-insensitive so priority releases cannot get stuck in a repeat loop.
+    normalized_names = [
+        re.sub(r"[^a-z0-9]", "", str(name).lower())
+        for name in state
+    ]
     return {
-        "white_noise": any("TV-OFF_WhiteNoise_" in str(name) for name in state),
-        "brown_noise": any("TV-OFF_BrownNoise_" in str(name) for name in state),
+        "white_noise": any("whitenoise" in name for name in normalized_names),
+        "brown_noise": any("brownnoise" in name for name in normalized_names),
     }
 
 def main():
