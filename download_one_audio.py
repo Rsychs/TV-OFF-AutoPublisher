@@ -108,7 +108,7 @@ def generate_synthetic_noise():
             f"anoisesrc=color={color}:amplitude=0.12:sample_rate=48000:duration={duration}",
             "-ac", "2", "-c:a", "libmp3lame", "-b:a", "192k", str(target),
         ],
-        check=True, capture_output=True, text=True, timeout=180,
+        check=True, timeout=180,
     )
     actual_duration = probe_seconds(target)
     if actual_duration < duration - 1:
