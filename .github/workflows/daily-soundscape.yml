@@ -50,7 +50,7 @@ jobs:
           slot_hour = (now.hour // 3) * 3
           date_key = now.strftime("%Y%m%d")
           slot_key = f"{slot_hour:02d}"
-          pattern = re.compile(rf"^TV-OFF_.+_{date_key}_{slot_key}_10-Hours\\.mp4$", re.IGNORECASE)
+          pattern = re.compile(rf"^TV-OFF_.+_{date_key}_{slot_key}_10-Hours\.mp4$", re.IGNORECASE)
           published = [
               (name, video_id)
               for name, video_id in state.items()
@@ -60,7 +60,7 @@ jobs:
 
           skip = bool(published)
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"skip={'true' if skip else 'false'}\\n")
+              output.write(f"skip={'true' if skip else 'false'}\n")
 
           if skip:
               print(f"SKIPPING: current 3-hour slot {date_key}_{slot_key} is already published: {published}")
