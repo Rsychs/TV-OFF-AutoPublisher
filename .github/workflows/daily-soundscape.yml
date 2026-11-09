@@ -2,9 +2,6 @@ name: TV OFF — 10-Hour Soundscape Video
 
 on:
   workflow_dispatch:
-  schedule:
-    # Every 3 hours (UTC; local Riga time shifts with DST).
-    - cron: "0 */3 * * *"
 
 permissions:
   contents: write
