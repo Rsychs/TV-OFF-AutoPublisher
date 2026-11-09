@@ -52,7 +52,7 @@ jobs:
           slot = datetime.now(timezone.utc).strftime("%Y%m%d%H")
           reason = f"Short already published for slot {slot}: {state[slot]}" if slot in state else ""
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"skip={'true' if reason else 'false'}\\n")
+              output.write(f"skip={'true' if reason else 'false'}\n")
           print(reason if reason else f"Short slot {slot} is ready.")
           PY
 
