@@ -160,7 +160,7 @@ def main():
     ).execute()
     video_id = response["id"]
     state[slot] = video_id
-    state["_last_published_at"] = now.isoformat()
+    state["_last_published_at"] = datetime.now(timezone.utc).isoformat()
     STATE.write_text(json.dumps(state, indent=2), encoding="utf-8")
     if info.get("platform") == "Freesound" and info.get("source_url"):
         history_path = ROOT / "shorts_used_sources.json"
