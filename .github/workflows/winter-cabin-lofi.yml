@@ -1,11 +1,6 @@
 name: TV OFF — Winter Cabin Lo-Fi (manual)
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/winter-cabin-lofi.yml"
   workflow_dispatch:
     inputs:
       mode:
