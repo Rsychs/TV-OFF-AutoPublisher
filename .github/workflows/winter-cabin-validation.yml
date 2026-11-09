@@ -1,0 +1,43 @@
+name: Validate Winter Cabin Lo-Fi generator
+
+on:
+  pull_request:
+    paths:
+      - "winter_cabin/**"
+      - ".github/workflows/winter-cabin-lofi.yml"
+      - ".github/workflows/winter-cabin-validation.yml"
+      - "requirements.txt"
+
+permissions:
+  contents: read
+
+jobs:
+  preview-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install FFmpeg and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          pip install -r requirements.txt pillow
+      - name: Compile generator
+        run: python -m py_compile winter_cabin/create_winter_cabin.py
+      - name: Render isolated three-minute preview
+        run: python winter_cabin/create_winter_cabin.py --mode preview --test-id pr-validation
+      - name: Validate preview duration and audio
+        run: |
+          file="winter_cabin/videos/TV-OFF_Winter_Cabin_Preview_pr-validation.mp4"
+          test -s "$file"
+          actual="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$file")"
+          python - "$actual" <<'PY'
+          import sys
+          actual=float(sys.argv[1])
+          if abs(actual-180)>2:
+              raise SystemExit(f"Expected 180 seconds, got {actual:.2f}")
+          PY
+          ffmpeg -v error -i "$file" -map 0:a:0 -t 20 -f null -
