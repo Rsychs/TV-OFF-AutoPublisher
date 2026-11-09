@@ -4,11 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "Preview (3 minutes, artifact only) or full 10-hour publication"
+        description: "3-minute preview, 10-minute unlisted YouTube test, or full 10-hour publication"
         required: true
         type: choice
         options:
           - preview
+          - test10
           - full
         default: preview
       test_id:
@@ -33,11 +34,15 @@ jobs:
       - name: Validate manual run parameters
         shell: bash
         env:
-          TEST_ID: \${{ inputs.test_id }}
-          MODE: \${{ inputs.mode }}
+          TEST_ID: ${{ inputs.test_id }}
+          MODE: ${{ inputs.mode }}
         run: |
           if [[ ! "$TEST_ID" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{2,31}$ ]]; then
             echo "test_id must be 3–32 characters: letters, digits, underscore or hyphen."
+            exit 1
+          fi
+          if [[ "$MODE" != "preview" && "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "YouTube upload modes must run from main so publication IDs are committed to the shared production ledger."
             exit 1
           fi
           echo "Mode: $MODE | Test ID: $TEST_ID"
@@ -45,7 +50,7 @@ jobs:
       - name: Check out the selected branch
         uses: actions/checkout@v4
         with:
-          ref: \${{ github.ref }}
+          ref: ${{ github.ref }}
           fetch-depth: 0
 
       - name: Set up Python
@@ -60,7 +65,7 @@ jobs:
           pip install -r requirements.txt pillow
 
       - name: Refresh shared upload state before full production
-        if: inputs.mode == 'full'
+        if: inputs.mode == 'full' || inputs.mode == 'test10'
         run: |
           git fetch origin main
           git show origin/main:state.json > state.json
@@ -69,12 +74,17 @@ jobs:
           fi
 
       - name: Refuse an already-published Winter Cabin video
-        if: inputs.mode == 'full'
+        if: inputs.mode == 'full' || inputs.mode == 'test10'
+        env:
+          MODE: ${{ inputs.mode }}
+          TEST_ID: ${{ inputs.test_id }}
         run: |
           python - <<'PY'
-          import json
+          import json, os
           from pathlib import Path
-          key = "TV-OFF_Winter_Cabin_Cozy_LoFi_10-Hours.mp4"
+          key = ("TV-OFF_Winter_Cabin_Test_10min_" + os.environ["TEST_ID"] + ".mp4"
+                 if os.environ["MODE"] == "test10"
+                 else "TV-OFF_Winter_Cabin_Cozy_LoFi_10-Hours.mp4")
           for path in (Path("state.json"), Path("winter_cabin/state.json")):
               state = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
               video_id = state.get(key)
@@ -85,17 +95,20 @@ jobs:
 
       - name: Generate preview or complete 10-hour Winter Cabin video
         env:
-          MODE: \${{ inputs.mode }}
-          TEST_ID: \${{ inputs.test_id }}
+          MODE: ${{ inputs.mode }}
+          TEST_ID: ${{ inputs.test_id }}
         run: python winter_cabin/create_winter_cabin.py --mode "$MODE" --test-id "$TEST_ID"
 
       - name: Validate generated media
         env:
-          MODE: \${{ inputs.mode }}
+          MODE: ${{ inputs.mode }}
         run: |
           if [ "$MODE" = "preview" ]; then
             file="$(find winter_cabin/videos -maxdepth 1 -name 'TV-OFF_Winter_Cabin_Preview_*.mp4' -print -quit)"
             expected=180
+          elif [ "$MODE" = "test10" ]; then
+            file="winter_cabin/videos/TV-OFF_Winter_Cabin_Test_10min_${{ inputs.test_id }}.mp4"
+            expected=600
           else
             file="winter_cabin/videos/TV-OFF_Winter_Cabin_Cozy_LoFi_10-Hours.mp4"
             expected=36000
@@ -115,30 +128,35 @@ jobs:
         if: inputs.mode == 'preview'
         uses: actions/upload-artifact@v4
         with:
-          name: winter-cabin-lofi-preview-\${{ inputs.test_id }}
+          name: winter-cabin-lofi-preview-${{ inputs.test_id }}
           path: winter_cabin/videos/TV-OFF_Winter_Cabin_Preview_*.mp4
           if-no-files-found: error
           retention-days: 3
 
-      - name: Upload full video to YouTube
-        if: inputs.mode == 'full'
+      - name: Upload test or full video to YouTube
+        if: inputs.mode == 'full' || inputs.mode == 'test10'
         env:
-          YT_CLIENT_ID: \${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: \${{ secrets.YT_CLIENT_SECRET }}
-          YT_REFRESH_TOKEN: \${{ secrets.YT_REFRESH_TOKEN }}
-          MEDIA_DIR: \${{ github.workspace }}/winter_cabin/videos
-          SOURCE_AUDIO_DIR: \${{ github.workspace }}/winter_cabin/audio
-          SCHEDULE_FILE: \${{ github.workspace }}/winter_cabin/schedule.csv
-          STATE_FILE: \${{ github.workspace }}/winter_cabin/state.json
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          MEDIA_DIR: ${{ github.workspace }}/winter_cabin/videos
+          SOURCE_AUDIO_DIR: ${{ github.workspace }}/winter_cabin/audio
+          SCHEDULE_FILE: ${{ github.workspace }}/winter_cabin/${{ inputs.mode == 'test10' && 'test_schedule.csv' || 'schedule.csv' }}
+          STATE_FILE: ${{ github.workspace }}/winter_cabin/state.json
         run: python uploader.py
 
       - name: Persist confirmed YouTube ID to both deduplication ledgers
-        if: always() && inputs.mode == 'full'
+        if: always() && (inputs.mode == 'full' || inputs.mode == 'test10')
+        env:
+          MODE: ${{ inputs.mode }}
+          TEST_ID: ${{ inputs.test_id }}
         run: |
           python - <<'PY'
-          import json
+          import json, os
           from pathlib import Path
-          key = "TV-OFF_Winter_Cabin_Cozy_LoFi_10-Hours.mp4"
+          key = ("TV-OFF_Winter_Cabin_Test_10min_" + os.environ["TEST_ID"] + ".mp4"
+                 if os.environ["MODE"] == "test10"
+                 else "TV-OFF_Winter_Cabin_Cozy_LoFi_10-Hours.mp4")
           local = Path("winter_cabin/state.json")
           if not local.is_file():
               print("No local upload state; nothing to persist.")
@@ -164,4 +182,4 @@ jobs:
             git commit -m "Record Winter Cabin Lo-Fi YouTube publication"
           fi
           git pull --rebase origin main
-          git push
+          git push origin HEAD:main
