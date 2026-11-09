@@ -95,6 +95,31 @@ def main():
 
     history = json.loads(HISTORY.read_text(encoding="utf-8")) if HISTORY.exists() else {"used": []}
     used = set(history.get("used", []))
+
+    # Keep one shared no-repeat pool across long videos and Shorts.
+    repository_root = Path(__file__).resolve().parent
+    other_history_files = (
+        repository_root / "used_sources.json",
+        repository_root / "shorts_used_sources.json",
+    )
+    for other_history_path in other_history_files:
+        if other_history_path.resolve() == HISTORY.resolve() or not other_history_path.is_file():
+            continue
+        try:
+            other_history = json.loads(other_history_path.read_text(encoding="utf-8"))
+            other_used = other_history.get("used", [])
+            if not isinstance(other_used, list):
+                raise ValueError("the 'used' field is not a list")
+            used.update(source for source in other_used if isinstance(source, str))
+        except Exception as exc:
+            raise RuntimeError(
+                f"Cannot safely read cross-format Freesound history "
+                f"{other_history_path}: {exc}"
+            ) from exc
+    print(
+        f"CROSS-FORMAT SOURCE DEDUPLICATION: {len(used)} previously used source(s) loaded.",
+        flush=True,
+    )
     seen = set()
     selected = None
     download_attempts = 0
