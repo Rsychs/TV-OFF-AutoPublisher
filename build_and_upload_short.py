@@ -78,10 +78,10 @@ def main():
         kind, ("0xA9C7E8", display_kind.upper(), "SOUND TO SWITCH OFF TO")
     )
     graph = (
-        f"[1:a]showwaves=s=920x250:mode=p2p:rate=30:colors={accent},format=rgba[w];"
+        f"[1:a]volume=3.5,showwaves=s=920x280:mode=cline:scale=sqrt:rate=30:colors={accent},format=rgba[w];"
         "[0:v]format=rgba,"
-        f"drawbox=x=54:y=260:w=972:h=1390:color={accent}@0.055:t=fill,"
-        f"drawbox=x=82:y=288:w=916:h=1334:color={accent}@0.30:t=3,"
+        f"drawbox=x=54:y=260:w=972:h=1390:color={accent}@0.075:t=fill,"
+        f"drawbox=x=82:y=288:w=916:h=1334:color={accent}@0.45:t=3,"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
         "text='A MOMENT FOR YOU':fontcolor=0xDCE5F2:fontsize=27:"
         "x=(w-text_w)/2:y=390,"
@@ -91,20 +91,20 @@ def main():
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:"
         f"text='{tagline}':fontcolor={accent}:fontsize=30:"
         "x=(w-text_w)/2:y=735[vbase];"
-        "[vbase][w]overlay=(W-w)/2:900:shortest=1,"
+        "[vbase][w]overlay=(W-w)/2:885:shortest=1,"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
         "text='TV OFF':fontcolor=white:fontsize=44:"
         "x=(w-text_w)/2:y=1250,"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:"
         "text='SOUND TO SWITCH OFF TO':fontcolor=0xAAB2C4:fontsize=24:"
         "x=(w-text_w)/2:y=1320,"
-        "drawbox=x=105:y=1535:w=870:h=112:color=0x172337@0.96:t=fill:"
+        "drawbox=x=105:y=1490:w=870:h=112:color=0x172337@0.96:t=fill:"
         "enable='gte(t,20)',"
         "drawbox=x=105:y=1535:w=870:h=112:color=white@0.55:t=2:"
         "enable='gte(t,20)',"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
         "text='MORE SOUNDS ON OUR CHANNEL':fontcolor=white:fontsize=31:"
-        "x=(w-text_w)/2:y=1573:alpha='if(lt(t,21),t-20,1)':enable='gte(t,20)'[v]"
+        "x=(w-text_w)/2:y=1526:alpha='if(lt(t,21),t-20,1)':enable='gte(t,20)'[v]"
     )
     run([
         "ffmpeg", "-y", "-hide_banner", "-f", "lavfi", "-i",
