@@ -28,15 +28,19 @@ BROWN_NOISE_VARIANTS = [
     ("Brown Noise for Sleep & a Peaceful Night", "brown noise for sleep;brown noise for rest;peaceful night sounds;BrownNoise;SleepSounds", "A steady brown-noise soundscape for rest and peaceful nighttime listening. 10 uninterrupted hours with a completely black screen."),
 ]
 BROWN_NOISE = ("brown_noise", BROWN_NOISE_VARIANTS[0][0], BROWN_NOISE_VARIANTS[0][1])
+# Noise now leads the rotation (75%); nature releases are intentionally reduced to 25%.
 STANDARD_SOUNDS = [
-    ("ocean", "Ocean Waves for Sleep, Relaxation & a Peaceful Night", "ocean waves for sleep;sea sounds;OceanWaves;SleepSounds"),
-    ("forest", "Peaceful Forest Sounds & Birds for Relaxation", "forest birds;birdsong for relaxation;ForestBirds;NatureSounds"),
-    ("river", "Relaxing River Sounds for Sleep & Quiet Focus", "river sounds for sleep;flowing water sounds;RiverSounds;NatureSounds"),
-    ("fireplace", "Crackling Fireplace Sounds for Sleep & Cozy Nights", "fireplace sounds for sleep;fire crackling;FireplaceSounds;SleepSounds"),
-    ("rain", "Rain Sounds for Sleep, Relaxation & Background Noise", "rain sounds for sleep;relaxing rain;RainSounds;SleepSounds"),
-    ("thunderstorm", "Thunderstorm Sounds for Sleep | Heavy Rain & Distant Thunder", "thunderstorm sounds for sleep;rain and thunder;Thunderstorm;StormSounds"),
-    ("wind", "Wind in the Trees | Calm Nature Sounds for Sleep & Focus", "wind sounds in trees;wind ambience;WindSounds;NatureSounds"),
     ("brown_noise", None, None),
+    ("white_noise", None, None),
+    ("brown_noise", None, None),
+    ("white_noise", None, None),
+    ("ocean", "Ocean Waves for Sleep, Relaxation & a Peaceful Night", "ocean waves for sleep;sea sounds;OceanWaves;SleepSounds"),
+    ("brown_noise", None, None),
+    ("white_noise", None, None),
+    ("rain", "Rain Sounds for Sleep, Relaxation & Background Noise", "rain sounds for sleep;relaxing rain;RainSounds;SleepSounds"),
+    ("brown_noise", None, None),
+    ("white_noise", None, None),
+    ("fireplace", "Crackling Fireplace Sounds for Sleep & Cozy Nights", "fireplace sounds for sleep;fire crackling;FireplaceSounds;SleepSounds"),
     ("white_noise", None, None),
 ]
 def published_soundscapes():
@@ -124,7 +128,7 @@ def main():
         writer.writerow({
             "filename": filename,
             "soundscape": kind,
-            "title": f"{title} | 10 Hours, Black Screen — TV OFF",
+            "title": f"{title[:72].rstrip()} | 10H • {slot_start.strftime('%Y%m%d-%H%M')} — TV OFF",
             "description": description,
             "tags": ";".join([x.strip() for x in tags.split(";")] + [
                 "10 hours", "black screen", "TV OFF"
