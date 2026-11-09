@@ -31,9 +31,14 @@ QUERIES = {
         "heavy rainfall nature ambience",
     ],
     "thunderstorm": [
-        "heavy rain thunderstorm continuous field recording distant rolling thunder",
-        "heavy rain and rolling thunder ambience no speech",
-        "steady rain with distant thunderstorm field recording",
+        # Shorter fallback phrases avoid over-constraining Freesound's full-text search.
+        "thunderstorm rain field recording",
+        "rain and thunder field recording",
+        "distant rolling thunder",
+        "thunderstorm ambience",
+        "thunderstorm",
+        "thunder rain",
+        "rain thunder",
     ],
     "ocean": ["ocean waves shore field recording", "gentle sea waves beach ambience", "rolling ocean surf no speech"],
     "forest": ["forest birds dawn field recording", "woodland birds ambience no speech", "night forest insects nature ambience"],
