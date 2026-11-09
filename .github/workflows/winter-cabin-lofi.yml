@@ -9,12 +9,13 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "3-minute preview, 10-minute unlisted YouTube test, or full 10-hour publication"
+        description: "3-minute preview, 10-minute unlisted test, one-hour publication, or full 10-hour publication"
         required: true
         type: choice
         options:
           - preview
           - test10
+          - hour1
           - full
         default: preview
       test_id:
@@ -74,7 +75,7 @@ jobs:
           pip install -r requirements.txt pillow
 
       - name: Refresh shared upload state before full production
-        if: env.MODE == 'full' || env.MODE == 'test10'
+        if: env.MODE == 'full' || env.MODE == 'test10' || env.MODE == 'hour1'
         run: |
           git fetch origin main
           git show origin/main:state.json > state.json
@@ -83,7 +84,7 @@ jobs:
           fi
 
       - name: Refuse an already-published Winter Cabin video
-        if: env.MODE == 'full' || env.MODE == 'test10'
+        if: env.MODE == 'full' || env.MODE == 'test10' || env.MODE == 'hour1'
         env:
           MODE: ${{ env.MODE }}
           TEST_ID: ${{ env.TEST_ID }}
@@ -93,7 +94,8 @@ jobs:
           from pathlib import Path
           key = ("TV-OFF_Winter_Cabin_Test_10min_" + os.environ["TEST_ID"] + ".mp4"
                  if os.environ["MODE"] == "test10"
-                 else "TV-OFF_Winter_Cabin_Cozy_LoFi_10-Hours.mp4")
+                 else "TV-OFF_Winter_Cabin_Cozy_LoFi_1-Hour.mp4" if os.environ["MODE"] == "hour1"
+                  else "TV-OFF_Winter_Cabin_Cozy_LoFi_10-Hours.mp4")
           for path in (Path("state.json"), Path("winter_cabin/state.json")):
               state = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
               video_id = state.get(key)
@@ -118,6 +120,9 @@ jobs:
           elif [ "$MODE" = "test10" ]; then
             file="winter_cabin/videos/TV-OFF_Winter_Cabin_Test_10min_${{ env.TEST_ID }}.mp4"
             expected=600
+          elif [ "$MODE" = "hour1" ]; then
+            file="winter_cabin/videos/TV-OFF_Winter_Cabin_Cozy_LoFi_1-Hour.mp4"
+            expected=3600
           else
             file="winter_cabin/videos/TV-OFF_Winter_Cabin_Cozy_LoFi_10-Hours.mp4"
             expected=36000
@@ -143,19 +148,19 @@ jobs:
           retention-days: 3
 
       - name: Upload test or full video to YouTube
-        if: env.MODE == 'full' || env.MODE == 'test10'
+        if: env.MODE == 'full' || env.MODE == 'test10' || env.MODE == 'hour1'
         env:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
           MEDIA_DIR: ${{ github.workspace }}/winter_cabin/videos
           SOURCE_AUDIO_DIR: ${{ github.workspace }}/winter_cabin/audio
-          SCHEDULE_FILE: ${{ github.workspace }}/winter_cabin/${{ env.MODE == 'test10' && 'test_schedule.csv' || 'schedule.csv' }}
+          SCHEDULE_FILE: ${{ github.workspace }}/winter_cabin/${{ env.MODE == 'test10' && 'test_schedule.csv' || (env.MODE == 'hour1' && 'hour1_schedule.csv' || 'schedule.csv') }}
           STATE_FILE: ${{ github.workspace }}/winter_cabin/state.json
         run: python uploader.py
 
       - name: Persist confirmed YouTube ID to both deduplication ledgers
-        if: always() && (env.MODE == 'full' || env.MODE == 'test10')
+        if: always() && (env.MODE == 'full' || env.MODE == 'test10' || env.MODE == 'hour1')
         env:
           MODE: ${{ env.MODE }}
           TEST_ID: ${{ env.TEST_ID }}
@@ -165,7 +170,8 @@ jobs:
           from pathlib import Path
           key = ("TV-OFF_Winter_Cabin_Test_10min_" + os.environ["TEST_ID"] + ".mp4"
                  if os.environ["MODE"] == "test10"
-                 else "TV-OFF_Winter_Cabin_Cozy_LoFi_10-Hours.mp4")
+                 else "TV-OFF_Winter_Cabin_Cozy_LoFi_1-Hour.mp4" if os.environ["MODE"] == "hour1"
+                  else "TV-OFF_Winter_Cabin_Cozy_LoFi_10-Hours.mp4")
           local = Path("winter_cabin/state.json")
           if not local.is_file():
               print("No local upload state; nothing to persist.")
