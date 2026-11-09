@@ -135,19 +135,18 @@ def main():
 
     for query in QUERIES[KIND]:
         print(f"FREESOUND SEARCH: {query}", flush=True)
+        result = api_json("search/text/", {
+            "query": query,
+            "filter": 'license:"Creative Commons 0" duration:[90 TO *]',
+            "sort": "rating_desc",
+            "page_size": 25,
+            "fields": "id,name,username,duration,license,url,avg_rating,num_downloads,previews",
+        })
+        sounds = result.get("results", [])
         if preferred_sound is not None:
-            # Try the explicitly selected recording immediately; do not wait for search first.
-            sounds = [preferred_sound]
+            # Add the preferred source as an extra candidate without replacing search results.
+            sounds = [preferred_sound] + sounds
             preferred_sound = None
-        else:
-            result = api_json("search/text/", {
-                "query": query,
-                "filter": 'license:"Creative Commons 0" duration:[90 TO *]',
-                "sort": "rating_desc",
-                "page_size": 15,
-                "fields": "id,name,username,duration,license,url,avg_rating,num_downloads,previews",
-            })
-            sounds = result.get("results", [])
         print(f"FREESOUND RESULTS: {len(sounds)} (including preferred source when available)", flush=True)
         for sound in sounds:
             sid = sound.get("id")
