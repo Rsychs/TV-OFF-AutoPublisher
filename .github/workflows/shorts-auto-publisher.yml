@@ -69,7 +69,7 @@ jobs:
         if: steps.cooldown.outputs.skip != 'true'
         run: |
           # White and brown noise are top-tier categories (2x weight each).
-          KIND=$(python -c 'from datetime import datetime, timezone; kinds=["white_noise","brown_noise","white_noise","brown_noise","ocean","forest","river","fireplace","rain","thunderstorm","wind"]; print(kinds[(int(datetime.now(timezone.utc).timestamp()) // 3600) % len(kinds)])')
+          KIND=$(python -c 'from datetime import datetime, timezone; kinds=["white_noise","brown_noise","white_noise","brown_noise","ocean","white_noise","brown_noise","white_noise","forest","brown_noise","white_noise","rain"]; print(kinds[(int(datetime.now(timezone.utc).timestamp()) // 3600) % len(kinds)])')
           echo "SOUNDSCAPE=$KIND" >> "$GITHUB_ENV"
           echo "Selected soundscape: $KIND"
 
