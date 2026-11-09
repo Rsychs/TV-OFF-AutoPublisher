@@ -34,35 +34,73 @@ jobs:
           sudo apt-get install -y ffmpeg fonts-dejavu-core
           pip install -r requirements.txt
 
-      - name: Check Shorts slot (at most one publication per UTC hour)
+      - name: Enforce 60-minute cooldown without dropping the hourly slot
         id: cooldown
         run: |
           python - <<'PY'
           import json
+          import math
           import os
+          import subprocess
+          import time
           from datetime import datetime, timezone
           from pathlib import Path
 
           path = Path("shorts_state.json")
-          state = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-          now = datetime.now(timezone.utc)
-          slot = now.strftime("%Y%m%d%H")
-          reason = f"Short already published for slot {slot}: {state[slot]}" if slot in state else ""
-          last_published_at = state.get("_last_published_at")
-          if not reason and last_published_at:
+
+          def load_state():
+              if not path.exists():
+                  return {}
+              value = json.loads(path.read_text(encoding="utf-8"))
+              if not isinstance(value, dict):
+                  raise RuntimeError("Invalid shorts_state.json; refusing to bypass slot/cooldown protection.")
+              return value
+
+          def refresh_state():
+              subprocess.run(["git", "fetch", "origin", "main"], check=True)
+              result = subprocess.run(
+                  ["git", "show", "origin/main:shorts_state.json"],
+                  capture_output=True,
+                  text=True,
+                  check=True,
+              )
+              value = json.loads(result.stdout)
+              if not isinstance(value, dict):
+                  raise RuntimeError("Invalid remote shorts_state.json; refusing to bypass slot/cooldown protection.")
+              path.write_text(json.dumps(value, indent=2), encoding="utf-8")
+              return value
+
+          state = load_state()
+          reason = ""
+          while True:
+              now = datetime.now(timezone.utc)
+              slot = now.strftime("%Y%m%d%H")
+              if slot in state:
+                  reason = f"Short already published for slot {slot}: {state[slot]}"
+                  break
+
+              last_published_at = state.get("_last_published_at")
+              if not last_published_at:
+                  break
               try:
                   last_at = datetime.fromisoformat(str(last_published_at).replace("Z", "+00:00"))
               except ValueError as exc:
                   raise RuntimeError("Invalid _last_published_at in shorts_state.json; refusing to bypass cooldown.") from exc
               if last_at.tzinfo is None:
                   last_at = last_at.replace(tzinfo=timezone.utc)
+
               elapsed = (now - last_at.astimezone(timezone.utc)).total_seconds()
-              if elapsed < 3600:
-                  remaining = int(3600 - elapsed + 0.999)
-                  reason = f"Short cooldown active: {remaining}s remaining."
+              if elapsed >= 3600:
+                  break
+
+              remaining = math.ceil(3600 - elapsed) + 2
+              print(f"Short cooldown active: waiting {remaining}s, then rechecking the current UTC slot and remote state.")
+              time.sleep(remaining)
+              state = refresh_state()
+
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               output.write(f"skip={'true' if reason else 'false'}\n")
-          print(reason if reason else f"Short slot {slot} is ready.")
+          print(reason if reason else f"Short slot {slot} is ready after the 60-minute cooldown.")
           PY
 
       - name: Select a different soundscape every hourly slot
