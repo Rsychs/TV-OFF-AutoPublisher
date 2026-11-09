@@ -78,6 +78,12 @@ def main():
         if publish_at.tzinfo is None:
             raise ValueError(f"{key}: publish_at must include a timezone offset")
         future_publish = publish_at.astimezone(timezone.utc) > now
+        requested_privacy = row.get("privacy_status", "").strip().lower()
+        privacy_status = requested_privacy or ("private" if future_publish else "public")
+        if privacy_status not in {"private", "public", "unlisted"}:
+            raise ValueError(f"{key}: unsupported privacy_status {privacy_status!r}")
+        if future_publish and privacy_status != "private":
+            raise ValueError(f"{key}: publish_at in the future is only valid with private visibility")
         source = manifest.get(row.get("soundscape", ""), {})
         description = row.get("description", "")
         for field in ("creator", "source_url", "license"):
@@ -90,7 +96,7 @@ def main():
                 "categoryId": "10"
             },
             "status": {
-                "privacyStatus": "private" if future_publish else "public",
+                "privacyStatus": privacy_status,
                 **({"publishAt": publish_at.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")} if future_publish else {}),
                 "selfDeclaredMadeForKids": False
             }

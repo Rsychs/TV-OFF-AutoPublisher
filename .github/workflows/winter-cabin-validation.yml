@@ -1,0 +1,80 @@
+name: Validate Winter Cabin Lo-Fi generator
+
+on:
+  pull_request:
+    paths:
+      - "winter_cabin/**"
+      - ".github/workflows/winter-cabin-lofi.yml"
+      - ".github/workflows/winter-cabin-validation.yml"
+      - "requirements.txt"
+
+permissions:
+  contents: read
+
+jobs:
+  preview-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install FFmpeg and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          pip install -r requirements.txt pillow
+      - name: Compile generator and uploader
+        run: python -m py_compile winter_cabin/create_winter_cabin.py uploader.py
+      - name: Render isolated three-minute preview
+        run: python winter_cabin/create_winter_cabin.py --mode preview --test-id pr-validation
+      - name: Validate preview duration and audio
+        run: |
+          file="winter_cabin/videos/TV-OFF_Winter_Cabin_Preview_pr-validation.mp4"
+          test -s "$file"
+          actual="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$file")"
+          python - "$actual" <<'PY'
+          import sys
+          actual=float(sys.argv[1])
+          if abs(actual-180)>2:
+              raise SystemExit(f"Expected 180 seconds, got {actual:.2f}")
+          PY
+          ffmpeg -v error -i "$file" -map 0:a:0 -t 20 -f null -
+
+      - name: Upload validated preview artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: winter-cabin-pr-preview
+          path: winter_cabin/videos/TV-OFF_Winter_Cabin_Preview_pr-validation.mp4
+          if-no-files-found: error
+          retention-days: 3
+      - name: Render isolated 10-minute test (no upload)
+        run: python winter_cabin/create_winter_cabin.py --mode test10 --test-id pr-validation
+      - name: Validate 10-minute media, thumbnail, and unlisted schedule
+        run: |
+          file="winter_cabin/videos/TV-OFF_Winter_Cabin_Test_10min_pr-validation.mp4"
+          test -s "$file"
+          test -s "thumbnails/TV-OFF_Winter_Cabin_Test_10min_pr-validation.jpg"
+          actual="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$file")"
+          python - "$actual" <<'PY'
+          import csv, sys
+          actual=float(sys.argv[1])
+          if abs(actual-600)>2:
+              raise SystemExit(f"Expected 600 seconds, got {actual:.2f}")
+          with open("winter_cabin/test_schedule.csv", newline="", encoding="utf-8") as f:
+              rows=list(csv.DictReader(f))
+          if len(rows)!=1 or rows[0].get("privacy_status")!="unlisted":
+              raise SystemExit("10-minute test must have exactly one unlisted schedule row")
+          if rows[0].get("filename")!="TV-OFF_Winter_Cabin_Test_10min_pr-validation.mp4":
+              raise SystemExit("Test schedule filename does not match generated media")
+          print(f"10-minute test validated: {actual:.2f}s; privacy_status=unlisted")
+          PY
+          ffmpeg -v error -i "$file" -map 0:a:0 -t 20 -f null -
+      - name: Upload 10-minute test artifact (not published)
+        uses: actions/upload-artifact@v4
+        with:
+          name: winter-cabin-10min-test-pr-validation
+          path: winter_cabin/videos/TV-OFF_Winter_Cabin_Test_10min_pr-validation.mp4
+          if-no-files-found: error
+          retention-days: 3
