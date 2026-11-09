@@ -2,10 +2,14 @@ name: TV OFF — 10-Hour Soundscape Video
 
 on:
   workflow_dispatch:
+  schedule:
+    # 06:00 UTC = 08:00 Europe/Riga during standard time.
+    - cron: "0 6 * * *"
   push:
     branches: [main]
     paths:
       - "generate_daily_schedule.py"
+      - ".github/workflows/daily-soundscape.yml"
 
 permissions:
   contents: write
