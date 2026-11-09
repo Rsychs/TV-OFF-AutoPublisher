@@ -1,0 +1,52 @@
+name: TV OFF — YouTube Analytics Collector
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Daily collection after YouTube reporting has had time to settle.
+    - cron: "17 3 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tv-off-analytics-collector
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install analytics dependencies
+        run: pip install -r requirements.txt
+
+      - name: Collect YouTube Analytics for the last 28 complete days
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_ANALYTICS_REFRESH_TOKEN: ${{ secrets.YT_ANALYTICS_REFRESH_TOKEN }}
+        run: python collect_youtube_analytics.py
+
+      - name: Persist analytics snapshots
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add analytics/youtube_daily.json analytics/youtube_daily.csv
+          if ! git diff --cached --quiet; then
+            git commit -m "Update YouTube Analytics snapshot"
+            git pull --rebase origin main
+            git push
+          else
+            echo "Analytics snapshot unchanged."
+          fi
