@@ -25,6 +25,19 @@ def main():
     if slot in state:
         print(f"SHORT ALREADY PUBLISHED FOR SLOT {slot}: {state[slot]}")
         return
+    last_published_at = state.get("_last_published_at")
+    if last_published_at:
+        try:
+            last_at = datetime.fromisoformat(str(last_published_at).replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise RuntimeError("Invalid _last_published_at in shorts_state.json; refusing to bypass cooldown.") from exc
+        if last_at.tzinfo is None:
+            last_at = last_at.replace(tzinfo=timezone.utc)
+        elapsed = (now - last_at.astimezone(timezone.utc)).total_seconds()
+        if elapsed < 3600:
+            remaining = int(3600 - elapsed + 0.999)
+            print(f"SHORT COOLDOWN ACTIVE: {remaining}s remaining since {last_at.isoformat()}")
+            return
     # Shorts stay gated until at least one 10-hour soundscape video is recorded as uploaded.
     main_state = json.loads((ROOT / "state.json").read_text(encoding="utf-8"))
     long_video = next((
