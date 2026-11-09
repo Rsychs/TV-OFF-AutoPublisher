@@ -70,7 +70,10 @@ def main():
         "text='TV OFF':fontcolor=white:fontsize=76:x=(w-text_w)/2:y=590,"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:"
         f"text='{visual_label}':fontcolor=0xAAB2C4:fontsize=30:"
-        "x=(w-text_w)/2:y=1110[v]"
+        "x=(w-text_w)/2:y=1110,"
+        "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
+        "text='MORE VIDEOS ON OUR CHANNEL':fontcolor=white:fontsize=30:"
+        "x=(w-text_w)/2:y=1550:box=1:boxcolor=0x252D40@0.92:boxborderw=18[v]"
     )
     run([
         "ffmpeg", "-y", "-hide_banner", "-f", "lavfi", "-i",
