@@ -1,8 +1,6 @@
 name: TV OFF — 10-Hour Soundscape Video
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
   schedule:
     # Every 3 hours (UTC; local Riga time shifts with DST).
