@@ -9,16 +9,16 @@ OUT = Path(os.environ.get("SCHEDULE_FILE", ROOT / "daily_schedule.csv"))
 TZ = ZoneInfo("Europe/Riga")
 
 # White and brown noise are mandatory first-priority releases until each is published.
-WHITE_NOISE = ("white_noise", "White Noise for Deep Sleep & Focus", "WhiteNoise;SleepSounds;FocusSounds")
-BROWN_NOISE = ("brown_noise", "Brown Noise for Deep Sleep & Relaxation", "BrownNoise;SleepSounds;RelaxationSounds")
+WHITE_NOISE = ("white_noise", "White Noise for Deep Sleep & Focus", "white noise for sleep;white noise for focus;WhiteNoise;SleepSounds;FocusSounds")
+BROWN_NOISE = ("brown_noise", "Brown Noise for Deep Sleep & Relaxation", "brown noise for sleep;brown noise for relaxation;BrownNoise;SleepSounds;RelaxationSounds")
 STANDARD_SOUNDS = [
-    ("ocean", "Ocean Waves for Sleep & Relaxation", "OceanWaves;SeaSounds;SleepSounds"),
-    ("forest", "Forest Birds at Dawn", "ForestBirds;Birdsong;NatureSounds"),
-    ("river", "Flowing River Sounds for Sleep & Focus", "RiverSounds;FlowingWater;NatureSounds"),
-    ("fireplace", "Fireplace Crackling for Sleep & Relaxation", "FireplaceSounds;FireCrackling;SleepSounds"),
-    ("rain", "Rain Sounds for Sleep & Focus", "RainSounds;RainAmbience;SleepSounds"),
-    ("thunderstorm", "Distant Thunderstorm & Rain Sounds", "Thunderstorm;RainAndThunder;StormSounds"),
-    ("wind", "Wind in the Trees | Nature Sounds", "WindSounds;WindInTrees;NatureSounds"),
+    ("ocean", "Ocean Waves for Deep Sleep & Relaxation", "ocean waves for sleep;sea sounds;OceanWaves;SleepSounds"),
+    ("forest", "Forest Birds for Relaxation & Focus", "forest birds;birdsong for relaxation;ForestBirds;NatureSounds"),
+    ("river", "Flowing River Sounds for Sleep & Relaxation", "river sounds for sleep;flowing water sounds;RiverSounds;NatureSounds"),
+    ("fireplace", "Fireplace Sounds for Sleep & Cozy Ambience", "fireplace sounds for sleep;fire crackling;FireplaceSounds;SleepSounds"),
+    ("rain", "Rain Sounds for Deep Sleep & Relaxation", "rain sounds for sleep;relaxing rain;RainSounds;SleepSounds"),
+    ("thunderstorm", "Thunderstorm Sounds for Sleep | Rain & Distant Thunder", "thunderstorm sounds for sleep;rain and thunder;Thunderstorm;StormSounds"),
+    ("wind", "Wind Sounds in Trees for Relaxation & Focus", "wind sounds in trees;wind ambience;WindSounds;NatureSounds"),
 ]
 def published_soundscapes():
     state_path = ROOT / "state.json"
@@ -56,16 +56,16 @@ def main():
 
     if kind in {"white_noise", "brown_noise"}:
         description_intro = (
-            f"10 hours of original digitally generated {display_kind.lower()} "
-            "for sleep, relaxation and focus. Smooth, continuous audio with a completely black screen."
+            f"10 hours of steady, original {display_kind.lower()} sound for sleep, relaxation and focus. "
+            "A continuous sound bed with a completely black screen for overnight listening."
         )
         noise_hashtag = "#WhiteNoise" if kind == "white_noise" else "#BrownNoise"
         hashtags = f"{noise_hashtag} #SleepSounds #FocusSounds #BlackScreen #TVOff"
         thumbnail_descriptor = f"{display_kind.upper()} • 10 HOURS"
     else:
         description_intro = (
-            f"10 hours of real {kind} ambience from a newly selected field recording, "
-            "smoothly looped for uninterrupted listening. Completely black screen throughout."
+            f"10 hours of {kind} nature sounds for sleep and relaxation, using a newly selected field recording. "
+            "The audio is smoothly looped and the screen stays completely black throughout."
         )
         hashtags = "#SleepSounds #NatureSounds #BlackScreen #TVOff"
         thumbnail_descriptor = "10 HOURS • BLACK SCREEN"
