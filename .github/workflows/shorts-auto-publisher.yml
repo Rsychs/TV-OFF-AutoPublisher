@@ -7,6 +7,7 @@ on:
   schedule:
     - cron: "0 * * * *"
   push:
+    branches: [main]
     paths:
       - ".github/workflows/shorts-auto-publisher.yml"
   workflow_dispatch:
@@ -63,18 +64,19 @@ jobs:
                       reason = f"One-hour cooldown active; {int(3600 - elapsed)} seconds remain."
           skip = "true" if reason else "false"
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"skip={skip}\n")
+              output.write(f"skip={skip}\\n")
           print(reason if reason else f"Short slot {slot} is ready.")
           PY
 
       - name: Select a different soundscape every hourly slot
         if: steps.cooldown.outputs.skip != 'true'
         run: |
-          KIND=$(python -c 'from datetime import datetime, timezone; kinds=["ocean","forest","river","fireplace","rain","thunderstorm","wind"]; print(kinds[(int(datetime.now(timezone.utc).timestamp()) // 3600) % len(kinds)])')
+          # White and brown noise are top-tier categories (2x weight each).
+          KIND=$(python -c 'from datetime import datetime, timezone; kinds=["white_noise","brown_noise","white_noise","brown_noise","ocean","forest","river","fireplace","rain","thunderstorm","wind"]; print(kinds[(int(datetime.now(timezone.utc).timestamp()) // 3600) % len(kinds)])')
           echo "SOUNDSCAPE=$KIND" >> "$GITHUB_ENV"
           echo "Selected soundscape: $KIND"
 
-      - name: Download a fresh verified CC0 Freesound recording
+      - name: Generate original noise or download a fresh verified CC0 Freesound recording
         if: steps.cooldown.outputs.skip != 'true'
         env:
           FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
