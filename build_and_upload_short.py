@@ -109,7 +109,7 @@ def main():
             f"#Shorts #{kind.replace('_', '')} #SleepSounds #FocusSounds #TVOff #AmbientSounds"
         )
         short_use = "Sleep & Relaxation" if kind == "brown_noise" else "Sleep & Focus"
-        short_title = f"{display_kind} for {short_use} | TV OFF #Shorts"
+        short_title = f"{display_kind} for {short_use} | {now.strftime('%b %d, %H:%M')} #Shorts"
         short_tags = ["Shorts", display_kind, "Sleep Sounds", "Focus Sounds", "TV OFF", "Ambient Sounds"]
     else:
         description = (
