@@ -1,12 +1,12 @@
 name: TV OFF — Shorts Auto Publisher
-# Keep the hourly workflow eligible for immediate push-triggered recovery runs.
+# Run at minute 17 each hour to avoid GitHub Actions top-of-hour congestion.
 
 on:
   workflow_run:
     workflows: ["TV OFF — 10-Hour Soundscape Video"]
     types: [completed]
   schedule:
-    - cron: "0 * * * *"
+    - cron: "17 * * * *"
   push:
     branches: [main]
     paths:
@@ -65,7 +65,7 @@ jobs:
                       reason = f"One-hour cooldown active; {int(3600 - elapsed)} seconds remain."
           skip = "true" if reason else "false"
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"skip={skip}\n")
+              output.write(f"skip={skip}\\n")
           print(reason if reason else f"Short slot {slot} is ready.")
           PY
 
