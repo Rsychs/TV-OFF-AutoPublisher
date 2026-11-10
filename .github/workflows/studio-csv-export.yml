@@ -27,7 +27,7 @@ jobs:
         run: |
           test -n "$TV_OFF_STUDIO_REPORT_URL"
           test -n "$TV_OFF_ANALYTICS_DROPBOX_DIR"
-          test -d "$TV_OFF_BROWSER_PROFILE"
+          test -d "${TV_OFF_BROWSER_PROFILE:-$HOME/.tv-off-analytics/chrome-profile}"
           test -d "$TV_OFF_ANALYTICS_DROPBOX_DIR"
           python --version
 
