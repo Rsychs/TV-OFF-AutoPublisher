@@ -111,7 +111,7 @@ def main():
         "creator": "TV OFF — original procedural composition",
         "audio_type": "synthetic",
         "platform": "TV OFF / local synthesis",
-        "source_url": "https://github.com/Rsychs/TV-OFF-AutoPublisher/blob/main/generate_original_music.py",
+        "source_url": "Original composition synthesized locally by TV OFF; no external source.",
         "license": "Original composition synthesized for TV OFF; no third-party samples, recordings, or melodies used.",
         "duration_seconds": DURATION,
         "random_seed": seed,
