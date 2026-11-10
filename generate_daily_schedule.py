@@ -76,14 +76,14 @@ def main():
     brown_description = None
     white_description = None
     slot_number = int(slot_start.timestamp() // (3 * 3600))
-    if not published["white_noise"]:
-        kind = "white_noise"
-        title, tags, white_description = WHITE_NOISE_VARIANTS[slot_number % len(WHITE_NOISE_VARIANTS)]
-        print("PRIORITY QUEUE: white noise is not yet published; selecting a natural title variant.")
-    elif not published["brown_noise"]:
+    if not published["brown_noise"]:
         kind = "brown_noise"
         title, tags, brown_description = BROWN_NOISE_VARIANTS[slot_number % len(BROWN_NOISE_VARIANTS)]
-        print("PRIORITY QUEUE: brown noise is not yet published; selecting a natural title variant.")
+        print("PRIORITY QUEUE: brown noise is not yet published; selecting Brown Noise before all other long-form topics.")
+    elif not published["white_noise"]:
+        kind = "white_noise"
+        title, tags, white_description = WHITE_NOISE_VARIANTS[slot_number % len(WHITE_NOISE_VARIANTS)]
+        print("PRIORITY QUEUE: brown noise is published; white noise is still missing, so selecting a natural title variant.")
     else:
         slot_number = int(slot_start.timestamp() // (3 * 3600))
         kind, title, tags = STANDARD_SOUNDS[slot_number % len(STANDARD_SOUNDS)]
