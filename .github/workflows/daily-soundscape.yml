@@ -54,7 +54,7 @@ jobs:
           now = datetime.now(TZ)
 
           if event_name == "issue_comment":
-              match = re.fullmatch(r"/tv-off-longform (\\d{8})-(\\d{2})", requested)
+              match = re.fullmatch(r"/tv-off-longform (\d{8})-(\d{2})", requested)
               if not match:
                   raise RuntimeError("Invalid long-form command; refusing to run.")
 
@@ -108,7 +108,7 @@ jobs:
               raise RuntimeError("state.json is invalid; refusing to bypass long-form slot protection.")
 
           pattern = re.compile(
-              rf"^TV-OFF_.+_{date_key}_{slot_key}_10-Hours\\.mp4$",
+              rf"^TV-OFF_.+_{date_key}_{slot_key}_10-Hours\.mp4$",
               re.IGNORECASE,
           )
           published = [
@@ -122,9 +122,9 @@ jobs:
 
           skip = bool(published)
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"skip={'true' if skip else 'false'}\\n")
-              output.write(f"slot_date={date_key}\\n")
-              output.write(f"slot_hour={slot_key}\\n")
+              output.write(f"skip={'true' if skip else 'false'}\n")
+              output.write(f"slot_date={date_key}\n")
+              output.write(f"slot_hour={slot_key}\n")
 
           if skip:
               print(
