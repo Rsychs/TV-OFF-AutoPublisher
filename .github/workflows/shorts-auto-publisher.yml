@@ -188,6 +188,7 @@ jobs:
           PY
 
       - name: Select soundscape for the pinned UTC slot
+        id: select_soundscape
         if: steps.cooldown.outputs.skip != 'true'
         env:
           TARGET_SLOT: ${{ steps.slot.outputs.target_slot }}
@@ -201,35 +202,43 @@ jobs:
           slot_start = datetime.strptime(target_slot, "%Y%m%d%H").replace(tzinfo=timezone.utc)
           slot_hour = int(slot_start.timestamp() // 3600)
           state = json.loads(open("state.json", encoding="utf-8").read())
-          brown_published = any(
-              isinstance(key, str)
-              and "brownnoise" in key.lower()
-              and isinstance(value, str)
-              and value.strip()
-              for key, value in state.items()
-          )
+          import re
+          def confirmed(category):
+              needle = category.replace("_", "")
+              return any(
+                  isinstance(key, str)
+                  and needle in re.sub(r"[^a-z0-9]", "", key.lower())
+                  and isinstance(value, str)
+                  and re.fullmatch(r"[A-Za-z0-9_-]{11}", value.strip())
+                  for key, value in state.items()
+              )
 
-          if not brown_published:
-              kinds = ["white_noise", "brown_noise"]
-              print(kinds[slot_hour % len(kinds)])
+          if not confirmed("brown_noise"):
+              kind = "brown_noise"
+          elif not confirmed("white_noise"):
+              kind = "white_noise"
           else:
-              # 9/12 noise slots (75%); 3/12 nature slots (25%).
-              kinds = [
-                  "white_noise", "brown_noise", "white_noise", "brown_noise",
-                  "ocean", "white_noise", "brown_noise", "white_noise",
-                  "forest", "brown_noise", "white_noise", "rain",
-              ]
-              print(kinds[slot_hour % len(kinds)])
+              # Three permitted categories only; nature and field recordings are retired.
+              kinds = ["white_noise", "brown_noise", "original_music",
+                       "brown_noise", "white_noise", "original_music"]
+              kind = kinds[slot_hour % len(kinds)]
+          print(kind)
           PY
           )
           echo "SOUNDSCAPE=$KIND" >> "$GITHUB_ENV"
           echo "TARGET_SLOT=$TARGET_SLOT" >> "$GITHUB_ENV"
+          echo "soundscape=$KIND" >> "$GITHUB_OUTPUT"
           echo "Selected soundscape for pinned slot $TARGET_SLOT: $KIND"
 
-      - name: Generate original noise or download a fresh verified CC0 Freesound recording
-        if: steps.cooldown.outputs.skip != 'true'
+      - name: Generate original ambient music locally
+        if: steps.cooldown.outputs.skip != 'true' && steps.select_soundscape.outputs.soundscape == 'original_music'
         env:
-          FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
+          SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
+        run: python generate_original_music.py
+
+      - name: Generate original white or brown noise
+        if: steps.cooldown.outputs.skip != 'true' && steps.select_soundscape.outputs.soundscape != 'original_music'
+        env:
           SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
           USED_SOURCES_FILE: ${{ github.workspace }}/shorts_used_sources.json
         run: python download_one_audio.py
