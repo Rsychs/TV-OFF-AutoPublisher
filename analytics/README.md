@@ -117,3 +117,36 @@ This is an experimental, opt-in implementation on the `analytics/csv-autonomy`
 branch. It is not active in production, no workflow has been run, no runner has
 been registered, and no local browser profile or report URL has been configured.
 The first run cannot succeed until the one-time local setup is completed.
+
+
+### One-time self-hosted runner setup (Linux example)
+
+1. On the computer that will stay online, install Google Chrome, Python 3.10+,
+   Git, and the Dropbox Desktop client. Sign Dropbox in and wait until the
+   `TV OFF Analytics` folder is visible locally.
+2. In GitHub open this repository → Settings → Actions → Runners → New
+   self-hosted runner. Follow GitHub's OS-specific commands on that computer.
+   During `config.sh`, add the extra label `tv-off-analytics`. Do not paste
+   the temporary runner registration token into chat or commit it.
+3. Run the runner under the same dedicated OS user that owns the Chrome profile
+   and Dropbox sync folder. For initial authentication, keep a local desktop
+   session available; do not run the first-time bootstrap from a headless
+   service-only session.
+4. In the repository runner machine's environment, set
+   `TV_OFF_ANALYTICS_DROPBOX_DIR` to the exact local synced path of
+   `TV OFF Analytics` and `TV_OFF_STUDIO_REPORT_URL` to the saved Studio
+   Advanced Mode report URL. Optionally set `TV_OFF_BROWSER_PROFILE`.
+   Restart the runner service after changing its environment.
+5. From the repository checkout on that same computer, install the pinned
+   Playwright package and run
+   `python analytics/bootstrap_studio_profile.py`. Sign in manually in the
+   opened Chrome window, complete any Google checks yourself, open Studio, then
+   return to the terminal and press Enter. Never copy the profile directory
+   into the repository, Dropbox, or GitHub artifacts.
+6. Start the runner service. After this PR is merged, the workflow can be
+   started manually from Actions → TV OFF — Studio CSV export → Run workflow.
+   Confirm the resulting CSV appears in Dropbox before relying on it.
+
+This setup requires one-time human interaction for runner registration and
+Google sign-in. There is no safe way for a remote GitHub workflow to create a
+Google-authenticated browser session without a user-controlled sign-in step.
