@@ -46,7 +46,7 @@ jobs:
           command_body = os.environ.get("COMMAND_BODY", "").strip()
           now = datetime.now(timezone.utc)
           if comment_created_at:
-              match = re.fullmatch(r"/tv-off-short (\\d{10})", command_body)
+              match = re.fullmatch(r"/tv-off-short (\d{10})", command_body)
               if not match:
                   raise RuntimeError("Invalid Shorts command; refusing to run.")
               event_time = datetime.fromisoformat(comment_created_at.replace("Z", "+00:00")).astimezone(timezone.utc)
