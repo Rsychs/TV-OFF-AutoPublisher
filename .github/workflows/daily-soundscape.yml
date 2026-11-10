@@ -33,25 +33,73 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Prevent a second long-form publication in the same 3-hour slot
+      - name: Pin and validate the declared Europe/Riga 3-hour slot
         id: slot_guard
         env:
           REQUESTED_SLOT: ${{ github.event.comment.body }}
+          COMMENT_CREATED_AT: ${{ github.event.comment.created_at }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           python - <<'PY'
           import json
           import os
           import re
-          from datetime import datetime
+          from datetime import datetime, timedelta
           from pathlib import Path
           from zoneinfo import ZoneInfo
 
+          TZ = ZoneInfo("Europe/Riga")
           requested = os.environ.get("REQUESTED_SLOT", "").strip()
-          if requested:
-              match = re.fullmatch(r"/tv-off-longform (\d{8})-(\d{2})", requested)
+          event_name = os.environ.get("EVENT_NAME", "").strip()
+          now = datetime.now(TZ)
+
+          if event_name == "issue_comment":
+              match = re.fullmatch(r"/tv-off-longform (\\d{8})-(\\d{2})", requested)
               if not match:
                   raise RuntimeError("Invalid long-form command; refusing to run.")
 
+              created_raw = os.environ.get("COMMENT_CREATED_AT", "").strip()
+              if not created_raw:
+                  raise RuntimeError("Issue comment creation time is missing; refusing to infer a slot.")
+              try:
+                  created_at = datetime.fromisoformat(created_raw.replace("Z", "+00:00"))
+                  if created_at.tzinfo is None:
+                      raise ValueError("comment timestamp has no timezone")
+                  created_at = created_at.astimezone(TZ)
+              except ValueError as exc:
+                  raise RuntimeError(f"Invalid issue comment creation time: {exc}") from exc
+
+              slot_hour = (created_at.hour // 3) * 3
+              slot_start = created_at.replace(
+                  hour=slot_hour, minute=0, second=0, microsecond=0
+              )
+              slot_end = slot_start + timedelta(hours=3)
+              expected_date = slot_start.strftime("%Y%m%d")
+              expected_hour = slot_start.strftime("%H")
+
+              if match.group(1) != expected_date or match.group(2) != expected_hour:
+                  raise RuntimeError(
+                      f"Requested slot {match.group(1)}-{match.group(2)} does not match "
+                      f"the comment-created Europe/Riga slot {expected_date}-{expected_hour}."
+                  )
+              if not (slot_start <= now < slot_end):
+                  raise RuntimeError(
+                      f"Pinned Europe/Riga slot {expected_date}-{expected_hour} has closed; "
+                      "refusing to roll over to a later slot."
+                  )
+          elif event_name == "workflow_dispatch":
+              if requested:
+                  raise RuntimeError("Manual dispatch must not supply an issue-comment slot.")
+              slot_hour = (now.hour // 3) * 3
+              slot_start = now.replace(
+                  hour=slot_hour, minute=0, second=0, microsecond=0
+              )
+              slot_end = slot_start + timedelta(hours=3)
+          else:
+              raise RuntimeError(f"Unsupported trigger event {event_name!r}; refusing to run.")
+
+          date_key = slot_start.strftime("%Y%m%d")
+          slot_key = slot_start.strftime("%H")
           state_path = Path("state.json")
           if not state_path.is_file():
               raise RuntimeError("state.json is missing; refusing to bypass long-form slot protection.")
@@ -59,28 +107,35 @@ jobs:
           if not isinstance(state, dict):
               raise RuntimeError("state.json is invalid; refusing to bypass long-form slot protection.")
 
-          now = datetime.now(ZoneInfo("Europe/Riga"))
-          slot_hour = (now.hour // 3) * 3
-          date_key = now.strftime("%Y%m%d")
-          slot_key = f"{slot_hour:02d}"
-          if requested and (match.group(1) != date_key or match.group(2) != slot_key):
-              raise RuntimeError(f"Requested long-form slot {match.group(1)}-{match.group(2)} is no longer current; refusing rollover.")
-          pattern = re.compile(rf"^TV-OFF_.+_{date_key}_{slot_key}_10-Hours\.mp4$", re.IGNORECASE)
+          pattern = re.compile(
+              rf"^TV-OFF_.+_{date_key}_{slot_key}_10-Hours\\.mp4$",
+              re.IGNORECASE,
+          )
           published = [
               (name, video_id)
               for name, video_id in state.items()
-              if isinstance(name, str) and pattern.match(name)
-              and isinstance(video_id, str) and video_id.strip()
+              if isinstance(name, str)
+              and pattern.match(name)
+              and isinstance(video_id, str)
+              and re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id.strip())
           ]
 
           skip = bool(published)
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"skip={'true' if skip else 'false'}\n")
+              output.write(f"skip={'true' if skip else 'false'}\\n")
+              output.write(f"slot_date={date_key}\\n")
+              output.write(f"slot_hour={slot_key}\\n")
 
           if skip:
-              print(f"SKIPPING: current 3-hour slot {date_key}_{slot_key} is already published: {published}")
+              print(
+                  f"SKIPPING: Europe/Riga slot {date_key}-{slot_key} already has "
+                  f"a confirmed YouTube ID: {published}"
+              )
           else:
-              print(f"READY: current 3-hour slot {date_key}_{slot_key} has no published long-form video.")
+              print(
+                  f"READY: declared Europe/Riga slot {date_key}-{slot_key}; "
+                  f"window {slot_start.isoformat()}–{slot_end.isoformat()}."
+              )
           PY
 
       - name: Install FFmpeg and dependencies
