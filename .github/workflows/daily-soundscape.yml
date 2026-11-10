@@ -8,10 +8,6 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: tv-off-single-video
-  cancel-in-progress: false
-
 jobs:
   build-and-publish:
     if: >-
@@ -21,6 +17,9 @@ jobs:
        github.event.issue.number == 15 &&
        github.event.comment.user.login == 'Rsychs' &&
        startsWith(github.event.comment.body, '/tv-off-longform '))
+    concurrency:
+      group: tv-off-single-video
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
