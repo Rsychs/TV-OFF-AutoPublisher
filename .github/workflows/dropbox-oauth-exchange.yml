@@ -27,8 +27,8 @@ jobs:
           test -n "$DROPBOX_APP_KEY"
           test -n "$DROPBOX_APP_SECRET"
           test -n "$DROPBOX_AUTH_CODE"
+          python -m pip install --quiet pynacl
           node <<'NODE'
-          const crypto = require('crypto');
           const repo = process.env.GH_REPOSITORY;
           const headers = {
             'Authorization': `Bearer ${process.env.GH_TOKEN}`,
