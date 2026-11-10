@@ -74,11 +74,16 @@ def main():
     info = manifest[kind]
     display_kind = kind.replace("_", " ").title()
     file_kind = kind.replace("_", "").title()
-    synthetic = info.get("audio_type") == "synthetic"
-    visual_label = f"{display_kind.upper()}  /  TV OFF" if synthetic else "NATURE SOUNDS  /  TV OFF"
-    source = AUDIO_DIR / info["file"]
-    if not source.is_file():
-        raise RuntimeError(f"Selected {kind} audio is missing: {source}")
+    expected_platforms = {
+        "white_noise": "TV OFF / FFmpeg",
+        "brown_noise": "TV OFF / FFmpeg",
+        "original_music": "TV OFF / local synthesis",
+    }
+    if info.get("audio_type") != "synthetic" or info.get("platform") != expected_platforms[kind]:
+        raise RuntimeError(f"{kind}: only the approved local synthetic generator is allowed.")
+    source = (AUDIO_DIR / info["file"]).resolve()
+    if not source.is_relative_to(AUDIO_DIR.resolve()) or not source.is_file():
+        raise RuntimeError(f"Selected {kind} audio is missing or outside the local audio directory.")
 
     OUT.mkdir(exist_ok=True)
     filename = f"TV-OFF_{file_kind}_Short_{slot}.mp4"
@@ -163,8 +168,10 @@ def main():
     # Content-level deduplication: slot uniqueness alone is not enough.
     audio_sha256 = sha256_file(source)
     video_sha256 = sha256_file(target)
-    used_audio_hashes = set(state.get("_published_audio_sha256", []))
-    used_video_hashes = set(state.get("_published_video_sha256", []))
+    if info.get("sha256") != audio_sha256:
+        raise RuntimeError(f"Manifest SHA-256 does not match generated {kind} audio.")
+    used_audio_hashes = set(state.get("_published_audio_sha256", [])) | set(main_state.get("_published_audio_sha256", []))
+    used_video_hashes = set(state.get("_published_video_sha256", [])) | set(main_state.get("_published_video_sha256", []))
     if audio_sha256 in used_audio_hashes:
         raise RuntimeError(
             f"Duplicate audio detected (sha256={audio_sha256}); refusing to upload this Short."
@@ -187,8 +194,6 @@ def main():
     )
     creds.refresh(Request())
     youtube = build("youtube", "v3", credentials=creds)
-    if not synthetic:
-        raise RuntimeError("TV OFF Shorts may only use locally generated White Noise, Brown Noise or Original Music.")
     short_copy = {
         "white_noise": (
             "Need a little quiet? Let this steady white noise create a calm background "
@@ -373,13 +378,6 @@ def main():
         0, int(published_at.timestamp() - production_started_epoch)
     )
     STATE.write_text(json.dumps(state, indent=2), encoding="utf-8")
-    if info.get("platform") == "Freesound" and info.get("source_url"):
-        history_path = ROOT / "shorts_used_sources.json"
-        history = json.loads(history_path.read_text(encoding="utf-8")) if history_path.exists() else {"used": []}
-        used = history.setdefault("used", [])
-        if info["source_url"] not in used:
-            used.append(info["source_url"])
-            history_path.write_text(json.dumps(history, indent=2), encoding="utf-8")
     print(f"SHORT PUBLISHED: https://youtu.be/{video_id} | slot={slot} | soundscape={kind}")
 
 if __name__ == "__main__":
