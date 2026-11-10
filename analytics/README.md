@@ -79,8 +79,10 @@ In repository Settings → Secrets and variables → Actions, add:
 - `DROPBOX_REFRESH_TOKEN`
 
 Never paste secret values into ChatGPT, issues, PR comments, workflow YAML or repo
-files. After all six secrets exist, run the workflow once manually and confirm a
-JSON snapshot appears in Dropbox.
+files. Also add the repository Actions variable `TV_OFF_ANALYTICS_ENABLED=true`.
+Until that variable is true, the scheduled and manual workflow jobs are skipped.
+After all six secrets and the variable exist, run the workflow once manually and
+confirm a JSON snapshot appears in `Apps/TV OFF Analytics`.
 
 ## Autonomy boundary
 
