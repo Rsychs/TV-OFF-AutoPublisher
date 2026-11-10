@@ -220,17 +220,26 @@ def main():
     seen = set()
     selected = None
     download_attempts = 0
-    preferred_sound = None
-    if KIND == "thunderstorm" and PREFERRED_SOUND_ID:
+
+    # Curated fallback IDs are candidates only: the Freesound API license,
+    # category tags, duration, preview, and cross-format dedup checks below
+    # still have to pass before any source can be selected.
+    preferred_ids = {
+        "fireplace": ["501417", "853081", "802208"],
+        "thunderstorm": [PREFERRED_SOUND_ID] if PREFERRED_SOUND_ID else [],
+    }.get(KIND, [])
+    preferred_sounds = []
+    for preferred_id in preferred_ids:
         try:
-            preferred_sound = api_json(f"sounds/{PREFERRED_SOUND_ID}/", {
+            preferred_sound = api_json(f"sounds/{preferred_id}/", {
                 "fields": "id,name,tags,username,duration,license,url,avg_rating,num_downloads,previews",
             })
-            print(f"PREFERRED FREESOUND SOURCE FOUND: {PREFERRED_SOUND_ID}", flush=True)
+            preferred_sounds.append(preferred_sound)
+            print(f"PREFERRED FREESOUND CANDIDATE FOUND: {preferred_id}", flush=True)
         except Exception as exc:
-            print(f"PREFERRED SOURCE LOOKUP FAILED; falling back to CC0 search: {exc}", flush=True)
+            print(f"PREFERRED SOURCE {preferred_id} LOOKUP FAILED; continuing safely: {exc}", flush=True)
 
-    for query in QUERIES[KIND]:
+    for query_index, query in enumerate(QUERIES[KIND]):
         print(f"FREESOUND SEARCH: {query}", flush=True)
         result = api_json("search/text/", {
             "query": query,
@@ -240,10 +249,9 @@ def main():
             "fields": "id,name,tags,username,duration,license,url,avg_rating,num_downloads,previews",
         })
         sounds = result.get("results", [])
-        if preferred_sound is not None:
-            # Add the preferred source as an extra candidate without replacing search results.
-            sounds = [preferred_sound] + sounds
-            preferred_sound = None
+        if query_index == 0 and preferred_sounds:
+            # Try vetted candidates first, but never bypass the checks below.
+            sounds = preferred_sounds + sounds
         print(f"FREESOUND RESULTS: {len(sounds)} (including preferred source when available)", flush=True)
         for sound in sounds:
             sid = sound.get("id")
