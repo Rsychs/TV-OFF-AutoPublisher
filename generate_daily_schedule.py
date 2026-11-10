@@ -97,34 +97,42 @@ def main():
     display_kind = kind.replace("_", " ").title()
     filename = f"TV-OFF_{file_kind}_{date_key}_{slot_key}_10-Hours.mp4"
 
-    if kind in {"white_noise", "brown_noise"}:
+    if kind == "white_noise":
         description_intro = (
-            brown_description or white_description or (
-                f"10 hours of steady, original {display_kind.lower()} sound for sleep, relaxation and focus. "
-                "A continuous sound bed with a completely black screen for overnight listening."
-            )
+            "Need a little peace and quiet? Let this gentle, steady white noise create a calm "
+            "background for sleep, rest, studying or focused work. Settle in, press play and "
+            "take a moment away from the noise of the day.\n\n"
+            "If you're playing this for a baby, keep the volume low and place the device well "
+            "away from the baby's head and sleep space. Follow current safe-sleep guidance "
+            "from your healthcare professional."
         )
-        noise_hashtag = "#WhiteNoise" if kind == "white_noise" else "#BrownNoise"
-        audience_hashtag = " #BabySleep" if kind == "white_noise" and white_description and ("newborn" in title.lower() or "baby" in title.lower()) else ""
-        hashtags = f"{noise_hashtag} #SleepSounds #FocusSounds{audience_hashtag} #BlackScreen #TVOff"
-        thumbnail_descriptor = f"{display_kind.upper()} • 10 HOURS"
+        hashtags = "#WhiteNoise #SleepSounds #Relaxation #Focus #TVOFF"
+        thumbnail_descriptor = "WHITE NOISE • 10 HOURS"
+    elif kind == "brown_noise":
+        description_intro = (
+            "Looking for a deeper, softer sound to settle into? This steady brown noise creates "
+            "a warm, low-frequency background for sleep, reading, concentration or simply "
+            "unwinding after a long day. Get comfortable, press play and enjoy a quieter moment."
+        )
+        hashtags = "#BrownNoise #DeepSleep #Relaxation #Focus #TVOFF"
+        thumbnail_descriptor = "BROWN NOISE • 10 HOURS"
     elif kind == "original_music":
         description_intro = (
-            "10 hours of original, slow-evolving ambient instrumental music for deep rest, sleep and relaxation. "
-            "Composed and synthesized specifically for TV OFF with no third-party recordings, samples or borrowed melodies. "
-            "The music is carefully crossfaded for uninterrupted listening; the screen remains completely black."
+            "Slow down and let the day fade into the background. This original ambient music "
+            "was created for quiet evenings, restful nights, meditation or gentle focus. "
+            "Let it play softly while you relax, read or drift off to sleep.\n\n"
+            "Made especially for TV OFF, with an uninterrupted black screen."
         )
-        hashtags = "#AmbientMusic #SleepMusic #RelaxingMusic #BlackScreen #TVOff"
+        hashtags = "#AmbientMusic #SleepMusic #RelaxingMusic #FocusMusic #TVOFF"
         thumbnail_descriptor = "AMBIENT MUSIC • 10 HOURS"
     else:
         raise RuntimeError(f"Unsupported sound category: {kind}")
 
-    source_label = "Original composition" if kind == "original_music" else "Original audio"
     description = (
         description_intro + "\n\n"
-        f"{source_label}: {{creator}}\nSource: {{source_url}}\nLicense: {{license}}\n\n"
-        "🎧 Keep the volume comfortable.\n🖤 10 hours • Black screen • No visuals\n\n"
-        "Subscribe to TV OFF for more long-form ambient soundscapes.\n\n"
+        "🎧 Find a comfortable volume, get settled and enjoy your time away from the noise.\n"
+        "🖤 10 hours of sound with a completely black screen.\n\n"
+        "Subscribe to TV OFF for more peaceful sounds and original music.\n\n"
         + hashtags
     )
     publish_at = now.isoformat()
