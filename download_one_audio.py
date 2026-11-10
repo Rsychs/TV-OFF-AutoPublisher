@@ -21,6 +21,29 @@ HISTORY = Path(os.environ.get("USED_SOURCES_FILE", "used_sources.json"))
 MIN_SOURCE_SECONDS = 90
 MIN_PREVIEW_SECONDS = 20
 MAX_DOWNLOAD_ATTEMPTS = 6
+CATEGORY_TERMS = {
+    "fireplace": {"fireplace", "fire", "crackle", "crackling", "woodstove", "stove"},
+    "rain": {"rain", "rainfall", "rainstorm", "downpour", "drizzle", "raindrop", "raindrops", "shower"},
+    "thunderstorm": {"thunder", "thunderstorm", "lightning", "storm"},
+    "ocean": {"ocean", "sea", "wave", "waves", "surf", "shore", "beach"},
+    "forest": {"forest", "woodland", "woods", "birdsong", "birds", "insects", "jungle"},
+    "river": {"river", "stream", "waterfall", "rapids", "creek", "brook"},
+    "wind": {"wind", "breeze", "gust", "gusts", "rustling"},
+}
+
+def matches_soundscape_category(sound):
+    # Freesound full-text search can return semantically adjacent recordings.
+    # Require the title or tags to explicitly identify the selected sound category.
+    title = str(sound.get("name") or "")
+    tags = sound.get("tags") or []
+    if isinstance(tags, str):
+        tag_text = tags
+    else:
+        tag_text = " ".join(str(tag) for tag in tags)
+    words = set(re.findall(r"[a-z0-9]+", f"{title} {tag_text}".lower()))
+    expected = CATEGORY_TERMS.get(KIND, set())
+    return bool(words.intersection(expected))
+
 QUERIES = {
     "fireplace": [
         "fireplace crackling burning wood close up field recording",
@@ -201,7 +224,7 @@ def main():
     if KIND == "thunderstorm" and PREFERRED_SOUND_ID:
         try:
             preferred_sound = api_json(f"sounds/{PREFERRED_SOUND_ID}/", {
-                "fields": "id,name,username,duration,license,url,avg_rating,num_downloads,previews",
+                "fields": "id,name,tags,username,duration,license,url,avg_rating,num_downloads,previews",
             })
             print(f"PREFERRED FREESOUND SOURCE FOUND: {PREFERRED_SOUND_ID}", flush=True)
         except Exception as exc:
@@ -230,6 +253,13 @@ def main():
             seen.add(sid)
             if not is_cc0(sound.get("license")):
                 print(f"SKIP {sid}: license not verified as CC0", flush=True)
+                continue
+            if not matches_soundscape_category(sound):
+                print(
+                    f"SKIP {sid}: title/tags do not identify the requested category {KIND}: "
+                    f"{sound.get('name')}",
+                    flush=True,
+                )
                 continue
             if source_url in used or str(sid) in used_ids:
                 print(f"SKIP {sid}: source already used (normalized Freesound ID)", flush=True)
