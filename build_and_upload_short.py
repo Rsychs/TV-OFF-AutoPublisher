@@ -1,7 +1,7 @@
 import json
 import os
 import subprocess
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from google.oauth2.credentials import Credentials
@@ -29,6 +29,8 @@ def main():
             f"UTC slot changed before Short build: target={target_slot}, current={current_slot}; refusing rollover."
         )
     slot = target_slot
+    slot_start = datetime.strptime(slot, "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    slot_end = slot_start + timedelta(hours=1)
     try:
         production_started_epoch = int(os.environ.get("PRODUCTION_STARTED_EPOCH", "0"))
     except ValueError as exc:
@@ -179,7 +181,6 @@ def main():
             ],
         }
         variants = short_title_variants.get(kind, [f"{display_kind} for Sleep and Focus"])
-        slot_start = datetime.strptime(slot, "%Y%m%d%H").replace(tzinfo=timezone.utc)
         short_slot = int(slot_start.timestamp() // 3600)
         short_title = f"{variants[short_slot % len(variants)]} #Shorts"
         short_tags = ["Shorts", display_kind, "Sleep Sounds", "Focus Sounds", "TV OFF", "Ambient Sounds"]
@@ -203,11 +204,18 @@ def main():
         },
         "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False}
     }
-    current_slot_before_upload = datetime.now(timezone.utc).strftime("%Y%m%d%H")
+    upload_check_time = datetime.now(timezone.utc)
+    current_slot_before_upload = upload_check_time.strftime("%Y%m%d%H")
     if current_slot_before_upload != target_slot:
         raise RuntimeError(
             f"UTC slot changed before YouTube upload: target={target_slot}, "
             f"current={current_slot_before_upload}; refusing rollover."
+        )
+    remaining_in_slot = (slot_end - upload_check_time).total_seconds()
+    if remaining_in_slot < 180:
+        raise RuntimeError(
+            f"Only {max(0, int(remaining_in_slot))}s remain in UTC slot {target_slot}; "
+            "refusing YouTube upload with less than a 3-minute reserve."
         )
     response = youtube.videos().insert(
         part="snippet,status", body=body,
