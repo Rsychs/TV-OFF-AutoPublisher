@@ -54,7 +54,7 @@ jobs:
           now = datetime.now(TZ)
 
           if event_name == "issue_comment":
-              match = re.fullmatch(r"/tv-off-longform (\d{8})-(\d{2})", requested)
+              match = re.fullmatch(r"/tv-off-(?:longform|music) (\d{8})-(\d{2})", requested)
               if not match:
                   raise RuntimeError("Invalid long-form command; refusing to run.")
 
@@ -125,7 +125,7 @@ jobs:
               output.write(f"skip={'true' if skip else 'false'}\n")
               output.write(f"slot_date={date_key}\n")
               output.write(f"slot_hour={slot_key}\n")
-
+\n          if requested.startswith("/tv-off-music "):\n              with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:\n                  env.write("FORCE_SOUND=original_music\\n")
           if skip:
               print(
                   f"SKIPPING: Europe/Riga slot {date_key}-{slot_key} already has "
