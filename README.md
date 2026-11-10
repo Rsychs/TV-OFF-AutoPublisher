@@ -2,6 +2,15 @@
 
 Free, self-hosted YouTube uploader using the official YouTube Data API and GitHub Actions. The workflow checks the schedule hourly and can also be started manually.
 
+## Current TV OFF content strategy
+
+New releases are limited to three categories:
+- White Noise — original synthetic audio generated locally.
+- Brown Noise — original synthetic audio generated locally.
+- Original Music — locally synthesized ambient compositions, with no third-party recordings, samples, or borrowed melodies.
+
+Nature sounds and external field recordings are retired from new production. Legacy schedule and backlog CSV queues have been cleared to prevent accidental nature uploads. Long-form videos retain the 10-hour duration and fully black screen; Shorts use the same three-category rotation.
+
 ## Mobile-first setup
 
 ### 1. Google Cloud
