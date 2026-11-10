@@ -25,7 +25,6 @@ def main():
             channel="chrome",
             headless=False,
             accept_downloads=False,
-            args=["--disable-blink-features=AutomationControlled"],
         )
         page = context.pages[0] if context.pages else context.new_page()
         page.goto("https://studio.youtube.com/", wait_until="domcontentloaded")
