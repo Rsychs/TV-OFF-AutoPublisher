@@ -86,6 +86,13 @@ def main():
         elif kind == "white_noise":
             title, tags, white_description = WHITE_NOISE_VARIANTS[(slot_number // len(STANDARD_SOUNDS)) % len(WHITE_NOISE_VARIANTS)]
         print("PRIORITY QUEUE COMPLETE: both white and brown noise are published; using expanded standard rotation.")
+
+    if os.environ.get("FORCE_SOUND", "").strip() == "original_music":
+        kind = "original_music"
+        title = "Deep Sleep Ambient Music | Soft, Slow & Instrumental"
+        tags = "deep sleep ambient music;relaxing ambient music;sleep music;calming instrumental;TV OFF"
+        print("MANUAL PRIORITY: original music selected for this confirmed production slot.")
+
     file_kind = kind.replace("_", "").title()
     display_kind = kind.replace("_", " ").title()
     filename = f"TV-OFF_{file_kind}_{date_key}_{slot_key}_10-Hours.mp4"
