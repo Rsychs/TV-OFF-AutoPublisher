@@ -1,0 +1,44 @@
+name: TV OFF — Studio CSV export (self-hosted)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tv-off-analytics-export
+  cancel-in-progress: false
+
+jobs:
+  export-studio-csv:
+    # This runner must be installed on the user's own computer, where the
+    # dedicated Chrome profile and Dropbox Desktop sync folder remain local.
+    runs-on: [self-hosted, tv-off-analytics]
+    timeout-minutes: 15
+    steps:
+      - name: Checkout analytics code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Verify local configuration
+        shell: bash
+        run: |
+          test -n "$TV_OFF_STUDIO_REPORT_URL"
+          test -n "$TV_OFF_ANALYTICS_DROPBOX_DIR"
+          test -d "$TV_OFF_BROWSER_PROFILE"
+          test -d "$TV_OFF_ANALYTICS_DROPBOX_DIR"
+          python --version
+
+      - name: Install pinned Playwright dependency
+        run: python -m pip install --disable-pip-version-check "playwright==1.55.0"
+
+      - name: Export and validate CSV
+        env:
+          TV_OFF_HEADLESS: "true"
+        run: python analytics/export_studio_csv.py
+
+      - name: Report completion without exposing report contents
+        if: always()
+        run: echo "Studio CSV export job finished. Inspect the Dropbox-synced analytics folder and runner status."
