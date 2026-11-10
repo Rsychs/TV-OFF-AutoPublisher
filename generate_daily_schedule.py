@@ -88,6 +88,11 @@ def main():
         print("PRIORITY QUEUE COMPLETE: both white and brown noise are published; using expanded standard rotation.")
 
     if os.environ.get("FORCE_SOUND", "").strip() == "original_music":
+        if not published["brown_noise"] or not published["white_noise"]:
+            raise RuntimeError(
+                "Original Music cannot override the mandatory White/Brown Noise priority. "
+                "Publish both noise categories with real YouTube IDs first."
+            )
         kind = "original_music"
         title = "Deep Sleep Ambient Music | Soft, Slow & Instrumental"
         tags = "deep sleep ambient music;relaxing ambient music;sleep music;calming instrumental;TV OFF"
