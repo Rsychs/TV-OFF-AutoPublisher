@@ -1,0 +1,74 @@
+name: Dropbox OAuth token exchange
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: tv-off-dropbox-oauth-setup
+  cancel-in-progress: false
+
+jobs:
+  exchange:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Exchange Dropbox authorization code and store refresh token
+        env:
+          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
+          DROPBOX_AUTH_CODE: ${{ secrets.DROPBOX_AUTH_CODE }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          test -n "$DROPBOX_APP_KEY"
+          test -n "$DROPBOX_APP_SECRET"
+          test -n "$DROPBOX_AUTH_CODE"
+          python -m pip install --quiet pynacl
+          node <<'NODE'
+          const repo = process.env.GH_REPOSITORY;
+          const headers = {
+            'Authorization': `Bearer ${process.env.GH_TOKEN}`,
+            'Accept': 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28'
+          };
+          async function request(url, options = {}) {
+            const response = await fetch(url, { ...options, headers: { ...headers, ...(options.headers || {}) } });
+            if (!response.ok) throw new Error(`GitHub API request failed: ${response.status}`);
+            return response.status === 204 ? null : response.json();
+          }
+          (async () => {
+            const body = new URLSearchParams({
+              code: process.env.DROPBOX_AUTH_CODE,
+              grant_type: 'authorization_code',
+              client_id: process.env.DROPBOX_APP_KEY,
+              client_secret: process.env.DROPBOX_APP_SECRET
+            });
+            const tokenResponse = await fetch('https://api.dropboxapi.com/oauth2/token', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body
+            });
+            if (!tokenResponse.ok) throw new Error(`Dropbox token exchange failed: ${tokenResponse.status}`);
+            const tokenData = await tokenResponse.json();
+            if (!tokenData.refresh_token) throw new Error('Dropbox did not return a refresh token.');
+            const keyData = await request(`https://api.github.com/repos/${repo}/actions/secrets/public-key`);
+            const sodium = require('child_process').spawnSync('python', ['-c', 'import nacl'], { stdio: 'ignore' });
+            if (sodium.status !== 0) throw new Error('PyNaCl unavailable on runner.');
+            const { stdout, status } = require('child_process').spawnSync('python', ['-c',
+              'import sys,base64; from nacl.public import PublicKey, SealedBox; k=PublicKey(base64.b64decode(sys.argv[1])); print(base64.b64encode(SealedBox(k).encrypt(sys.stdin.buffer.read())).decode())',
+              keyData.key
+            ], { input: tokenData.refresh_token, encoding: 'utf8' });
+            if (status !== 0) throw new Error('Could not encrypt refresh token for GitHub Secrets.');
+            await request(`https://api.github.com/repos/${repo}/actions/secrets/DROPBOX_REFRESH_TOKEN`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ encrypted_value: stdout.trim(), key_id: keyData.key_id })
+            });
+            await request(`https://api.github.com/repos/${repo}/actions/secrets/DROPBOX_AUTH_CODE`, { method: 'DELETE' });
+            console.log('Dropbox refresh token stored as a GitHub Actions secret. Temporary authorization-code secret deleted.');
+          })().catch(error => { console.error(error.message); process.exit(1); });
+          NODE
