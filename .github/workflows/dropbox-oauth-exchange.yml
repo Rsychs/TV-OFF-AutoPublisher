@@ -20,7 +20,7 @@ jobs:
           DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
           DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
           DROPBOX_AUTH_CODE: ${{ secrets.DROPBOX_AUTH_CODE }}
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
           GH_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
