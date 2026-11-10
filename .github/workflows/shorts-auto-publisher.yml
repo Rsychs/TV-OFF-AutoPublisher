@@ -35,8 +35,8 @@ jobs:
           slot_end = slot_start + timedelta(hours=1)
           target_slot = slot_start.strftime("%Y%m%d%H")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"target_slot={target_slot}\\n")
-              output.write(f"slot_end_epoch={int(slot_end.timestamp())}\\n")
+              output.write(f"target_slot={target_slot}\n")
+              output.write(f"slot_end_epoch={int(slot_end.timestamp())}\n")
           print(f"PINNED UTC SLOT: {target_slot}; closes at {slot_end.isoformat()}")
           PY
 
@@ -150,10 +150,10 @@ jobs:
               break
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"skip={'true' if reason else 'false'}\\n")
-              output.write(f"target_slot={target_slot}\\n")
+              output.write(f"skip={'true' if reason else 'false'}\n")
+              output.write(f"target_slot={target_slot}\n")
               if production_started_epoch:
-                  output.write(f"production_started_epoch={production_started_epoch}\\n")
+                  output.write(f"production_started_epoch={production_started_epoch}\n")
           print(reason if reason else f"UTC slot {target_slot} is ready; cooldown and runway guards passed.")
           PY
 
