@@ -9,11 +9,6 @@ on:
 permissions:
   contents: write
 
-# Share the production lock with long videos so both formats cannot select the same source concurrently.
-concurrency:
-  group: tv-off-single-video
-  cancel-in-progress: false
-
 jobs:
   publish-short:
     if: >-
@@ -23,6 +18,9 @@ jobs:
        github.event.issue.number == 15 &&
        github.event.comment.user.login == 'Rsychs' &&
        startsWith(github.event.comment.body, '/tv-off-short '))
+    concurrency:
+      group: tv-off-single-video
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
