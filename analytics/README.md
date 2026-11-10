@@ -1,152 +1,90 @@
-# TV OFF Analytics — CSV-first, autonomous mode
+# TV OFF Analytics — Cloud OAuth
 
-This module is intentionally isolated from the publishing workflows.
+Read-only channel analytics run on GitHub-hosted Actions and are saved directly
+to the private Dropbox folder `/TV OFF Analytics`. No personal computer or
+browser automation is required.
 
-## Hard constraints
-- Do not enable, dispatch, or add a trigger for the `youtube-analytics` workflow.
-- Do not request or use `YT_ANALYTICS_REFRESH_TOKEN`, YouTube Analytics API, or YouTube Data API for metric collection.
-- Publishing workflows, issue #15 commands, schedule, shared lock, cooldown, slot deduplication, and upload state are out of scope.
-- Never commit channel analytics, raw CSV exports, OAuth tokens, or private reports to this public repository.
-- Never turn missing metrics into zero. Missing values remain null.
-- Compare Shorts only with Shorts and long-form only with long-form.
-- New content categories are limited to White Noise, Brown Noise, and Original Music.
+## Security
 
-## Import contract
-Run the local importer against a YouTube Studio CSV export. Output is written to a directory outside the repository (or a user-selected private location). The source CSV is not copied or retained by the importer.
+- Google scopes: `youtube.readonly` and `yt-analytics.readonly` only.
+- No upload/manage scope and no Google password.
+- Google OAuth client secret and refresh token are stored only in GitHub Actions Secrets.
+- Dropbox app key, app secret and refresh token are stored only in GitHub Actions Secrets.
+- Metrics are uploaded directly to private Dropbox, never committed to this public repo
+  or printed in workflow logs.
+- Workflow token has `contents: read`; checkout credentials are not persisted.
+- This workflow is isolated from publishing workflows, locks, state, slot guards,
+  cooldowns and deduplication.
+- Existing `youtube-analytics.yml` is not modified or enabled.
 
-The importer:
-1. Reads a video-level CSV export.
-2. Normalizes known YouTube Studio column names and common variants.
-3. Preserves unknown/missing metrics as null.
-4. Derives format only when it can be grounded in the video duration or an explicit format field; otherwise marks it unknown.
-5. Writes normalized JSON snapshots and a video registry.
-6. Deduplicates identical imports by content hash and snapshot key.
+## Data and limitations
 
-## Metrics model
-Common fields: video_id, title, publish_date, format, category, views, watch_time_hours, average_view_duration_seconds, average_percentage_viewed, subscribers_gained, likes, comments, shares, impressions, impressions_ctr, shown_in_feed, viewed_vs_swiped_away, source_export_hash, imported_at.
+Collects top-video views, engagedViews, comments, likes, shares, estimated watch
+minutes, average view duration/percentage, subscribers gained/lost; daily channel
+views/watch time/subscriber trends; video title, publish time, duration and tags;
+and audience-retention curves for up to 30 top videos.
 
-YouTube Studio exports do not always contain every field in one report. The importer must not fabricate unavailable fields. In particular, feed metrics and impressions/CTR may require separate Studio exports.
+It does **not** reproduce every Studio report. Thumbnail impressions/CTR and
+Shorts shown-in-feed/viewed-vs-swiped-away are not included in this first version.
+Missing metrics remain unavailable, never zero. The top-video report is paginated
+in batches of 200. Daily reports can lag behind the current date.
 
-## Autonomy policy
-Autonomous changes are constrained to reversible packaging and production experiments:
-- Titles/descriptions/tags and thumbnail variants can be tested in a logged experiment.
-- Do not alter published video files, delete videos, or claim that a thumbnail/title change caused an improvement without a comparable cohort.
-- Do not change category strategy, publishing cadence, duration, or channel-wide format based on a single video.
-- Use a minimum cohort of 5 comparable videos per variant where possible; otherwise report low confidence and gather more data.
-- Change one major variable per experiment.
-- Keep a complete before/after record and rollback value for every automated change.
-- Roll back a change when the post-change cohort materially underperforms its baseline after the minimum observation window.
+Default reporting period starts 2020-01-01 and ends yesterday in Europe/Riga.
 
-## Storage and security
-The repository is public. Only code and non-sensitive schemas belong here. Metrics, raw exports, per-video reports, experiment history, and recommendation history must live in private storage. Until a private persistent store is configured, import/report runs must be manual and local; do not pretend that autonomous persistence is active.
+## Schedule
 
-## Current rollout status
-- CSV parser: scaffold in progress.
-- Persistent private metrics store: not configured.
-- Scheduled report/decision runner: not enabled.
-- Automated edits: disabled until data persistence and rollback execution are validated.
+Two UTC cron entries (06:00 and 07:00 UTC) cover the Europe/Riga daylight-saving
+offsets. The script checks local Riga time and only proceeds at 08:00; the other
+invocation exits without fetching. Manual `workflow_dispatch` is also available.
 
+## Google OAuth setup (one-time)
 
-## Browser-based Studio export (experimental, opt-in)
+1. In Google Cloud Console create a project and enable **YouTube Analytics API**
+   and **YouTube Data API v3**.
+2. Configure the OAuth consent screen as External. Add the Google account that
+   owns TV OFF as a test user while setting up.
+3. Create OAuth Client ID → **Web application**. Add this redirect URI exactly:
+   `https://developers.google.com/oauthplayground`.
+4. Open Google OAuth 2.0 Playground settings and select **Use your own OAuth
+   credentials**. Enter the client ID and secret from Cloud Console. Keep both private.
+5. Request these scopes:
+   `https://www.googleapis.com/auth/youtube.readonly`
+   `https://www.googleapis.com/auth/yt-analytics.readonly`
+6. Authorize the Google account that owns TV OFF. Exchange the code for tokens and
+   copy the refresh token.
+7. For unattended operation, set the OAuth consent app to **In production** after
+   validation. An External app left in Testing can issue refresh tokens that expire
+   after seven days for these scopes. Production apps may show an unverified-app
+   warning or require verification for broader distribution; this setup is for the
+   channel owner's own use.
 
-The separate workflow `.github/workflows/studio-csv-export.yml` uses Playwright on a
-self-hosted runner. It is deliberately **not** scheduled and is not connected to
-publishing triggers. It can only be started manually with `workflow_dispatch`.
+## Dropbox OAuth setup (one-time)
 
-### Security design
+1. In Dropbox App Console create an app with scoped access. Grant only
+   `files.content.write`. Choose Full Dropbox access if the app-folder model cannot
+   write to the existing root-level folder.
+2. Complete Dropbox OAuth with offline access and obtain a refresh token.
+3. Do not send Dropbox credentials or tokens in chat.
 
-- Never store a Google password, OAuth refresh token, browser cookies, or Playwright
-  storage-state file in GitHub Secrets, repository files, workflow artifacts, or Dropbox.
-- A dedicated Chrome profile is created locally at
-  `~/.tv-off-analytics/chrome-profile` (override with `TV_OFF_BROWSER_PROFILE`).
-- Run `python analytics/bootstrap_studio_profile.py` once on the runner machine.
-  Complete Google sign-in manually in the visible Chrome window. This is a one-time
-  human bootstrap; no credentials are entered into scripts.
-- The profile remains on the self-hosted runner's disk and must be protected by the
-  computer's OS account and disk encryption. Do not sync this profile to Dropbox.
-- Configure runner environment variables locally:
-  - `TV_OFF_BROWSER_PROFILE`: absolute path to the dedicated Chrome profile.
-  - `TV_OFF_STUDIO_REPORT_URL`: saved Advanced Mode report URL, beginning
-    `https://studio.youtube.com/`.
-  - `TV_OFF_ANALYTICS_DROPBOX_DIR`: local Dropbox Desktop sync path for the
-    already-created `TV OFF Analytics` folder.
-- The runner must have Google Chrome, Python 3.10+, Playwright's Chromium/Chrome
-  support, and Dropbox Desktop sync configured. The workflow uses the installed
-  Chrome channel and does not install or launch a hosted cloud browser.
-- Install Playwright once before first use:
-  `python -m pip install playwright==1.55.0`.
-- The workflow only runs on runner labels `self-hosted,tv-off-analytics`.
-  It does not run on GitHub-hosted machines, and no GitHub cron is added.
+## GitHub Actions Secrets
 
-### Export behavior
+In repository Settings → Secrets and variables → Actions, add:
 
-The report URL must point to a saved YouTube Studio Advanced Mode report. The
-exporter opens that report, clicks **Export current view**, selects CSV, validates
-the download, stores it in the local Dropbox-synced folder, then runs the CSV
-normalizer. It never prints report rows or metric values. If Google redirects to
-sign-in, the UI changes, export is unavailable, or the CSV fails validation, the
-job fails closed; it does not attempt CAPTCHA/2FA bypass or session repair.
+- `GOOGLE_OAUTH_CLIENT_ID`
+- `GOOGLE_OAUTH_CLIENT_SECRET`
+- `GOOGLE_OAUTH_REFRESH_TOKEN`
+- `DROPBOX_APP_KEY`
+- `DROPBOX_APP_SECRET`
+- `DROPBOX_REFRESH_TOKEN`
 
-YouTube Studio's official documented path is Analytics → Advanced Mode/See more →
-Export current view → choose CSV. Studio exports are limited to 500 rows per
-download. See https://support.google.com/youtube/answer/9717005.
+Never paste secret values into ChatGPT, issues, PR comments, workflow YAML or repo
+files. After all six secrets exist, run the workflow once manually and confirm a
+JSON snapshot appears in Dropbox.
 
-### Limitations and risk assessment
+## Autonomy boundary
 
-- **Session expiry / re-authentication:** Google may expire the local session or
-  require a challenge. A person must sign in again locally; the workflow will stop.
-- **UI drift:** YouTube can rename controls, change menus, or alter the report URL.
-  Selectors are intentionally narrow; failures require maintenance rather than
-  broad clicking.
-- **Automation detection:** Google may challenge or block automated browser
-  sessions. The workflow does not disguise identity, evade challenges, or bypass
-  access controls.
-- **Runner availability:** The computer must be powered on, connected, and the
-  GitHub self-hosted runner service and Dropbox sync client must be running.
-- **Local compromise:** Anyone with access to the runner account/profile may be
-  able to use the authenticated session. Use a dedicated OS account and disk
-  encryption; revoke the session and delete the local profile if compromised.
-- **CSV scope:** One saved report exports only the selected view. Shorts feed
-  metrics, long-form impressions/CTR, retention, and traffic-source reports may
-  require separate saved views and separate runs. Do not treat absent columns as
-  zero.
-
-### Rollout status
-
-This is an experimental, opt-in implementation on the `analytics/csv-autonomy`
-branch. It is not active in production, no workflow has been run, no runner has
-been registered, and no local browser profile or report URL has been configured.
-The first run cannot succeed until the one-time local setup is completed.
-
-
-### One-time self-hosted runner setup (Linux example)
-
-1. On the computer that will stay online, install Google Chrome, Python 3.10+,
-   Git, and the Dropbox Desktop client. Sign Dropbox in and wait until the
-   `TV OFF Analytics` folder is visible locally.
-2. In GitHub open this repository → Settings → Actions → Runners → New
-   self-hosted runner. Follow GitHub's OS-specific commands on that computer.
-   During `config.sh`, add the extra label `tv-off-analytics`. Do not paste
-   the temporary runner registration token into chat or commit it.
-3. Run the runner under the same dedicated OS user that owns the Chrome profile
-   and Dropbox sync folder. For initial authentication, keep a local desktop
-   session available; do not run the first-time bootstrap from a headless
-   service-only session.
-4. In the repository runner machine's environment, set
-   `TV_OFF_ANALYTICS_DROPBOX_DIR` to the exact local synced path of
-   `TV OFF Analytics` and `TV_OFF_STUDIO_REPORT_URL` to the saved Studio
-   Advanced Mode report URL. Optionally set `TV_OFF_BROWSER_PROFILE`.
-   Restart the runner service after changing its environment.
-5. From the repository checkout on that same computer, install the pinned
-   Playwright package and run
-   `python analytics/bootstrap_studio_profile.py`. Sign in manually in the
-   opened Chrome window, complete any Google checks yourself, open Studio, then
-   return to the terminal and press Enter. Never copy the profile directory
-   into the repository, Dropbox, or GitHub artifacts.
-6. Start the runner service. After this PR is merged, the workflow can be
-   started manually from Actions → TV OFF — Studio CSV export → Run workflow.
-   Confirm the resulting CSV appears in Dropbox before relying on it.
-
-This setup requires one-time human interaction for runner registration and
-Google sign-in. There is no safe way for a remote GitHub workflow to create a
-Google-authenticated browser session without a user-controlled sign-in step.
+This workflow only collects and stores analytics. It does not edit titles,
+descriptions, tags, thumbnails, published videos/audio, schedules, or publishing
+code. The existing daily decision process can analyze completed snapshots and
+perform only the previously approved reversible packaging experiments with
+history and rollback. No content edits are performed by this workflow.
