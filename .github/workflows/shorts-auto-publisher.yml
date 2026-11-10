@@ -33,12 +33,27 @@ jobs:
 
       - name: Capture the exact UTC hourly slot
         id: slot
+        env:
+          COMMENT_CREATED_AT: ${{ github.event.comment.created_at }}
+          COMMAND_BODY: ${{ github.event.comment.body }}
         run: |
           python - <<'PY'
           import os
+          import re
           from datetime import datetime, timedelta, timezone
 
+          comment_created_at = os.environ.get("COMMENT_CREATED_AT", "").strip()
+          command_body = os.environ.get("COMMAND_BODY", "").strip()
           now = datetime.now(timezone.utc)
+          if comment_created_at:
+              match = re.fullmatch(r"/tv-off-short (\\d{10})", command_body)
+              if not match:
+                  raise RuntimeError("Invalid Shorts command; refusing to run.")
+              event_time = datetime.fromisoformat(comment_created_at.replace("Z", "+00:00")).astimezone(timezone.utc)
+              requested_slot = event_time.strftime("%Y%m%d%H")
+              if match.group(1) != requested_slot:
+                  raise RuntimeError("Shorts command slot does not match its comment creation hour.")
+              now = event_time
           slot_start = now.replace(minute=0, second=0, microsecond=0)
           slot_end = slot_start + timedelta(hours=1)
           target_slot = slot_start.strftime("%Y%m%d%H")
