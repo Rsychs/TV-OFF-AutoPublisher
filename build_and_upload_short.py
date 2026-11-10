@@ -82,6 +82,7 @@ def main():
     themes = {
         "white_noise": ("0xA9D8FF", "WHITE NOISE", "A LITTLE MORE QUIET"),
         "brown_noise": ("0xC99563", "BROWN NOISE", "LET THE WORLD FADE OUT"),
+        "original_music": ("0xB7A6E5", "DEEP SLEEP AMBIENT", "SLOW DOWN AND LET GO"),
         "ocean": ("0x55C6D8", "OCEAN SOUNDS", "TAKE A SLOW BREATH"),
         "rain": ("0x8CB7D8", "RAIN SOUNDS", "SETTLE INTO THE MOMENT"),
         "thunderstorm": ("0x9B9BCB", "STORM SOUNDS", "LET THE NOISE FADE"),
@@ -178,6 +179,14 @@ def main():
                 "Brown Noise for Reading and Quiet Focus",
                 "Low, Deep Brown Noise for a Peaceful Evening",
                 "Brown Noise When You Need Some Quiet",
+            ],
+            "original_music": [
+                "Deep Sleep Ambient Music for a Peaceful Night",
+                "Soft Ambient Music to Slow Down and Rest",
+                "A Calm Instrumental Sound for Deep Relaxation",
+                "Gentle Ambient Music for Quiet Moments",
+                "Slow Dreamy Music for Sleep and Unwinding",
+                "Peaceful Ambient Music for a Restful Mind",
             ],
         }
         variants = short_title_variants.get(kind, [f"{display_kind} for Sleep and Focus"])
