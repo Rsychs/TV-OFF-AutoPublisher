@@ -213,21 +213,76 @@ def main():
             "A Little White Noise for a Quieter Moment",
             "Steady White Noise to Help You Switch Off",
             "A Calm White Noise Sound for Rest and Focus",
+            "Gentle White Noise for a Peaceful Break",
+            "White Noise to Ease Into a Quiet Moment",
+            "A Soft Bed of White Noise for Better Rest",
+            "Find Your Focus with Steady White Noise",
+            "White Noise for a Calmer Space",
+            "A Simple Sound for Quiet and Comfort",
+            "Let the Day Fade with Gentle White Noise",
+            "White Noise for Reading, Rest and Reset",
+            "A Steady Sound When You Need Some Quiet",
+            "A Quiet Background with White Noise",
+            "White Noise to Help You Settle Down",
+            "Make Room for Calm with White Noise",
+            "A Gentle Soundscape for Your Quiet Time",
+            "Stay Focused with Smooth White Noise",
+            "A Peaceful Pause with White Noise",
+            "Soft White Noise for Your Next Reset",
+            "A Little More Calm with White Noise",
         ],
         "brown_noise": [
             "Deep Brown Noise for a Moment of Calm",
             "A Softer, Deeper Sound to Unwind To",
             "Brown Noise for Quiet Focus and Rest",
+            "Settle In with Deep Brown Noise",
+            "A Warm Low Sound for a Calmer Mind",
+            "Brown Noise for Reading and Deep Focus",
+            "Let the Busy Day Fade with Brown Noise",
+            "A Deeper Sound for Your Quiet Space",
+            "Relax into a Steady Brown Noise Bed",
+            "Low, Gentle Brown Noise for Rest",
+            "Find Your Focus in Deep Brown Noise",
+            "A Calm Moment with Rich Brown Noise",
         ],
         "original_music": [
             "A Quiet Moment with Original Ambient Music",
             "Soft Ambient Music to Slow Down To",
             "A Gentle Instrumental Moment for You",
+            "Original Ambient Music for a Peaceful Pause",
+            "Slow Down with This Gentle Ambient Sound",
+            "A Soft Instrumental Space to Unwind",
+            "Quiet Ambient Music for Rest and Reflection",
+            "A Gentle Soundtrack for Your Evening",
+            "Take a Breath with Original Ambient Music",
+            "Soft Tones for a Slower Moment",
+            "A Calm Instrumental Escape",
+            "Let Your Thoughts Settle with Ambient Music",
         ],
     }
+    # Select a title that has never been used on this channel. Never recycle a
+    # title just because the UTC slot changed or the sound category repeats.
+    used_titles = {
+        str(title).strip().casefold()
+        for title in state.get("_published_titles", [])
+        if isinstance(title, str)
+    }
     variants = short_title_variants[kind]
-    short_slot = variant_index
-    short_title = f"{variants[short_slot % len(variants)]} #Shorts"
+    title_start = int(audio_sha256[:8], 16) % len(variants)
+    short_title_base = next(
+        (
+            variants[(title_start + offset) % len(variants)]
+            for offset in range(len(variants))
+            if variants[(title_start + offset) % len(variants)].casefold() not in used_titles
+        ),
+        None,
+    )
+    if short_title_base is None:
+        # Exhaustion is a hard stop: do not publish a repeated title.
+        raise RuntimeError(
+            f"All approved unique titles are exhausted for {kind}; refusing duplicate metadata."
+        )
+    short_title = f"{short_title_base} #Shorts"
     short_tags = ["Shorts", display_kind, "Relaxation", "Sleep Sounds", "Focus", "TV OFF"]
     body = {
         "snippet": {
@@ -258,6 +313,9 @@ def main():
     video_id = response["id"]
     published_at = datetime.now(timezone.utc)
     state[slot] = video_id
+    state["_published_titles"] = list(dict.fromkeys(
+        state.get("_published_titles", []) + [short_title]
+    ))
     state["_published_audio_sha256"] = list(dict.fromkeys(
         state.get("_published_audio_sha256", []) + [audio_sha256]
     ))[-500:]
