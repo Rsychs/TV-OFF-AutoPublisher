@@ -155,10 +155,12 @@ jobs:
         run: python generate_daily_schedule.py
 
       - name: Resolve the selected soundscape
+        id: resolve_sound
         if: steps.slot_guard.outputs.skip != 'true'
         run: |
           KIND="$(python -c 'import csv; print(next(csv.DictReader(open("daily_schedule.csv", encoding="utf-8-sig")))["soundscape"])')"
           echo "SOUNDSCAPE=$KIND" >> "$GITHUB_ENV"
+          echo "soundscape=$KIND" >> "$GITHUB_OUTPUT"
           echo "Selected soundscape: $KIND"
 
       - name: Generate original music without external audio sources
