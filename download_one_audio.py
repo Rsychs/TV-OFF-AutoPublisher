@@ -237,7 +237,7 @@ def main():
             "filter": 'license:"Creative Commons 0" duration:[90 TO *]',
             "sort": "rating_desc",
             "page_size": 25,
-            "fields": "id,name,username,duration,license,url,avg_rating,num_downloads,previews",
+            "fields": "id,name,tags,username,duration,license,url,avg_rating,num_downloads,previews",
         })
         sounds = result.get("results", [])
         if preferred_sound is not None:
