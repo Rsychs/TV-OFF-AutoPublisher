@@ -23,6 +23,23 @@ jobs:
         with:
           ref: main
 
+      - name: Capture the exact UTC hourly slot
+        id: slot
+        run: |
+          python - <<'PY'
+          import os
+          from datetime import datetime, timedelta, timezone
+
+          now = datetime.now(timezone.utc)
+          slot_start = now.replace(minute=0, second=0, microsecond=0)
+          slot_end = slot_start + timedelta(hours=1)
+          target_slot = slot_start.strftime("%Y%m%d%H")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"target_slot={target_slot}\\n")
+              output.write(f"slot_end_epoch={int(slot_end.timestamp())}\\n")
+          print(f"PINNED UTC SLOT: {target_slot}; closes at {slot_end.isoformat()}")
+          PY
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -34,8 +51,11 @@ jobs:
           sudo apt-get install -y ffmpeg fonts-dejavu-core
           pip install -r requirements.txt
 
-      - name: Enforce 60-minute cooldown without dropping the hourly slot
+      - name: Enforce cooldown without crossing the pinned UTC slot
         id: cooldown
+        env:
+          TARGET_SLOT: ${{ steps.slot.outputs.target_slot }}
+          SLOT_END_EPOCH: ${{ steps.slot.outputs.slot_end_epoch }}
         run: |
           python - <<'PY'
           import json
@@ -47,6 +67,8 @@ jobs:
           from pathlib import Path
 
           path = Path("shorts_state.json")
+          target_slot = os.environ["TARGET_SLOT"]
+          slot_end_epoch = int(os.environ["SLOT_END_EPOCH"])
 
           def load_state():
               if not path.exists():
@@ -72,44 +94,107 @@ jobs:
 
           state = load_state()
           reason = ""
+          production_started_epoch = 0
+
           while True:
               now = datetime.now(timezone.utc)
-              slot = now.strftime("%Y%m%d%H")
-              if slot in state:
-                  reason = f"Short already published for slot {slot}: {state[slot]}"
+              current_slot = now.strftime("%Y%m%d%H")
+              if current_slot != target_slot:
+                  reason = (
+                      f"UTC slot {target_slot} closed while waiting; current slot is {current_slot}. "
+                      "Refusing to roll over to a later slot."
+                  )
+                  break
+
+              if target_slot in state:
+                  reason = f"Short already published for pinned slot {target_slot}: {state[target_slot]}"
                   break
 
               last_published_at = state.get("_last_published_at")
-              if not last_published_at:
-                  break
+              if last_published_at:
+                  try:
+                      last_at = datetime.fromisoformat(str(last_published_at).replace("Z", "+00:00"))
+                  except ValueError as exc:
+                      raise RuntimeError("Invalid _last_published_at in shorts_state.json; refusing to bypass cooldown.") from exc
+                  if last_at.tzinfo is None:
+                      last_at = last_at.replace(tzinfo=timezone.utc)
+                  elapsed = (now - last_at.astimezone(timezone.utc)).total_seconds()
+                  if elapsed < 3600:
+                      remaining = math.ceil(3600 - elapsed) + 2
+                      print(
+                          f"Short cooldown active: waiting {min(60, remaining)}s; "
+                          f"rechecking pinned slot {target_slot} and remote state."
+                      )
+                      time.sleep(min(60, max(1, remaining)))
+                      state = refresh_state()
+                      continue
+
               try:
-                  last_at = datetime.fromisoformat(str(last_published_at).replace("Z", "+00:00"))
-              except ValueError as exc:
-                  raise RuntimeError("Invalid _last_published_at in shorts_state.json; refusing to bypass cooldown.") from exc
-              if last_at.tzinfo is None:
-                  last_at = last_at.replace(tzinfo=timezone.utc)
+                  last_duration = int(state.get("_last_production_duration_seconds", 553))
+              except (TypeError, ValueError) as exc:
+                  raise RuntimeError("Invalid _last_production_duration_seconds; refusing to bypass slot runway guard.") from exc
+              if last_duration < 0:
+                  raise RuntimeError("Negative _last_production_duration_seconds; refusing to bypass slot runway guard.")
 
-              elapsed = (now - last_at.astimezone(timezone.utc)).total_seconds()
-              if elapsed >= 3600:
+              required_runway = max(180, last_duration + 180)
+              remaining_in_slot = slot_end_epoch - now.timestamp()
+              if remaining_in_slot < required_runway:
+                  reason = (
+                      f"Insufficient runway for pinned slot {target_slot}: "
+                      f"{max(0, int(remaining_in_slot))}s remain, "
+                      f"{required_runway}s required (last production {last_duration}s + 180s reserve)."
+                  )
                   break
 
-              remaining = math.ceil(3600 - elapsed) + 2
-              print(f"Short cooldown active: waiting {remaining}s, then rechecking the current UTC slot and remote state.")
-              time.sleep(remaining)
-              state = refresh_state()
+              production_started_epoch = int(now.timestamp())
+              break
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"skip={'true' if reason else 'false'}\n")
-          print(reason if reason else f"Short slot {slot} is ready after the 60-minute cooldown.")
+              output.write(f"skip={'true' if reason else 'false'}\\n")
+              output.write(f"target_slot={target_slot}\\n")
+              if production_started_epoch:
+                  output.write(f"production_started_epoch={production_started_epoch}\\n")
+          print(reason if reason else f"UTC slot {target_slot} is ready; cooldown and runway guards passed.")
           PY
 
-      - name: Select a different soundscape every hourly slot
+      - name: Select soundscape for the pinned UTC slot
         if: steps.cooldown.outputs.skip != 'true'
+        env:
+          TARGET_SLOT: ${{ steps.slot.outputs.target_slot }}
         run: |
-          # White and brown noise are top-tier categories (2x weight each).
-          KIND=$(python -c 'from datetime import datetime, timezone; kinds=["white_noise","brown_noise","white_noise","brown_noise","ocean","white_noise","brown_noise","white_noise","forest","brown_noise","white_noise","rain"]; print(kinds[(int(datetime.now(timezone.utc).timestamp()) // 3600) % len(kinds)])')
+          KIND=$(python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+
+          target_slot = os.environ["TARGET_SLOT"]
+          slot_start = datetime.strptime(target_slot, "%Y%m%d%H").replace(tzinfo=timezone.utc)
+          slot_hour = int(slot_start.timestamp() // 3600)
+          state = json.loads(open("state.json", encoding="utf-8").read())
+          brown_published = any(
+              isinstance(key, str)
+              and "brownnoise" in key.lower()
+              and isinstance(value, str)
+              and value.strip()
+              for key, value in state.items()
+          )
+
+          if not brown_published:
+              kinds = ["white_noise", "brown_noise"]
+              print(kinds[slot_hour % len(kinds)])
+          else:
+              # 9/12 noise slots (75%); 3/12 nature slots (25%).
+              kinds = [
+                  "white_noise", "brown_noise", "white_noise", "brown_noise",
+                  "ocean", "white_noise", "brown_noise", "white_noise",
+                  "forest", "brown_noise", "white_noise", "rain",
+              ]
+              print(kinds[slot_hour % len(kinds)])
+          PY
+          )
           echo "SOUNDSCAPE=$KIND" >> "$GITHUB_ENV"
-          echo "Selected soundscape: $KIND"
+          echo "TARGET_SLOT=$TARGET_SLOT" >> "$GITHUB_ENV"
+          echo "Selected soundscape for pinned slot $TARGET_SLOT: $KIND"
 
       - name: Generate original noise or download a fresh verified CC0 Freesound recording
         if: steps.cooldown.outputs.skip != 'true'
@@ -123,6 +208,8 @@ jobs:
         if: steps.cooldown.outputs.skip != 'true'
         env:
           SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
+          TARGET_SLOT: ${{ steps.slot.outputs.target_slot }}
+          PRODUCTION_STARTED_EPOCH: ${{ steps.cooldown.outputs.production_started_epoch }}
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
