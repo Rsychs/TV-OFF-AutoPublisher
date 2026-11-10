@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parent
 STATE = ROOT / "shorts_state.json"
 AUDIO_DIR = Path(os.environ.get("SOURCE_AUDIO_DIR", ROOT / "generated-audio"))
 OUT = ROOT / "shorts"
-DURATION = 27
+DURATION = 18
 
 def run(args):
     subprocess.run(args, check=True, timeout=900)
@@ -98,13 +98,25 @@ def main():
     accent, headline, tagline = themes.get(
         kind, ("0xA9C7E8", display_kind.upper(), "SOUND TO SWITCH OFF TO")
     )
+    # Three distinct Brown Noise hooks, rotated across Brown Noise slots.
+    variant_index = (int(slot[-2:]) // 6) % 3
+    brown_hooks = [
+        ("SLOW DOWN. BREATHE.", "A DEEPER SOUND FOR REST"),
+        ("LET YOUR MIND UNWIND", "A QUIETER MOMENT STARTS HERE"),
+        ("FIND YOUR QUIET FOCUS", "STAY WITH THE TASK"),
+    ]
+    if kind == "brown_noise":
+        hook, tagline = brown_hooks[variant_index]
+        accent = ["0xC99563", "0xD6AE82", "0xA97852"][variant_index]
+    else:
+        hook = "A MOMENT FOR YOU"
     graph = (
         f"[1:a]volume=3.5,showwaves=s=920x280:mode=cline:scale=sqrt:rate=30:colors={accent},format=rgba[w];"
         "[0:v]format=rgba,"
         f"drawbox=x=54:y=260:w=972:h=1390:color={accent}@0.075:t=fill,"
         f"drawbox=x=82:y=288:w=916:h=1334:color={accent}@0.45:t=3,"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
-        "text='A MOMENT FOR YOU':fontcolor=0xDCE5F2:fontsize=27:"
+        "f"text='{hook}':fontcolor=0xDCE5F2:fontsize=27:""
         "x=(w-text_w)/2:y=390,"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
         f"text='{headline}':fontcolor=white:fontsize=76:"
@@ -120,12 +132,12 @@ def main():
         "text='SOUND TO SWITCH OFF TO':fontcolor=0xAAB2C4:fontsize=24:"
         "x=(w-text_w)/2:y=1320,"
         "drawbox=x=105:y=1490:w=870:h=112:color=0x172337@0.96:t=fill:"
-        "enable='gte(t,20)',"
+        "enable='gte(t,11)',"
         "drawbox=x=105:y=1490:w=870:h=112:color=white@0.55:t=2:"
         "enable='gte(t,20)',"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
         "text='MORE SOUNDS ON OUR CHANNEL':fontcolor=white:fontsize=31:"
-        "x=(w-text_w)/2:y=1526:alpha='if(lt(t,21),t-20,1)':enable='gte(t,20)'[v]"
+        "x=(w-text_w)/2:y=1526:alpha='if(lt(t,12),t-11,1)':enable='gte(t,20)'[v]"
     )
     run([
         "ffmpeg", "-y", "-hide_banner", "-f", "lavfi", "-i",
@@ -192,7 +204,7 @@ def main():
         ],
     }
     variants = short_title_variants[kind]
-    short_slot = int(slot_start.timestamp() // 3600)
+    short_slot = variant_index
     short_title = f"{variants[short_slot % len(variants)]} #Shorts"
     short_tags = ["Shorts", display_kind, "Relaxation", "Sleep Sounds", "Focus", "TV OFF"]
     body = {
