@@ -33,7 +33,7 @@ Default reporting period starts 2020-01-01 and ends yesterday in Europe/Riga.
 
 ## Schedule
 
-Two UTC cron entries (06:00 and 07:00 UTC) cover the Europe/Riga daylight-saving
+Two UTC cron entries (05:00 and 06:00 UTC) cover the Europe/Riga daylight-saving
 offsets. The script checks local Riga time and only proceeds at 08:00; the other
 invocation exits without fetching. Manual `workflow_dispatch` is also available.
 
