@@ -45,13 +45,11 @@ invocation exits without fetching. Manual `workflow_dispatch` is also available.
    owns TV OFF as a test user while setting up.
 3. Create OAuth Client ID → **Web application**. Add this redirect URI exactly:
    `https://developers.google.com/oauthplayground`.
-4. Open Google OAuth 2.0 Playground settings and select **Use your own OAuth
-   credentials**. Enter the client ID and secret from Cloud Console. Keep both private.
+4. Open [Google OAuth 2.0 Playground](https://developers.google.com/oauthplayground). In Settings select **Use your own OAuth credentials** and set access type to **Offline**. Enter the client ID and secret from Cloud Console. Keep both private.
 5. Request these scopes:
    `https://www.googleapis.com/auth/youtube.readonly`
    `https://www.googleapis.com/auth/yt-analytics.readonly`
-6. Authorize the Google account that owns TV OFF. Exchange the code for tokens and
-   copy the refresh token.
+6. Authorize the Google account that owns TV OFF. Exchange the authorization code in Step 2 and copy the **refresh token** from the response. The refresh token is the long-lived credential; do not copy the short-lived access token instead.
 7. For unattended operation, set the OAuth consent app to **In production** after
    validation. An External app left in Testing can issue refresh tokens that expire
    after seven days for these scopes. Production apps may show an unverified-app
@@ -60,12 +58,10 @@ invocation exits without fetching. Manual `workflow_dispatch` is also available.
 
 ## Dropbox OAuth setup (one-time)
 
-1. In Dropbox App Console create a **Scoped access → App folder** app named
-   `TV OFF Analytics`. Grant only `files.content.write`. The app will save snapshots
-   inside its private app folder (`/Apps/TV OFF Analytics` in Dropbox); it does not
-   need access to the rest of your Dropbox files.
-2. Complete Dropbox OAuth with offline access and obtain a refresh token.
-3. Do not send Dropbox credentials or tokens in chat.
+1. In [Dropbox App Console](https://www.dropbox.com/developers/apps) create a **Scoped access → App folder** app named `TV OFF Analytics`. Grant only `files.content.write`. The app will save snapshots inside its private app folder (`/Apps/TV OFF Analytics` in Dropbox); it does not need access to the rest of your Dropbox files.
+2. Open this authorization URL in your browser, replacing `YOUR_APP_KEY` with the app key: `https://www.dropbox.com/oauth2/authorize?client_id=YOUR_APP_KEY&response_type=code&token_access_type=offline`. Approve access; Dropbox displays an authorization code.
+3. Exchange the code at `https://api.dropboxapi.com/oauth2/token` using `grant_type=authorization_code`, the code, app key and app secret. Copy the returned **refresh_token**. Keep the app key, app secret and refresh token private.
+4. Do not send Dropbox credentials or tokens in chat.
 
 ## GitHub Actions Secrets
 
