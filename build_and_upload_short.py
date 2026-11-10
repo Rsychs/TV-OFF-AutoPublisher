@@ -116,7 +116,6 @@ def main():
         "[0:v]format=rgba,"
         f"drawbox=x=54:y=260:w=972:h=1390:color={accent}@0.075:t=fill,"
         f"drawbox=x=82:y=288:w=916:h=1334:color={accent}@0.45:t=3,"
-        "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
         f"drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='{hook}':fontcolor=0xDCE5F2:fontsize=27:"
         "x=(w-text_w)/2:y=390,"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
