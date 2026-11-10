@@ -19,7 +19,8 @@ PROFILE = Path(os.environ.get(
     "TV_OFF_BROWSER_PROFILE",
     str(Path.home() / ".tv-off-analytics" / "chrome-profile")
 )).expanduser().resolve()
-DROPBOX_DIR = Path(os.environ.get("TV_OFF_ANALYTICS_DROPBOX_DIR", "")).expanduser().resolve()
+DROPBOX_RAW = os.environ.get("TV_OFF_ANALYTICS_DROPBOX_DIR", "").strip()
+DROPBOX_DIR = Path(DROPBOX_RAW).expanduser().resolve() if DROPBOX_RAW else None
 HEADLESS = os.environ.get("TV_OFF_HEADLESS", "true").lower() not in {"0", "false", "no"}
 
 def fail(message: str) -> None:
@@ -31,7 +32,7 @@ def main() -> None:
         fail("TV_OFF_STUDIO_REPORT_URL must be a saved YouTube Studio report URL.")
     if not PROFILE.is_dir():
         fail("Local Chrome profile missing. Run bootstrap_studio_profile.py once on this runner.")
-    if not str(DROPBOX_DIR) or not DROPBOX_DIR.is_dir():
+    if DROPBOX_DIR is None or not DROPBOX_DIR.is_dir():
         fail("TV_OFF_ANALYTICS_DROPBOX_DIR must point to the already-synced Dropbox folder.")
     DROPBOX_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -91,11 +92,10 @@ def main() -> None:
             result = subprocess.run(
                 [sys.executable, str(Path(__file__).with_name("import_youtube_studio_csv.py")),
                  str(target), "--out-dir", str(out_dir)],
-                check=False, capture_output=True, text=True,
+                check=False,
             )
             if result.returncode != 0:
-                target.unlink(missing_ok=True)
-                fail("CSV downloaded but importer rejected its structure; raw file removed. Check importer diagnostics in the local runner log.")
+                fail("CSV saved, but the normalizer rejected its structure. Raw export was retained; check importer output in the runner log.")
             print(f"EXPORT_OK file={target.name} rows={row_count} bytes={target.stat().st_size}")
         except PlaywrightTimeoutError:
             fail("Timed out waiting for the Studio export control or CSV download. UI may have changed.")
