@@ -64,12 +64,6 @@ def main():
     sub = 0.018 * np.sin(2*np.pi*65.41*t) * (0.8 + 0.2*np.sin(2*np.pi*t/83))
     mix[:, 0] += sub
     mix[:, 1] += sub
-    # Crossfade the four-minute composition's endpoints to make the long-form loop unobtrusive.
-    k = 8 * SR
-    fade = np.linspace(0.0, 1.0, k)[:, None]
-    seam = (1.0 - fade) * mix[-k:] + fade * mix[:k]
-    mix[:k] = seam
-    mix[-k:] = seam
     mix -= np.mean(mix, axis=0, keepdims=True)
     mix *= 0.78 / (np.max(np.abs(mix)) + 1e-12)
     write(OUT, SR, np.int16(np.clip(mix, -1, 1) * 32767))
