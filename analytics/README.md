@@ -45,3 +45,75 @@ The repository is public. Only code and non-sensitive schemas belong here. Metri
 - Persistent private metrics store: not configured.
 - Scheduled report/decision runner: not enabled.
 - Automated edits: disabled until data persistence and rollback execution are validated.
+
+
+## Browser-based Studio export (experimental, opt-in)
+
+The separate workflow `.github/workflows/studio-csv-export.yml` uses Playwright on a
+self-hosted runner. It is deliberately **not** scheduled and is not connected to
+publishing triggers. It can only be started manually with `workflow_dispatch`.
+
+### Security design
+
+- Never store a Google password, OAuth refresh token, browser cookies, or Playwright
+  storage-state file in GitHub Secrets, repository files, workflow artifacts, or Dropbox.
+- A dedicated Chrome profile is created locally at
+  `~/.tv-off-analytics/chrome-profile` (override with `TV_OFF_BROWSER_PROFILE`).
+- Run `python analytics/bootstrap_studio_profile.py` once on the runner machine.
+  Complete Google sign-in manually in the visible Chrome window. This is a one-time
+  human bootstrap; no credentials are entered into scripts.
+- The profile remains on the self-hosted runner's disk and must be protected by the
+  computer's OS account and disk encryption. Do not sync this profile to Dropbox.
+- Configure runner environment variables locally:
+  - `TV_OFF_BROWSER_PROFILE`: absolute path to the dedicated Chrome profile.
+  - `TV_OFF_STUDIO_REPORT_URL`: saved Advanced Mode report URL, beginning
+    `https://studio.youtube.com/`.
+  - `TV_OFF_ANALYTICS_DROPBOX_DIR`: local Dropbox Desktop sync path for the
+    already-created `TV OFF Analytics` folder.
+- The runner must have Google Chrome, Python 3.10+, Playwright's Chromium/Chrome
+  support, and Dropbox Desktop sync configured. The workflow uses the installed
+  Chrome channel and does not install or launch a hosted cloud browser.
+- Install Playwright once before first use:
+  `python -m pip install playwright==1.55.0`.
+- The workflow only runs on runner labels `self-hosted,tv-off-analytics`.
+  It does not run on GitHub-hosted machines, and no GitHub cron is added.
+
+### Export behavior
+
+The report URL must point to a saved YouTube Studio Advanced Mode report. The
+exporter opens that report, clicks **Export current view**, selects CSV, validates
+the download, stores it in the local Dropbox-synced folder, then runs the CSV
+normalizer. It never prints report rows or metric values. If Google redirects to
+sign-in, the UI changes, export is unavailable, or the CSV fails validation, the
+job fails closed; it does not attempt CAPTCHA/2FA bypass or session repair.
+
+YouTube Studio's official documented path is Analytics → Advanced Mode/See more →
+Export current view → choose CSV. Studio exports are limited to 500 rows per
+download. See https://support.google.com/youtube/answer/9717005.
+
+### Limitations and risk assessment
+
+- **Session expiry / re-authentication:** Google may expire the local session or
+  require a challenge. A person must sign in again locally; the workflow will stop.
+- **UI drift:** YouTube can rename controls, change menus, or alter the report URL.
+  Selectors are intentionally narrow; failures require maintenance rather than
+  broad clicking.
+- **Automation detection:** Google may challenge or block automated browser
+  sessions. The workflow does not disguise identity, evade challenges, or bypass
+  access controls.
+- **Runner availability:** The computer must be powered on, connected, and the
+  GitHub self-hosted runner service and Dropbox sync client must be running.
+- **Local compromise:** Anyone with access to the runner account/profile may be
+  able to use the authenticated session. Use a dedicated OS account and disk
+  encryption; revoke the session and delete the local profile if compromised.
+- **CSV scope:** One saved report exports only the selected view. Shorts feed
+  metrics, long-form impressions/CTR, retention, and traffic-source reports may
+  require separate saved views and separate runs. Do not treat absent columns as
+  zero.
+
+### Rollout status
+
+This is an experimental, opt-in implementation on the `analytics/csv-autonomy`
+branch. It is not active in production, no workflow has been run, no runner has
+been registered, and no local browser profile or report URL has been configured.
+The first run cannot succeed until the one-time local setup is completed.
