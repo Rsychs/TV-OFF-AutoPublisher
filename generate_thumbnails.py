@@ -115,9 +115,18 @@ def draw_signature(draw, kind, accent, variation):
 def make_thumbnail(row):
     filename = row["filename"].strip()
     stem = Path(filename).stem
-    source_title = (row.get("thumbnail_title") or row.get("title") or stem).split("|")[0].strip()
+    source_title = (row.get("thumbnail_title") or row.get("title") or row.get("thumbnail_descriptor") or stem).split("|")[0].strip()
     source_title = re.sub(r"[_-]+", " ", source_title)
-    kind = detect_kind(stem, source_title)
+    declared_kind = str(row.get("soundscape") or "").strip().lower()
+    allowed_kinds = {"white_noise", "brown_noise", "original_music"}
+    if declared_kind:
+        if declared_kind not in allowed_kinds:
+            raise RuntimeError(f"Disallowed TV OFF thumbnail category: {declared_kind}")
+        kind = declared_kind
+    else:
+        kind = detect_kind(stem, source_title)
+        if kind not in allowed_kinds:
+            raise RuntimeError(f"Cannot safely identify an allowed TV OFF category for thumbnail: {filename}")
     accent = ACCENTS[kind]
     variation = int(hashlib.sha256(f"{filename}|{source_title}".encode("utf-8")).hexdigest()[:8], 16)
 
