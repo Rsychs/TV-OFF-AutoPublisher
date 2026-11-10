@@ -17,6 +17,7 @@ concurrency:
 
 jobs:
   fetch-analytics:
+    if: vars.TV_OFF_ANALYTICS_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
