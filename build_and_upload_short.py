@@ -267,21 +267,67 @@ def main():
         for title in state.get("_published_titles", [])
         if isinstance(title, str)
     }
-    variants = short_title_variants[kind]
-    title_start = int(audio_sha256[:8], 16) % len(variants)
-    short_title_base = next(
-        (
-            variants[(title_start + offset) % len(variants)]
-            for offset in range(len(variants))
-            if variants[(title_start + offset) % len(variants)].casefold() not in used_titles
-        ),
-        None,
-    )
-    if short_title_base is None:
-        # Exhaustion is a hard stop: do not publish a repeated title.
+    variants = list(short_title_variants[kind])
+
+    def generate_fresh_titles(category, existing, count=24):
+        # Local deterministic title generator: combines human-written phrase
+        # fragments, requires the category keyword, and filters all used titles.
+        recipes = {
+            "white_noise": {
+                "openers": ["Steady White Noise", "Gentle White Noise", "Soft White Noise", "Pure White Noise", "White Noise for", "A Calm White Noise Sound for"],
+                "contexts": ["a Quieter Mind", "Deep Focus", "Restful Moments", "Reading and Relaxing", "a Peaceful Night", "Everyday Calm", "Uninterrupted Work", "a Gentle Reset", "Better Sleep", "Quiet Time"],
+                "closers": ["", " | Relax and Unwind", " for Sleep and Focus", " to Help You Switch Off"],
+            },
+            "brown_noise": {
+                "openers": ["Deep Brown Noise", "Warm Brown Noise", "Soft Brown Noise", "Rich Brown Noise", "Brown Noise for", "A Deeper Brown Noise Sound for"],
+                "contexts": ["Quiet Focus", "Restful Sleep", "a Calmer Mind", "Reading and Relaxing", "a Peaceful Night", "Deep Work", "Unwinding", "a Gentle Reset", "Everyday Calm", "Quiet Time"],
+                "closers": ["", " | Relax and Unwind", " for Sleep and Focus", " to Help You Switch Off"],
+            },
+            "original_music": {
+                "openers": ["Original Ambient Music", "Soft Ambient Music", "Gentle Instrumental Music", "Peaceful Original Music", "Ambient Music for", "A Quiet Instrumental Soundtrack for"],
+                "contexts": ["a Slower Moment", "Deep Focus", "Rest and Reflection", "Reading and Relaxing", "a Peaceful Night", "Quiet Evenings", "Unwinding", "a Gentle Reset", "Creative Flow", "Quiet Time"],
+                "closers": ["", " | Relax and Unwind", " for Sleep and Focus", " to Help You Switch Off"],
+            },
+        }
+        recipe = recipes[category]
+        generated = []
+        seen = {str(x).strip().casefold() for x in existing}
+        # Stable ordering avoids random title selection and keeps reruns predictable.
+        for opener in recipe["openers"]:
+            for context in recipe["contexts"]:
+                for closer in recipe["closers"]:
+                    candidate = f"{opener} {context}{closer}".strip()
+                    key = candidate.casefold()
+                    if key not in seen:
+                        seen.add(key)
+                        generated.append(candidate)
+                        if len(generated) >= count:
+                            return generated
+        return generated
+
+    generated_by_category = state.setdefault("_generated_titles_by_category", {})
+    generated_titles = generated_by_category.setdefault(kind, [])
+    available = [
+        title for title in variants + generated_titles
+        if title.casefold() not in used_titles
+    ]
+    if len(available) <= 5:
+        fresh = generate_fresh_titles(kind, used_titles | {x.casefold() for x in variants + generated_titles})
+        if fresh:
+            generated_titles.extend(fresh)
+            generated_by_category[kind] = list(dict.fromkeys(generated_titles))
+            state["_generated_titles_by_category"] = generated_by_category
+            STATE.write_text(json.dumps(state, indent=2), encoding="utf-8")
+            print(f"TITLE GENERATOR: {kind} had {len(available)} titles remaining; added {len(fresh)} fresh titles.")
+
+    variants = variants + generated_titles
+    available = [title for title in variants if title.casefold() not in used_titles]
+    if not available:
         raise RuntimeError(
-            f"All approved unique titles are exhausted for {kind}; refusing duplicate metadata."
+            f"Title generator produced no unused titles for {kind}; refusing duplicate metadata."
         )
+    title_start = int(audio_sha256[:8], 16) % len(available)
+    short_title_base = available[title_start]
     short_title = f"{short_title_base} #Shorts"
     short_tags = ["Shorts", display_kind, "Relaxation", "Sleep Sounds", "Focus", "TV OFF"]
     body = {
