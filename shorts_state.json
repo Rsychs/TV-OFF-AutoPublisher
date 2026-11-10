@@ -25,9 +25,20 @@
   "2026111015": "eXTpe8xmXpQ",
   "2026111016": "7NheFoOCszI",
   "2026111018": "TLshjH7g1Ec",
-  "_last_published_at": "2026-11-10T18:11:46.168633+00:00",
-  "_last_production_duration_seconds": 59,
+  "_last_published_at": "2026-11-10T19:12:44.999421+00:00",
+  "_last_production_duration_seconds": 56,
   "_published_titles": [
-    "A Little White Noise for a Quieter Moment #Shorts"
+    "A Little White Noise for a Quieter Moment #Shorts",
+    "Brown Noise for Reading and Deep Focus #Shorts"
+  ],
+  "_generated_titles_by_category": {
+    "brown_noise": []
+  },
+  "2026111019": "nUg_RiqVRlk",
+  "_published_audio_sha256": [
+    "7752eadd752216e8f07f30d9365d5695d596f2a258c32175793cea652826bcfd"
+  ],
+  "_published_video_sha256": [
+    "e218556701641d41aa762d5693fe977f9faa7aa25c69e4f5ee6b769175c7aa98"
   ]
 }
