@@ -176,6 +176,10 @@ def generate_synthetic_noise():
     )
 
 def main():
+    if KIND not in {"white_noise", "brown_noise"}:
+        raise RuntimeError(
+            f"Retired soundscape category {KIND!r}; TV OFF now permits only white_noise, brown_noise, and locally generated original_music."
+        )
     if KIND in SYNTHETIC_NOISE:
         generate_synthetic_noise()
         return
