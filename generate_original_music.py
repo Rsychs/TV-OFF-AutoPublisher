@@ -76,6 +76,8 @@ def main():
     manifest["original_music"] = {
         "file": mp3.name,
         "creator": "TV OFF — original procedural composition",
+        "audio_type": "synthetic",
+        "platform": "TV OFF / local synthesis",
         "source_url": "https://github.com/Rsychs/TV-OFF-AutoPublisher/blob/main/generate_original_music.py",
         "license": "Original composition synthesized for TV OFF; no third-party samples, recordings, or melodies used.",
         "downloaded_at": datetime.now(timezone.utc).isoformat()
