@@ -2,6 +2,8 @@ name: TV OFF — 10-Hour Soundscape Video
 
 on:
   workflow_dispatch:
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: write
@@ -12,6 +14,13 @@ concurrency:
 
 jobs:
   build-and-publish:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request == null &&
+       github.event.issue.number == 15 &&
+       github.event.comment.user.login == 'Rsychs' &&
+       startsWith(github.event.comment.body, '/tv-off-longform '))
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
