@@ -54,14 +54,17 @@ def published_soundscapes():
     # Normalize filenames because Python's str.title() writes "Whitenoise"/"Brownnoise",
     # while older releases may use "WhiteNoise"/"BrownNoise". Matching is case-insensitive
     # and separator-insensitive so priority releases cannot get stuck in a repeat loop.
-    normalized_names = [
-        re.sub(r"[^a-z0-9]", "", str(name).lower())
-        for name in state
-    ]
-    return {
-        "white_noise": any("whitenoise" in name for name in normalized_names),
-        "brown_noise": any("brownnoise" in name for name in normalized_names),
-    }
+    published = {"white_noise": False, "brown_noise": False}
+    for name, video_id in state.items():
+        # A filename alone is not proof of publication: require a real YouTube ID.
+        if not isinstance(video_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id.strip()):
+            continue
+        normalized_name = re.sub(r"[^a-z0-9]", "", str(name).lower())
+        if "whitenoise" in normalized_name:
+            published["white_noise"] = True
+        if "brownnoise" in normalized_name:
+            published["brown_noise"] = True
+    return published
 
 def main():
     now = datetime.now(TZ)
