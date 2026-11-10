@@ -36,6 +36,8 @@ jobs:
 
       - name: Prevent a second long-form publication in the same 3-hour slot
         id: slot_guard
+        env:
+          REQUESTED_SLOT: ${{ github.event.comment.body }}
         run: |
           python - <<'PY'
           import json
@@ -44,6 +46,12 @@ jobs:
           from datetime import datetime
           from pathlib import Path
           from zoneinfo import ZoneInfo
+
+          requested = os.environ.get("REQUESTED_SLOT", "").strip()
+          if requested:
+              match = re.fullmatch(r"/tv-off-longform (\\d{8})-(\\d{2})", requested)
+              if not match:
+                  raise RuntimeError("Invalid long-form command; refusing to run.")
 
           state_path = Path("state.json")
           if not state_path.is_file():
@@ -56,6 +64,8 @@ jobs:
           slot_hour = (now.hour // 3) * 3
           date_key = now.strftime("%Y%m%d")
           slot_key = f"{slot_hour:02d}"
+          if requested and (match.group(1) != date_key or match.group(2) != slot_key):
+              raise RuntimeError(f"Requested long-form slot {match.group(1)}-{match.group(2)} is no longer current; refusing rollover.")
           pattern = re.compile(rf"^TV-OFF_.+_{date_key}_{slot_key}_10-Hours\.mp4$", re.IGNORECASE)
           published = [
               (name, video_id)
