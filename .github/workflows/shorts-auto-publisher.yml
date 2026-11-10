@@ -243,7 +243,7 @@ jobs:
           USED_SOURCES_FILE: ${{ github.workspace }}/shorts_used_sources.json
         run: python download_one_audio.py
 
-      - name: Build and publish one unique 27-second Short
+      - name: Build and publish one unique 18-second Short
         if: steps.cooldown.outputs.skip != 'true'
         env:
           SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
