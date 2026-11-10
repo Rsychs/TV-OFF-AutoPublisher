@@ -15,26 +15,12 @@ ACCENTS = {
     "white_noise": (205, 215, 230),
     "brown_noise": (190, 145, 105),
     "original_music": (161, 143, 214),
-    "fireplace": (220, 125, 65),
-    "rain": (90, 155, 205),
-    "thunderstorm": (135, 145, 190),
-    "wind": (130, 175, 165),
-    "ocean": (55, 155, 205),
-    "forest": (105, 170, 115),
-    "river": (65, 175, 175),
 }
 
 LABELS = {
     "white_noise": "WHITE NOISE",
     "brown_noise": "BROWN NOISE",
     "original_music": "DEEP SLEEP AMBIENT",
-    "fireplace": "FIREPLACE",
-    "rain": "RAIN SOUNDS",
-    "thunderstorm": "RAIN & THUNDER",
-    "wind": "WIND IN TREES",
-    "ocean": "OCEAN WAVES",
-    "forest": "FOREST BIRDS",
-    "river": "FLOWING RIVER",
 }
 
 def font(size, bold=False):
@@ -43,20 +29,12 @@ def font(size, bold=False):
 
 def detect_kind(filename, title):
     text = (filename + " " + title).lower().replace("_", " ")
-    for kind in ("original music", "ambient music", "deep sleep ambient", "white noise", "brown noise", "fireplace", "thunderstorm", "rain", "ocean", "wave", "sea", "forest", "bird", "river", "stream", "wind"):
+    for kind in ("original music", "ambient music", "deep sleep ambient", "white noise", "brown noise"):
         if kind in text:
             if kind in ("original music", "ambient music", "deep sleep ambient"):
                 return "original_music"
-            if kind in ("wave", "sea"):
-                return "ocean"
-            if kind in ("bird",):
-                return "forest"
-            if kind in ("stream",):
-                return "river"
-            if kind in ("white noise", "brown noise"):
-                return kind.replace(" ", "_")
-            return kind
-    return "wind"
+            return kind.replace(" ", "_")
+    return None
 
 def centered_text(draw, text, y, fnt, fill):
     box = draw.textbbox((0, 0), text, font=fnt)
@@ -73,15 +51,6 @@ def draw_signature(draw, kind, accent, variation):
             height = int(base_height * scale)
             x = cx - 108 + i * 27 + ((variation >> 12) % 5 - 2)
             draw.rounded_rectangle((x, cy-height//2, x+7, cy+height//2), radius=3, fill=(*accent, 235))
-    elif kind in ("ocean", "river", "wind"):
-        for j in range(4):
-            points = []
-            for x in range(170, 1110, 8):
-                phase = x / (74 + variation % 21) + j * 0.75 + ((variation >> 5) % 31) / 10
-                amp = (13 if kind == "wind" else 20) + ((variation >> (j * 4)) & 3)
-                y = cy + j * 17 + math.sin(phase) * amp
-                points.append((x, int(y)))
-            draw.line(points, fill=(*accent, 190 - j*22), width=4)
     elif kind == "original_music":
         for layer in range(4):
             points = []
@@ -93,24 +62,7 @@ def draw_signature(draw, kind, accent, variation):
         for x, offset in ((cx-78, -12), (cx+12, 8)):
             draw.ellipse((x-9, cy+offset, x+9, cy+offset+13), fill=(*accent, 220))
             draw.line((x+7, cy+offset+5, x+7, cy-65+offset), fill=(*accent, 220), width=5)
-    elif kind in ("rain", "thunderstorm"):
-        for row in range(3):
-            for col in range(17):
-                x = 210 + col * 52 + (row % 2) * 15 + ((variation >> 8) % 13 - 6)
-                y = 105 + row * 55 + ((variation >> 16) % 9 - 4)
-                draw.line((x, y, x-10, y+28), fill=(*accent, 165-row*25), width=4)
-        if kind == "thunderstorm":
-            draw.line([(670, 75), (630, 155), (680, 155), (640, 235)], fill=(*accent, 230), width=9)
-    elif kind == "fireplace":
-        radius_shift = (variation % 9) - 4
-        for radius in (38 + radius_shift, 62 + radius_shift, 86 + radius_shift):
-            draw.arc((cx-radius, cy-radius, cx+radius, cy+radius), 205, 335, fill=(*accent, 205), width=5)
-        draw.ellipse((cx-10, cy-10, cx+10, cy+10), fill=(*accent, 230))
-    elif kind == "forest":
-        for i, x in enumerate((cx-85, cx-30, cx+30, cx+85)):
-            height = (60, 85, 72, 52)[i] + ((variation >> (i * 5)) % 13 - 6)
-            draw.polygon([(x, cy-height), (x-28, cy+15), (x+28, cy+15)], fill=(*accent, 175-i*15))
-            draw.rectangle((x-4, cy+10, x+4, cy+34), fill=(*accent, 190))
+
 
 def make_thumbnail(row):
     filename = row["filename"].strip()
