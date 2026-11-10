@@ -1,4 +1,5 @@
 import csv
+import hashlib
 import json
 import os
 from datetime import datetime, timezone
@@ -16,6 +17,18 @@ THUMB_DIR = ROOT / "thumbnails"
 SOURCE_AUDIO_DIR = Path(os.environ.get("SOURCE_AUDIO_DIR", ROOT / "audio"))
 MANIFEST_FILE = SOURCE_AUDIO_DIR / "manifest.json"
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+ALLOWED_PLATFORMS = {
+    "white_noise": "TV OFF / FFmpeg",
+    "brown_noise": "TV OFF / FFmpeg",
+    "original_music": "TV OFF / local synthesis",
+}
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 def load_credentials():
     required = ["YT_CLIENT_ID", "YT_CLIENT_SECRET", "YT_REFRESH_TOKEN"]
@@ -33,6 +46,10 @@ def load_credentials():
 
 def main():
     state = json.loads(STATE_FILE.read_text(encoding="utf-8")) if STATE_FILE.exists() else {}
+    shorts_state_path = ROOT / "shorts_state.json"
+    shorts_state = json.loads(shorts_state_path.read_text(encoding="utf-8")) if shorts_state_path.exists() else {}
+    if not isinstance(state, dict) or not isinstance(shorts_state, dict):
+        raise RuntimeError("Invalid publication state; refusing to bypass cross-format deduplication.")
     schedule_path = Path(os.environ.get("SCHEDULE_FILE", ROOT / "schedule.csv"))
     with schedule_path.open(newline="", encoding="utf-8-sig") as f:
         rows = list(csv.DictReader(f))
@@ -84,7 +101,28 @@ def main():
             raise ValueError(f"{key}: unsupported privacy_status {privacy_status!r}")
         if future_publish and privacy_status != "private":
             raise ValueError(f"{key}: publish_at in the future is only valid with private visibility")
-        source = manifest.get(row.get("soundscape", ""), {})
+        soundscape = row.get("soundscape", "").strip().lower()
+        if soundscape not in ALLOWED_PLATFORMS:
+            raise RuntimeError(f"Disallowed TV OFF category: {soundscape!r}")
+        source = manifest.get(soundscape, {})
+        if source.get("audio_type") != "synthetic" or source.get("platform") != ALLOWED_PLATFORMS[soundscape]:
+            raise RuntimeError(f"{soundscape}: only the approved local synthetic generator is allowed.")
+        for field in ("file", "sha256"):
+            if not source.get(field):
+                raise RuntimeError(f"{soundscape}: manifest is missing {field}.")
+        source_audio = (SOURCE_AUDIO_DIR / source["file"]).resolve()
+        if not source_audio.is_relative_to(SOURCE_AUDIO_DIR.resolve()) or not source_audio.is_file():
+            raise RuntimeError(f"{soundscape}: generated audio is missing or outside the local audio directory.")
+        audio_sha256 = sha256_file(source_audio)
+        if audio_sha256 != source["sha256"]:
+            raise RuntimeError(f"{soundscape}: manifest SHA-256 does not match the generated audio.")
+        video_sha256 = sha256_file(filename)
+        used_audio_hashes = set(state.get("_published_audio_sha256", [])) | set(shorts_state.get("_published_audio_sha256", []))
+        used_video_hashes = set(state.get("_published_video_sha256", [])) | set(shorts_state.get("_published_video_sha256", []))
+        if audio_sha256 in used_audio_hashes:
+            raise RuntimeError(f"Cross-format duplicate audio detected (sha256={audio_sha256}); refusing upload.")
+        if video_sha256 in used_video_hashes:
+            raise RuntimeError(f"Cross-format duplicate video detected (sha256={video_sha256}); refusing upload.")
         description = row.get("description", "")
         for field in ("creator", "source_url", "license"):
             description = description.replace("{" + field + "}", str(source.get(field, "Not provided")))
@@ -108,14 +146,13 @@ def main():
             _, response = request.next_chunk()
         video_id = response["id"]
         state[key] = video_id
+        state["_published_audio_sha256"] = list(dict.fromkeys(
+            state.get("_published_audio_sha256", []) + [audio_sha256]
+        ))[-500:]
+        state["_published_video_sha256"] = list(dict.fromkeys(
+            state.get("_published_video_sha256", []) + [video_sha256]
+        ))[-500:]
         STATE_FILE.write_text(json.dumps(state, indent=2), encoding="utf-8")
-        if source.get("platform") == "Freesound" and source.get("source_url"):
-            history_path = ROOT / "used_sources.json"
-            history = json.loads(history_path.read_text(encoding="utf-8")) if history_path.exists() else {"used": []}
-            used = history.setdefault("used", [])
-            if source["source_url"] not in used:
-                used.append(source["source_url"])
-                history_path.write_text(json.dumps(history, indent=2), encoding="utf-8")
         youtube.thumbnails().set(
             videoId=video_id,
             media_body=MediaFileUpload(str(thumbnail), mimetype="image/jpeg")
