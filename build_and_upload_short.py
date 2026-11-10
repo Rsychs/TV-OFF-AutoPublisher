@@ -20,7 +20,21 @@ def run(args):
 
 def main():
     now = datetime.now(timezone.utc)
-    slot = now.strftime("%Y%m%d%H")
+    target_slot = os.environ.get("TARGET_SLOT", "").strip()
+    if len(target_slot) != 10 or not target_slot.isdigit():
+        raise RuntimeError("TARGET_SLOT is missing or invalid; refusing to publish without a pinned UTC slot.")
+    current_slot = now.strftime("%Y%m%d%H")
+    if current_slot != target_slot:
+        raise RuntimeError(
+            f"UTC slot changed before Short build: target={target_slot}, current={current_slot}; refusing rollover."
+        )
+    slot = target_slot
+    try:
+        production_started_epoch = int(os.environ.get("PRODUCTION_STARTED_EPOCH", "0"))
+    except ValueError as exc:
+        raise RuntimeError("Invalid PRODUCTION_STARTED_EPOCH; refusing to publish.") from exc
+    if production_started_epoch <= 0:
+        raise RuntimeError("PRODUCTION_STARTED_EPOCH is missing; refusing to publish without runtime tracking.")
     state = json.loads(STATE.read_text(encoding="utf-8")) if STATE.exists() else {}
     if slot in state:
         print(f"SHORT ALREADY PUBLISHED FOR SLOT {slot}: {state[slot]}")
@@ -165,7 +179,8 @@ def main():
             ],
         }
         variants = short_title_variants.get(kind, [f"{display_kind} for Sleep and Focus"])
-        short_slot = int(now.timestamp() // 3600)
+        slot_start = datetime.strptime(slot, "%Y%m%d%H").replace(tzinfo=timezone.utc)
+        short_slot = int(slot_start.timestamp() // 3600)
         short_title = f"{variants[short_slot % len(variants)]} #Shorts"
         short_tags = ["Shorts", display_kind, "Sleep Sounds", "Focus Sounds", "TV OFF", "Ambient Sounds"]
     else:
@@ -188,13 +203,23 @@ def main():
         },
         "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False}
     }
+    current_slot_before_upload = datetime.now(timezone.utc).strftime("%Y%m%d%H")
+    if current_slot_before_upload != target_slot:
+        raise RuntimeError(
+            f"UTC slot changed before YouTube upload: target={target_slot}, "
+            f"current={current_slot_before_upload}; refusing rollover."
+        )
     response = youtube.videos().insert(
         part="snippet,status", body=body,
         media_body=MediaFileUpload(str(target), mimetype="video/mp4", chunksize=-1, resumable=True)
     ).execute()
     video_id = response["id"]
+    published_at = datetime.now(timezone.utc)
     state[slot] = video_id
-    state["_last_published_at"] = datetime.now(timezone.utc).isoformat()
+    state["_last_published_at"] = published_at.isoformat()
+    state["_last_production_duration_seconds"] = max(
+        0, int(published_at.timestamp() - production_started_epoch)
+    )
     STATE.write_text(json.dumps(state, indent=2), encoding="utf-8")
     if info.get("platform") == "Freesound" and info.get("source_url"):
         history_path = ROOT / "shorts_used_sources.json"
