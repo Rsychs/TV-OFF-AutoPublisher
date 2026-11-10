@@ -155,7 +155,7 @@ def main():
     }
     payload=(json.dumps(snapshot,ensure_ascii=False,indent=2)+"\n").encode()
     dropbox_token=refresh_dropbox_access_token()
-    path=f"/TV OFF Analytics/youtube_analytics_{end_date.isoformat()}.json"
+    path=f"/youtube_analytics_{end_date.isoformat()}.json"
     uploaded=upload_dropbox(dropbox_token,path,payload)
     print(f"ANALYTICS_EXPORT_OK date={end_date.isoformat()} videos={len(video_metrics)} daily_rows={len(daily_metrics)} retention={min(len(video_ids),30)}")
     print(f"DROPBOX_SAVED path={uploaded.get('path_display',path)}")
