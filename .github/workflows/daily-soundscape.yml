@@ -162,13 +162,13 @@ jobs:
           echo "Selected soundscape: $KIND"
 
       - name: Generate original music without external audio sources
-        if: steps.slot_guard.outputs.skip != 'true' && env.SOUNDSCAPE == 'original_music'
+        if: steps.slot_guard.outputs.skip != 'true' && steps.resolve_sound.outputs.soundscape == 'original_music'
         env:
           SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
         run: python generate_original_music.py
 
       - name: Generate original noise or select one verified CC0 recording
-        if: steps.slot_guard.outputs.skip != 'true' && env.SOUNDSCAPE != 'original_music'
+        if: steps.slot_guard.outputs.skip != 'true' && steps.resolve_sound.outputs.soundscape != 'original_music'
         timeout-minutes: 8
         env:
           FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
