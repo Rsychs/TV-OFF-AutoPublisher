@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import secrets
@@ -58,6 +59,14 @@ def add_note(mix, freq, start, length, gain, pan, harmonics, rng):
     mix[start_index:start_index+count, 0] += left
     mix[start_index:start_index+count, 1] += right
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def main():
     seed = secrets.randbelow(2**32 - 1) + 1
     rng = np.random.default_rng(seed)
@@ -103,6 +112,7 @@ def main():
         "-codec:a", "libmp3lame", "-b:a", "192k", str(mp3_path)
     ], check=True)
     wav_path.unlink(missing_ok=True)
+    audio_sha256 = sha256_file(mp3_path)
 
     manifest_path = ROOT / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
@@ -115,10 +125,11 @@ def main():
         "license": "Original composition synthesized for TV OFF; no third-party samples, recordings, or melodies used.",
         "duration_seconds": DURATION,
         "random_seed": seed,
+        "sha256": audio_sha256,
         "downloaded_at": datetime.now(timezone.utc).isoformat()
     }
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-    print(f"Generated original {DURATION // 60}-minute Deep Sleep Ambient master: {mp3_path}")
+    print(f"Generated original {DURATION // 60}-minute Deep Sleep Ambient master: {mp3_path} | sha256={audio_sha256}")
 
 if __name__ == "__main__":
     main()
