@@ -99,7 +99,8 @@ def main():
         kind, ("0xA9C7E8", display_kind.upper(), "SOUND TO SWITCH OFF TO")
     )
     # Three distinct Brown Noise hooks, rotated across Brown Noise slots.
-    variant_index = (int(slot[-2:]) // 6) % 3
+    slot_hour_utc = int(slot[-2:])
+    variant_index = (slot_hour_utc + slot_hour_utc // 6) % 3
     brown_hooks = [
         ("SLOW DOWN. BREATHE.", "A DEEPER SOUND FOR REST"),
         ("LET YOUR MIND UNWIND", "A QUIETER MOMENT STARTS HERE"),
