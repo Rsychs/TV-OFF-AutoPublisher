@@ -1,7 +1,7 @@
 # TV OFF Analytics — Cloud OAuth
 
 Read-only channel analytics run on GitHub-hosted Actions and are saved directly
-to the private Dropbox folder `/TV OFF Analytics`. No personal computer or
+to the private Dropbox App Folder. No personal computer or
 browser automation is required.
 
 ## Security
@@ -10,7 +10,7 @@ browser automation is required.
 - No upload/manage scope and no Google password.
 - Google OAuth client secret and refresh token are stored only in GitHub Actions Secrets.
 - Dropbox app key, app secret and refresh token are stored only in GitHub Actions Secrets.
-- Metrics are uploaded directly to private Dropbox, never committed to this public repo
+- Metrics are uploaded directly to the private Dropbox App Folder, never committed to this public repo
   or printed in workflow logs.
 - Workflow token has `contents: read`; checkout credentials are not persisted.
 - This workflow is isolated from publishing workflows, locks, state, slot guards,
@@ -60,9 +60,10 @@ invocation exits without fetching. Manual `workflow_dispatch` is also available.
 
 ## Dropbox OAuth setup (one-time)
 
-1. In Dropbox App Console create an app with scoped access. Grant only
-   `files.content.write`. Choose Full Dropbox access if the app-folder model cannot
-   write to the existing root-level folder.
+1. In Dropbox App Console create a **Scoped access → App folder** app named
+   `TV OFF Analytics`. Grant only `files.content.write`. The app will save snapshots
+   inside its private app folder (`/Apps/TV OFF Analytics` in Dropbox); it does not
+   need access to the rest of your Dropbox files.
 2. Complete Dropbox OAuth with offline access and obtain a refresh token.
 3. Do not send Dropbox credentials or tokens in chat.
 
