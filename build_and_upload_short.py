@@ -65,7 +65,11 @@ def main():
 
     manifest_path = AUDIO_DIR / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if len(manifest) != 1:
+        raise RuntimeError("Expected exactly one selected sound in the manifest; refusing ambiguous Short metadata.")
     kind = next(iter(manifest))
+    if kind not in {"white_noise", "brown_noise", "original_music"}:
+        raise RuntimeError(f"Disallowed TV OFF category for Shorts: {kind}; nature and field recordings are retired.")
     info = manifest[kind]
     display_kind = kind.replace("_", " ").title()
     file_kind = kind.replace("_", "").title()
@@ -149,61 +153,48 @@ def main():
     )
     creds.refresh(Request())
     youtube = build("youtube", "v3", credentials=creds)
-    if synthetic:
-        description = (
-            f"Short {display_kind.lower()} sound for sleep, focus and relaxation, created by TV OFF. "
-            "Created locally with FFmpeg; no third-party recording or sample is used. "
-            "TV OFF — sound to switch off to.\n\n"
-            f"Audio type: original synthetic audio\n"
-            f"Production: {info.get('creator', 'TV OFF')}\n"
-            f"{info.get('license', 'Original synthetic audio; no third-party sample used.')}\n\n"
-            f"#Shorts #{kind.replace('_', '')} #SleepSounds #FocusSounds #TVOff #AmbientSounds"
-        )
-        short_title_variants = {
-            "white_noise": [
-                "A Steady White Noise Sound for Quiet Focus",
-                "White Noise for a Calm and Peaceful Night",
-                "A Soft White Noise Background for Sleep",
-                "White Noise When You Need a Little Quiet",
-                "A Gentle White Noise Sound for Rest and Focus",
-                "White Noise for Reading, Resting and Unwinding",
-                "A Consistent White Noise Sound to Settle In",
-                "White Noise for a Quieter Night",
-            ],
-            "brown_noise": [
-                "Deep Brown Noise for a Quiet Night",
-                "Brown Noise for a Calm Moment and Better Focus",
-                "A Deep Brown Noise Sound to Wind Down To",
-                "Brown Noise for Work Without the Distractions",
-                "A Steady Brown Noise Background for Rest",
-                "Brown Noise for Reading and Quiet Focus",
-                "Low, Deep Brown Noise for a Peaceful Evening",
-                "Brown Noise When You Need Some Quiet",
-            ],
-            "original_music": [
-                "Deep Sleep Ambient Music for a Peaceful Night",
-                "Soft Ambient Music to Slow Down and Rest",
-                "A Calm Instrumental Sound for Deep Relaxation",
-                "Gentle Ambient Music for Quiet Moments",
-                "Slow Dreamy Music for Sleep and Unwinding",
-                "Peaceful Ambient Music for a Restful Mind",
-            ],
-        }
-        variants = short_title_variants.get(kind, [f"{display_kind} for Sleep and Focus"])
-        short_slot = int(slot_start.timestamp() // 3600)
-        short_title = f"{variants[short_slot % len(variants)]} #Shorts"
-        short_tags = ["Shorts", display_kind, "Sleep Sounds", "Focus Sounds", "TV OFF", "Ambient Sounds"]
-    else:
-        description = (
-            f"{display_kind} nature sounds for relaxation, focus and quiet moments, from a verified CC0 field recording. "
-            "TV OFF — sound to switch off to.\n\n"
-            f"Original recording: {info.get('creator', 'Not credited')}\n"
-            f"Source: {info.get('source_url', '')}\n"
-            f"License: {info.get('license', 'CC0')}\n\n"
-            f"#Shorts #{kind.title().replace(' ', '')} #NatureSounds #TVOff #AmbientSounds"
-        )
-        short_title = f"{display_kind} Nature Sounds | TV OFF #Shorts"
-        short_tags = ["Shorts", display_kind, "Nature Sounds", "TV OFF", "Ambient Sounds"]
+    if not synthetic:
+        raise RuntimeError("TV OFF Shorts may only use locally generated White Noise, Brown Noise or Original Music.")
+    short_copy = {
+        "white_noise": (
+            "Need a little quiet? Let this steady white noise create a calm background "
+            "for rest, reading or focused moments. Press play and take a breather. "
+        ),
+        "brown_noise": (
+            "A deeper, softer sound for a slower moment. Let this warm brown noise "
+            "play in the background while you unwind, read or focus. "
+        ),
+        "original_music": (
+            "Take a moment to slow down. This original ambient music is made for "
+            "quiet evenings, gentle focus and a little time to yourself. "
+        ),
+    }
+    description = (
+        short_copy[kind]
+        + "More peaceful sounds and original music on the TV OFF channel.\n\n"
+        + f"#Shorts #{kind.replace('_', '')} #Relaxation #SleepSounds #TVOFF"
+    )
+    short_title_variants = {
+        "white_noise": [
+            "A Little White Noise for a Quieter Moment",
+            "Steady White Noise to Help You Switch Off",
+            "A Calm White Noise Sound for Rest and Focus",
+        ],
+        "brown_noise": [
+            "Deep Brown Noise for a Moment of Calm",
+            "A Softer, Deeper Sound to Unwind To",
+            "Brown Noise for Quiet Focus and Rest",
+        ],
+        "original_music": [
+            "A Quiet Moment with Original Ambient Music",
+            "Soft Ambient Music to Slow Down To",
+            "A Gentle Instrumental Moment for You",
+        ],
+    }
+    variants = short_title_variants[kind]
+    short_slot = int(slot_start.timestamp() // 3600)
+    short_title = f"{variants[short_slot % len(variants)]} #Shorts"
+    short_tags = ["Shorts", display_kind, "Relaxation", "Sleep Sounds", "Focus", "TV OFF"]
     body = {
         "snippet": {
             "title": short_title,
