@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import subprocess
@@ -152,6 +153,27 @@ def main():
     if not target.is_file() or target.stat().st_size < 100000:
         raise RuntimeError("Short video output is missing or unexpectedly small.")
 
+    def sha256_file(path):
+        digest = hashlib.sha256()
+        with path.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+
+    # Content-level deduplication: slot uniqueness alone is not enough.
+    audio_sha256 = sha256_file(source)
+    video_sha256 = sha256_file(target)
+    used_audio_hashes = set(state.get("_published_audio_sha256", []))
+    used_video_hashes = set(state.get("_published_video_sha256", []))
+    if audio_sha256 in used_audio_hashes:
+        raise RuntimeError(
+            f"Duplicate audio detected (sha256={audio_sha256}); refusing to upload this Short."
+        )
+    if video_sha256 in used_video_hashes:
+        raise RuntimeError(
+            f"Duplicate video detected (sha256={video_sha256}); refusing to upload this Short."
+        )
+
     required = ["YT_CLIENT_ID", "YT_CLIENT_SECRET", "YT_REFRESH_TOKEN"]
     missing = [x for x in required if not os.environ.get(x)]
     if missing:
@@ -236,6 +258,12 @@ def main():
     video_id = response["id"]
     published_at = datetime.now(timezone.utc)
     state[slot] = video_id
+    state["_published_audio_sha256"] = list(dict.fromkeys(
+        state.get("_published_audio_sha256", []) + [audio_sha256]
+    ))[-500:]
+    state["_published_video_sha256"] = list(dict.fromkeys(
+        state.get("_published_video_sha256", []) + [video_sha256]
+    ))[-500:]
     state["_last_published_at"] = published_at.isoformat()
     state["_last_production_duration_seconds"] = max(
         0, int(published_at.timestamp() - production_started_epoch)
