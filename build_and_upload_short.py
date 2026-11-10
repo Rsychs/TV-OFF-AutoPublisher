@@ -263,7 +263,7 @@ def main():
     # Select a title that has never been used on this channel. Never recycle a
     # title just because the UTC slot changed or the sound category repeats.
     used_titles = {
-        str(title).strip().casefold()
+        str(title).strip().removesuffix(" #shorts").casefold()
         for title in state.get("_published_titles", [])
         if isinstance(title, str)
     }
