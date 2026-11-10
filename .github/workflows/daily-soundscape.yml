@@ -203,11 +203,13 @@ jobs:
         if: steps.slot_guard.outputs.skip != 'true'
         run: |
           git fetch origin main
-          if git cat-file -e origin/main:state.json 2>/dev/null; then
-            git show origin/main:state.json > state.json
-          else
-            printf '{}\n' > state.json
-          fi
+          for state_file in state.json shorts_state.json; do
+            if git cat-file -e "origin/main:$state_file" 2>/dev/null; then
+              git show "origin/main:$state_file" > "$state_file"
+            else
+              printf '{}\n' > "$state_file"
+            fi
+          done
 
       - name: Upload and publish the soundscape video immediately on YouTube
         if: steps.slot_guard.outputs.skip != 'true'
