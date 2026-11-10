@@ -28,20 +28,14 @@ BROWN_NOISE_VARIANTS = [
     ("Brown Noise for Sleep & a Peaceful Night", "brown noise for sleep;brown noise for rest;peaceful night sounds;BrownNoise;SleepSounds", "A steady brown-noise soundscape for rest and peaceful nighttime listening. 10 uninterrupted hours with a completely black screen."),
 ]
 BROWN_NOISE = ("brown_noise", BROWN_NOISE_VARIANTS[0][0], BROWN_NOISE_VARIANTS[0][1])
-# Noise now leads the rotation (75%); nature releases are intentionally reduced to 25%.
+# Three-category rotation: white noise, brown noise, and original music only.
 STANDARD_SOUNDS = [
     ("brown_noise", None, None),
     ("white_noise", None, None),
+    ("original_music", "Deep Sleep Ambient Music | Soft, Slow & Instrumental", "deep sleep ambient music;relaxing ambient music;sleep music;calming instrumental;TV OFF"),
     ("brown_noise", None, None),
     ("white_noise", None, None),
-    ("ocean", "Ocean Waves for Sleep, Relaxation & a Peaceful Night", "ocean waves for sleep;sea sounds;OceanWaves;SleepSounds"),
-    ("brown_noise", None, None),
-    ("white_noise", None, None),
-    ("rain", "Rain Sounds for Sleep, Relaxation & Background Noise", "rain sounds for sleep;relaxing rain;RainSounds;SleepSounds"),
-    ("brown_noise", None, None),
-    ("white_noise", None, None),
-    ("fireplace", "Crackling Fireplace Sounds for Sleep & Cozy Nights", "fireplace sounds for sleep;fire crackling;FireplaceSounds;SleepSounds"),
-    ("white_noise", None, None),
+    ("original_music", "Soft Ambient Music for Deep Rest & Nighttime Relaxation", "soft ambient music;music for deep sleep;peaceful instrumental;relaxation music;TV OFF"),
 ]
 def published_soundscapes():
     state_path = ROOT / "state.json"
@@ -107,15 +101,18 @@ def main():
         audience_hashtag = " #BabySleep" if kind == "white_noise" and white_description and ("newborn" in title.lower() or "baby" in title.lower()) else ""
         hashtags = f"{noise_hashtag} #SleepSounds #FocusSounds{audience_hashtag} #BlackScreen #TVOff"
         thumbnail_descriptor = f"{display_kind.upper()} • 10 HOURS"
-    else:
+    elif kind == "original_music":
         description_intro = (
-            f"10 hours of {kind} nature sounds for sleep and relaxation, using a newly selected field recording. "
-            "The audio is smoothly looped and the screen stays completely black throughout."
+            "10 hours of original, slow-evolving ambient instrumental music for deep rest, sleep and relaxation. "
+            "Composed and synthesized specifically for TV OFF with no third-party recordings, samples or borrowed melodies. "
+            "The music is carefully crossfaded for uninterrupted listening; the screen remains completely black."
         )
-        hashtags = "#SleepSounds #NatureSounds #BlackScreen #TVOff"
-        thumbnail_descriptor = "10 HOURS • BLACK SCREEN"
+        hashtags = "#AmbientMusic #SleepMusic #RelaxingMusic #BlackScreen #TVOff"
+        thumbnail_descriptor = "AMBIENT MUSIC • 10 HOURS"
+    else:
+        raise RuntimeError(f"Unsupported sound category: {kind}")
 
-    source_label = "Original audio" if kind in {"white_noise", "brown_noise"} else "Original recording"
+    source_label = "Original composition" if kind == "original_music" else "Original audio"
     description = (
         description_intro + "\n\n"
         f"{source_label}: {{creator}}\nSource: {{source_url}}\nLicense: {{license}}\n\n"
