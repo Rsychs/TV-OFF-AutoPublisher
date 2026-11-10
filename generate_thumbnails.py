@@ -14,6 +14,7 @@ W, H = 1280, 720
 ACCENTS = {
     "white_noise": (205, 215, 230),
     "brown_noise": (190, 145, 105),
+    "original_music": (161, 143, 214),
     "fireplace": (220, 125, 65),
     "rain": (90, 155, 205),
     "thunderstorm": (135, 145, 190),
@@ -26,6 +27,7 @@ ACCENTS = {
 LABELS = {
     "white_noise": "WHITE NOISE",
     "brown_noise": "BROWN NOISE",
+    "original_music": "DEEP SLEEP AMBIENT",
     "fireplace": "FIREPLACE",
     "rain": "RAIN SOUNDS",
     "thunderstorm": "RAIN & THUNDER",
@@ -41,8 +43,10 @@ def font(size, bold=False):
 
 def detect_kind(filename, title):
     text = (filename + " " + title).lower().replace("_", " ")
-    for kind in ("white noise", "brown noise", "fireplace", "thunderstorm", "rain", "ocean", "wave", "sea", "forest", "bird", "river", "stream", "wind"):
+    for kind in ("original music", "ambient music", "deep sleep ambient", "white noise", "brown noise", "fireplace", "thunderstorm", "rain", "ocean", "wave", "sea", "forest", "bird", "river", "stream", "wind"):
         if kind in text:
+            if kind in ("original music", "ambient music", "deep sleep ambient"):
+                return "original_music"
             if kind in ("wave", "sea"):
                 return "ocean"
             if kind in ("bird",):
@@ -78,6 +82,17 @@ def draw_signature(draw, kind, accent, variation):
                 y = cy + j * 17 + math.sin(phase) * amp
                 points.append((x, int(y)))
             draw.line(points, fill=(*accent, 190 - j*22), width=4)
+    elif kind == "original_music":
+        for layer in range(4):
+            points = []
+            for x in range(180, 1110, 7):
+                phase = x / (112 + layer * 13) + layer * 0.85 + ((variation >> 5) % 37) / 12
+                y = cy + layer * 13 + math.sin(phase) * (12 + layer * 3)
+                points.append((x, int(y)))
+            draw.line(points, fill=(*accent, 200 - layer * 24), width=4)
+        for x, offset in ((cx-78, -12), (cx+12, 8)):
+            draw.ellipse((x-9, cy+offset, x+9, cy+offset+13), fill=(*accent, 220))
+            draw.line((x+7, cy+offset+5, x+7, cy-65+offset), fill=(*accent, 220), width=5)
     elif kind in ("rain", "thunderstorm"):
         for row in range(3):
             for col in range(17):
