@@ -236,11 +236,10 @@ jobs:
           SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
         run: python generate_original_music.py
 
-      - name: Generate original white or brown noise
+      - name: Generate original white or brown noise locally
         if: steps.cooldown.outputs.skip != 'true' && steps.select_soundscape.outputs.soundscape != 'original_music'
         env:
           SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
-          USED_SOURCES_FILE: ${{ github.workspace }}/shorts_used_sources.json
         run: python download_one_audio.py
 
       - name: Build and publish one unique 18-second Short
