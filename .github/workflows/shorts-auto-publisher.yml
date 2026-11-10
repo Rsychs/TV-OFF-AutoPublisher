@@ -180,10 +180,10 @@ jobs:
               break
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"skip={'true' if reason else 'false'}\\n")
-              output.write(f"target_slot={target_slot}\\n")
+              output.write(f"skip={'true' if reason else 'false'}\n")
+              output.write(f"target_slot={target_slot}\n")
               if production_started_epoch:
-                  output.write(f"production_started_epoch={production_started_epoch}\\n")
+                  output.write(f"production_started_epoch={production_started_epoch}\n")
           print(reason if reason else f"UTC slot {target_slot} is ready; cooldown and runway guards passed.")
           PY
 
