@@ -1,5 +1,5 @@
 name: TV OFF — Shorts Auto Publisher
-# Run at minute 17 each hour to avoid GitHub Actions top-of-hour congestion.
+# Event-driven only: ChatGPT tasks own the cadence; GitHub Actions executes approved requests.
 
 on:
   workflow_dispatch:
