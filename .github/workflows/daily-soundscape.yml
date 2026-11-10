@@ -170,15 +170,11 @@ jobs:
           SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
         run: python generate_original_music.py
 
-      - name: Generate original noise or select one verified CC0 recording
+      - name: Generate original white or brown noise locally
         if: steps.slot_guard.outputs.skip != 'true' && steps.resolve_sound.outputs.soundscape != 'original_music'
         timeout-minutes: 8
         env:
-          FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
-          PREFERRED_FREESOUND_ID: "737690"
           SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
-          SCHEDULE_FILE: ${{ github.workspace }}/daily_schedule.csv
-          USED_SOURCES_FILE: ${{ github.workspace }}/used_sources.json
         run: python download_one_audio.py
 
       - name: Build one 10-hour black-screen soundscape video
