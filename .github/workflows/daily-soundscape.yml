@@ -16,7 +16,7 @@ jobs:
        github.event.issue.pull_request == null &&
        github.event.issue.number == 15 &&
        github.event.comment.user.login == 'Rsychs' &&
-       startsWith(github.event.comment.body, '/tv-off-longform '))
+       (startsWith(github.event.comment.body, '/tv-off-longform ') ||\n        startsWith(github.event.comment.body, '/tv-off-music ')))
     concurrency:
       group: tv-off-single-video
       cancel-in-progress: false
