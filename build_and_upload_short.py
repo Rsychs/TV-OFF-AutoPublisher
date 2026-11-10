@@ -93,13 +93,6 @@ def main():
         "white_noise": ("0xA9D8FF", "WHITE NOISE", "A LITTLE MORE QUIET"),
         "brown_noise": ("0xC99563", "BROWN NOISE", "LET THE WORLD FADE OUT"),
         "original_music": ("0xB7A6E5", "DEEP SLEEP AMBIENT", "SLOW DOWN AND LET GO"),
-        "ocean": ("0x55C6D8", "OCEAN SOUNDS", "TAKE A SLOW BREATH"),
-        "rain": ("0x8CB7D8", "RAIN SOUNDS", "SETTLE INTO THE MOMENT"),
-        "thunderstorm": ("0x9B9BCB", "STORM SOUNDS", "LET THE NOISE FADE"),
-        "forest": ("0x8DBB91", "FOREST SOUNDS", "FIND A QUIETER PLACE"),
-        "river": ("0x65BFAF", "RIVER SOUNDS", "PAUSE AND UNWIND"),
-        "fireplace": ("0xE6A064", "FIREPLACE SOUNDS", "WARM UP AND SLOW DOWN"),
-        "wind": ("0xA8B7C8", "WIND SOUNDS", "BREATHE AND LET GO"),
     }
     accent, headline, tagline = themes.get(
         kind, ("0xA9C7E8", display_kind.upper(), "SOUND TO SWITCH OFF TO")
