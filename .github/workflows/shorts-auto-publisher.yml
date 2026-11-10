@@ -22,7 +22,7 @@ jobs:
       group: tv-off-single-video
       cancel-in-progress: false
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 65
     steps:
       - name: Check out the latest main branch state
         uses: actions/checkout@v4
@@ -91,14 +91,6 @@ jobs:
           target_slot = os.environ["TARGET_SLOT"]
           slot_end_epoch = int(os.environ["SLOT_END_EPOCH"])
 
-          def load_state():
-              if not path.exists():
-                  return {}
-              value = json.loads(path.read_text(encoding="utf-8"))
-              if not isinstance(value, dict):
-                  raise RuntimeError("Invalid shorts_state.json; refusing to bypass slot/cooldown protection.")
-              return value
-
           def refresh_state():
               subprocess.run(["git", "fetch", "origin", "main"], check=True)
               result = subprocess.run(
@@ -113,7 +105,28 @@ jobs:
               path.write_text(json.dumps(value, indent=2), encoding="utf-8")
               return value
 
-          state = load_state()
+          def cooldown_end_epoch(state):
+              last_published_at = state.get("_last_published_at")
+              if not last_published_at:
+                  return 0.0
+              try:
+                  last_at = datetime.fromisoformat(str(last_published_at).replace("Z", "+00:00"))
+              except ValueError as exc:
+                  raise RuntimeError("Invalid _last_published_at in shorts_state.json; refusing to bypass cooldown.") from exc
+              if last_at.tzinfo is None:
+                  last_at = last_at.replace(tzinfo=timezone.utc)
+              return last_at.astimezone(timezone.utc).timestamp() + 3600
+
+          def runway_seconds(state):
+              try:
+                  last_duration = int(state.get("_last_production_duration_seconds", 553))
+              except (TypeError, ValueError) as exc:
+                  raise RuntimeError("Invalid _last_production_duration_seconds; refusing to bypass slot runway guard.") from exc
+              if last_duration < 0:
+                  raise RuntimeError("Negative _last_production_duration_seconds; refusing to bypass slot runway guard.")
+              return max(180, last_duration + 180), last_duration
+
+          state = refresh_state()
           reason = ""
           production_started_epoch = 0
 
@@ -131,33 +144,29 @@ jobs:
                   reason = f"Short already published for pinned slot {target_slot}: {state[target_slot]}"
                   break
 
-              last_published_at = state.get("_last_published_at")
-              if last_published_at:
-                  try:
-                      last_at = datetime.fromisoformat(str(last_published_at).replace("Z", "+00:00"))
-                  except ValueError as exc:
-                      raise RuntimeError("Invalid _last_published_at in shorts_state.json; refusing to bypass cooldown.") from exc
-                  if last_at.tzinfo is None:
-                      last_at = last_at.replace(tzinfo=timezone.utc)
-                  elapsed = (now - last_at.astimezone(timezone.utc)).total_seconds()
-                  if elapsed < 3600:
-                      remaining = math.ceil(3600 - elapsed) + 2
-                      print(
-                          f"Short cooldown active: waiting {min(60, remaining)}s; "
-                          f"rechecking pinned slot {target_slot} and remote state."
-                      )
-                      time.sleep(min(60, max(1, remaining)))
-                      state = refresh_state()
-                      continue
+              cooldown_end = cooldown_end_epoch(state)
+              earliest_start = max(now.timestamp(), cooldown_end)
+              required_runway, last_duration = runway_seconds(state)
+              runway_after_earliest_start = slot_end_epoch - earliest_start
+              if runway_after_earliest_start < required_runway:
+                  reason = (
+                      f"Insufficient runway for pinned slot {target_slot}: "
+                      f"{max(0, int(runway_after_earliest_start))}s remain after cooldown, "
+                      f"{required_runway}s required (last production {last_duration}s + 180s reserve)."
+                  )
+                  break
 
-              try:
-                  last_duration = int(state.get("_last_production_duration_seconds", 553))
-              except (TypeError, ValueError) as exc:
-                  raise RuntimeError("Invalid _last_production_duration_seconds; refusing to bypass slot runway guard.") from exc
-              if last_duration < 0:
-                  raise RuntimeError("Negative _last_production_duration_seconds; refusing to bypass slot runway guard.")
+              if now.timestamp() < cooldown_end:
+                  remaining = math.ceil(cooldown_end - now.timestamp()) + 2
+                  print(
+                      f"Short cooldown active: waiting {min(60, remaining)}s; "
+                      f"earliest_start={datetime.fromtimestamp(earliest_start, timezone.utc).isoformat()}; "
+                      f"required_runway={required_runway}s; rechecking pinned slot {target_slot} and remote state."
+                  )
+                  time.sleep(min(60, max(1, remaining)))
+                  state = refresh_state()
+                  continue
 
-              required_runway = max(180, last_duration + 180)
               remaining_in_slot = slot_end_epoch - now.timestamp()
               if remaining_in_slot < required_runway:
                   reason = (
@@ -171,10 +180,10 @@ jobs:
               break
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"skip={'true' if reason else 'false'}\n")
-              output.write(f"target_slot={target_slot}\n")
+              output.write(f"skip={'true' if reason else 'false'}\\n")
+              output.write(f"target_slot={target_slot}\\n")
               if production_started_epoch:
-                  output.write(f"production_started_epoch={production_started_epoch}\n")
+                  output.write(f"production_started_epoch={production_started_epoch}\\n")
           print(reason if reason else f"UTC slot {target_slot} is ready; cooldown and runway guards passed.")
           PY
 
