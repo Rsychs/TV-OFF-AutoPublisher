@@ -117,7 +117,7 @@ def main():
         f"drawbox=x=54:y=260:w=972:h=1390:color={accent}@0.075:t=fill,"
         f"drawbox=x=82:y=288:w=916:h=1334:color={accent}@0.45:t=3,"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
-        "f"text='{hook}':fontcolor=0xDCE5F2:fontsize=27:""
+        f"drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='{hook}':fontcolor=0xDCE5F2:fontsize=27:"
         "x=(w-text_w)/2:y=390,"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
         f"text='{headline}':fontcolor=white:fontsize=76:"
@@ -135,10 +135,10 @@ def main():
         "drawbox=x=105:y=1490:w=870:h=112:color=0x172337@0.96:t=fill:"
         "enable='gte(t,11)',"
         "drawbox=x=105:y=1490:w=870:h=112:color=white@0.55:t=2:"
-        "enable='gte(t,20)',"
+        "enable='gte(t,11)',"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
         "text='MORE SOUNDS ON OUR CHANNEL':fontcolor=white:fontsize=31:"
-        "x=(w-text_w)/2:y=1526:alpha='if(lt(t,12),t-11,1)':enable='gte(t,20)'[v]"
+        "x=(w-text_w)/2:y=1526:alpha='if(lt(t,12),t-11,1)':enable='gte(t,11)'[v]"
     )
     run([
         "ffmpeg", "-y", "-hide_banner", "-f", "lavfi", "-i",
