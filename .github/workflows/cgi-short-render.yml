@@ -37,7 +37,7 @@ jobs:
         env:
           TV_OFF_RENDER_DIR: ${{ runner.temp }}/tv-off-cgi
         run: |
-          ffmpeg -y -framerate 24 -i "$TV_OFF_RENDER_DIR/frame_%04d.png" -t 30 -vf "scale=720:1280:flags=lanczos,format=yuv420p" -c:v libx264 -preset medium -crf 19 -movflags +faststart "$TV_OFF_RENDER_DIR/TV_OFF_CGI_Short.mp4"
+          ffmpeg -y -framerate 24 -start_number 1 -i "$TV_OFF_RENDER_DIR/frame_%04d.png" -t 30 -vf "scale=720:1280:flags=lanczos,format=yuv420p" -c:v libx264 -preset medium -crf 19 -movflags +faststart "$TV_OFF_RENDER_DIR/TV_OFF_CGI_Short.mp4"
           ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 "$TV_OFF_RENDER_DIR/TV_OFF_CGI_Short.mp4"
       - uses: actions/upload-artifact@v4
         with:
