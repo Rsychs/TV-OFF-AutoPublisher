@@ -1,4 +1,4 @@
-name: TV OFF — 10-Hour Soundscape Video
+name: TV OFF — Variable-Duration Soundscape Video
 
 on:
   workflow_dispatch:
@@ -109,7 +109,7 @@ jobs:
               raise RuntimeError("state.json is invalid; refusing to bypass long-form slot protection.")
 
           pattern = re.compile(
-              rf"^TV-OFF_.+_{date_key}_{slot_key}_10-Hours\.mp4$",
+              rf"^TV-OFF_.+_{date_key}_{slot_key}_(?:1|3|8|10)-Hours\.mp4$",
               re.IGNORECASE,
           )
           published = [
@@ -194,10 +194,16 @@ jobs:
       - name: Validate the finished video
         if: steps.slot_guard.outputs.skip != 'true'
         env:
-          EXPECTED_DURATION_SECONDS: "36000"
         run: |
-          filename="$(python -c 'import csv; print(next(csv.DictReader(open("daily_schedule.csv", encoding="utf-8-sig")))["filename"])')"
-          python validate_media.py "videos/$filename"
+          readarray -t media_config < <(python - <<'PY'
+          import csv
+          row = next(csv.DictReader(open("daily_schedule.csv", encoding="utf-8-sig")))
+          print(row["filename"])
+          print(row["duration_seconds"])
+          PY
+          )
+          export EXPECTED_DURATION_SECONDS="${media_config[1]}"
+          python validate_media.py "videos/${media_config[0]}"
 
       - name: Refresh upload deduplication state from the latest main branch
         if: steps.slot_guard.outputs.skip != 'true'
