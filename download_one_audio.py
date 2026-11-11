@@ -28,7 +28,7 @@ def probe_seconds(path: Path) -> float:
         timeout=30,
     )
     import re
-    match = re.search(r"Duration: (\\d{2}):(\\d{2}):(\\d{2}(?:\\.\\d+)?)", result.stderr)
+    match = re.search(r"Duration: (\d{2}):(\d{2}):(\d{2}(?:\\.\d+)?)", result.stderr)
     if not match:
         raise RuntimeError(
             f"FFmpeg could not read audio duration for {path.name}: "
