@@ -1,6 +1,7 @@
 name: TV OFF — Variable-Duration Soundscape Video
 
 on:
+  workflow_dispatch:
   issue_comment:
     types: [created]
 
@@ -10,7 +11,8 @@ permissions:
 jobs:
   build-and-publish:
     if: >-
-      github.event_name == 'issue_comment' &&
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issue_comment' &&
        github.event.issue.pull_request == null &&
        github.event.issue.number == 15 &&
        github.event.comment.user.login == 'Rsychs' &&
@@ -86,6 +88,14 @@ jobs:
                       f"Pinned Europe/Riga slot {expected_date}-{expected_hour} has closed; "
                       "refusing to roll over to a later slot."
                   )
+          elif event_name == "workflow_dispatch":
+              if requested:
+                  raise RuntimeError("Manual dispatch must not supply an issue-comment slot.")
+              slot_hour = (now.hour // 3) * 3
+              slot_start = now.replace(
+                  hour=slot_hour, minute=0, second=0, microsecond=0
+              )
+              slot_end = slot_start + timedelta(hours=3)
           else:
               raise RuntimeError(f"Unsupported trigger event {event_name!r}; refusing to run.")
 
