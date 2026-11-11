@@ -43,7 +43,7 @@ def main():
     title=str(manifest.get("title","Midnight Blue"))[:95]
     description=("Original ambient music created for TV OFF, paired with continuous licensed stock footage. "
                  "A quiet visual and sound break. More original sounds on TV OFF.\n\n"
-                 "#Shorts #AmbientMusic #Relaxation #TVOFF")
+                 "#Shorts #AmbientMusic #Relaxation #TVOFF\\n\\nFootage: " + str(manifest.get("required_attribution","Wikimedia Commons contributor")) + " — " + str(manifest.get("license","Creative Commons")) + ". Source: " + str(manifest.get("visual_source_page","")) + " (used under the stated license).")
     body={"snippet":{"title":title+" #Shorts","description":description,"tags":["TV OFF","ambient music","relaxation","shorts","original music"],"categoryId":"10"},"status":{"privacyStatus":"public","selfDeclaredMadeForKids":False}}
     media=MediaFileUpload(str(VIDEO),mimetype="video/mp4",chunksize=8*1024*1024,resumable=True)
     request=youtube.videos().insert(part="snippet,status",body=body,media_body=media)
