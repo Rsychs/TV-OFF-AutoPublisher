@@ -62,11 +62,12 @@ jobs:
           VIDEO_TITLE: ${{ inputs.title || 'Midnight Blue' }}
           DURATION_SECONDS: ${{ inputs.duration_seconds || '24' }}
         run: |
-          python -m pip install --disable-pip-version-check numpy scipy
+          python -m pip install --disable-pip-version-check numpy scipy pillow
           python - <<'PY'
           import os, numpy as np
           from scipy.io.wavfile import write
           from pathlib import Path
+          from PIL import Image, ImageDraw, ImageFont
           d=int(os.environ.get('DURATION_SECONDS','24')); sr=48000
           t=np.arange(sr*d,dtype=np.float64)/sr
           freqs=[110.0,146.83,174.61,220.0,261.63]
@@ -76,9 +77,17 @@ jobs:
           a*=np.minimum(1,t/2)*np.minimum(1,(d-t)/2.5)
           a=a/max(np.max(np.abs(a)),1e-9)*.58
           write('output/original_ambient.wav',sr,(np.column_stack((a,np.roll(a,420)))*32767).astype(np.int16))
+          overlay=Image.new('RGBA',(1080,1920),(0,0,0,0)); draw=ImageDraw.Draw(overlay)
+          bold='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
+          fsmall=ImageFont.truetype(bold,30); fcta=ImageFont.truetype(bold,48)
+          draw.rounded_rectangle((180,1580,900,1805),radius=42,fill=(8,13,26,215),outline=(230,190,135,245),width=3)
+          draw.text((540,1635),'TV OFF  •  AMBIENT',font=fsmall,fill=(238,202,157,255),anchor='mm')
+          draw.text((540,1718),'MORE VIDEOS',font=fcta,fill=(255,255,255,255),anchor='mm')
+          draw.text((540,1770),'ON OUR CHANNEL',font=fcta,fill=(255,255,255,255),anchor='mm')
+          overlay.save('output/cta_overlay.png')
           Path('output/production.json').write_text('{"title":"'+os.environ.get('VIDEO_TITLE','Midnight Blue')+'","style":"Midnight Blue","scene_type":"cinematic 3D living room with television","duration_seconds":'+str(d)+',"resolution":"1080x1920","fps":30,"music":"Original synthesized ambient music","preview_only":true}',encoding='utf-8')
           PY
-          ffmpeg -y -loop 1 -i output/room_scene.png -i output/original_ambient.wav -filter_complex "[0:v]zoompan=z='min(1.045,1+0.00055*on)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1080x1920:fps=30,eq=brightness='0.008+0.008*sin(2*PI*t/5)':eval=frame,format=yuv420p[v]" -map '[v]' -map 1:a -t "${DURATION_SECONDS:-24}" -c:v libx264 -preset veryfast -crf 19 -r 30 -c:a aac -b:a 192k -movflags +faststart output/TV_OFF_Midnight_Blue_ROOM.mp4
+          ffmpeg -y -loop 1 -i output/room_scene.png -i output/original_ambient.wav -loop 1 -i output/cta_overlay.png -filter_complex "[0:v]zoompan=z='min(1.025,1+0.00025*on)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=1080x1920:fps=30,eq=brightness='0.012+0.008*sin(2*PI*t/5)':eval=frame[base];[base][2:v]overlay=0:0,format=yuv420p[v]" -map '[v]' -map 1:a -t "${DURATION_SECONDS:-24}" -c:v libx264 -preset veryfast -crf 19 -r 30 -c:a aac -b:a 192k -movflags +faststart output/TV_OFF_Midnight_Blue_ROOM.mp4
 
       - name: Preserve preview MP4 and scene assets
         uses: actions/upload-artifact@v4
