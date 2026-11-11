@@ -106,7 +106,7 @@ def main():
 
     # Seven-day duration experiment: two releases per day, cycling 1h/3h/8h/10h.
     # The long-form task runs at 07:00 and 19:00 Europe/Riga.
-    duration_index = (slot_start.date().toordinal() * 2 + (1 if slot_hour >= 12 else 0)) % 4
+    duration_index = slot_number % 4
     duration_hours = (1, 3, 8, 10)[duration_index]
     duration_seconds = duration_hours * 3600
     file_kind = kind.replace("_", "").title()
