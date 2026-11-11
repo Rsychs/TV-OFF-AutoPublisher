@@ -113,9 +113,21 @@ def main():
         source_audio = (SOURCE_AUDIO_DIR / source["file"]).resolve()
         if not source_audio.is_relative_to(SOURCE_AUDIO_DIR.resolve()) or not source_audio.is_file():
             raise RuntimeError(f"{soundscape}: generated audio is missing or outside the local audio directory.")
+        sidecar_path = SOURCE_AUDIO_DIR / "manifest.sha256"
+        if not sidecar_path.is_file():
+            raise RuntimeError(f"{soundscape}: required manifest.sha256 is missing; refusing upload.")
+        sidecar_lines = sidecar_path.read_text(encoding="utf-8").splitlines()
+        if len(sidecar_lines) != 1:
+            raise RuntimeError("manifest.sha256 must contain exactly one checksum entry.")
+        sidecar_parts = sidecar_lines[0].strip().split()
+        if len(sidecar_parts) != 2 or sidecar_parts[1].lstrip("*") != source_audio.name:
+            raise RuntimeError("manifest.sha256 must contain the checksum and exact selected audio filename.")
+        sidecar_sha256 = sidecar_parts[0].lower()
+        if len(sidecar_sha256) != 64 or any(ch not in "0123456789abcdef" for ch in sidecar_sha256):
+            raise RuntimeError("manifest.sha256 contains an invalid SHA-256 digest.")
         audio_sha256 = sha256_file(source_audio)
-        if audio_sha256 != source["sha256"]:
-            raise RuntimeError(f"{soundscape}: manifest SHA-256 does not match the generated audio.")
+        if sidecar_sha256 != audio_sha256 or audio_sha256 != source["sha256"]:
+            raise RuntimeError(f"{soundscape}: manifest.sha256/manifest.json do not match the generated audio.")
         video_sha256 = sha256_file(filename)
         used_audio_hashes = set(state.get("_published_audio_sha256", [])) | set(shorts_state.get("_published_audio_sha256", []))
         used_video_hashes = set(state.get("_published_video_sha256", [])) | set(shorts_state.get("_published_video_sha256", []))
