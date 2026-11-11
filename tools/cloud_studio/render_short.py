@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import subprocess
-import sys
 import tempfile
 from pathlib import Path
 from urllib.parse import urlparse
@@ -89,9 +87,17 @@ def create_original_ambient(duration: int) -> None:
 
 
 def render(duration: int, title: str) -> None:
-    # Real continuous source footage is retained as video; only crop, grade and
-    # gentle continuous camera drift are applied. No GIF/sprite interpolation.
-    escaped_title = re.sub(r"[^A-Za-z0-9 '&-]", "", title)[:48] or "Midnight Blue"
+    # Preserve continuous real-world footage. No GIF/sprite interpolation.
+    source_probe = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+         "-of", "default=noprint_wrappers=1:nokey=1", str(SOURCE)],
+        check=True, capture_output=True, text=True,
+    )
+    source_duration = float(source_probe.stdout.strip())
+    if source_duration < duration:
+        raise SystemExit(
+            f"Source clip is only {source_duration:.1f}s; choose footage at least {duration}s long"
+        )
     vf = (
         "scale=1080:1920:force_original_aspect_ratio=increase,"
         "crop=1080:1920,"
