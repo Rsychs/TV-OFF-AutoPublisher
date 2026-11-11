@@ -68,24 +68,20 @@ jobs:
         timeout-minutes: 12
         run: |
           set -euo pipefail
-          # Use an isolated apt source list: hosted runners may inject an Azure
-          # mirror through apt-mirrors.txt, so editing ubuntu.sources alone is
-          # insufficient. This bypasses that mirror selection entirely.
-          if ! command -v ffmpeg >/dev/null 2>&1 || [ ! -f /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf ]; then
-            echo "Installing media tools from canonical Ubuntu HTTPS repositories."
-            cat > "$RUNNER_TEMP/tv-off-ubuntu.sources.list" <<'EOF'
-          deb https://archive.ubuntu.com/ubuntu noble main universe
-          deb https://archive.ubuntu.com/ubuntu noble-updates main universe
-          deb https://security.ubuntu.com/ubuntu noble-security main universe
-          EOF
-            APT_SOURCE_OPTS=(-o "Dir::Etc::sourcelist=$RUNNER_TEMP/tv-off-ubuntu.sources.list" -o "Dir::Etc::sourceparts=-" -o "APT::Get::List-Cleanup=0")
-            timeout 180s sudo apt-get "${APT_SOURCE_OPTS[@]}" update -o Acquire::Retries=1 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15
-            timeout 180s sudo apt-get "${APT_SOURCE_OPTS[@]}" install -y --no-install-recommends ffmpeg fonts-dejavu-core
-          fi
+          # Do not use apt: this runner currently has DNS/network failures for
+          # Ubuntu mirrors. Install bundled FFmpeg and DejaVu fonts from PyPI wheels.
+          python -m pip install --disable-pip-version-check --retries 3 --timeout 30 -r requirements.txt
+          FFMPEG_BIN="$(python -c 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())')"
+          mkdir -p "$RUNNER_TEMP/tv-off-bin" /usr/share/fonts/truetype/dejavu
+          ln -sf "$FFMPEG_BIN" "$RUNNER_TEMP/tv-off-bin/ffmpeg"
+          echo "$RUNNER_TEMP/tv-off-bin" >> "$GITHUB_PATH"
+          FONT_DIR="$(python -c 'import matplotlib; print(matplotlib.get_data_path() + "/fonts/ttf")')"
+          sudo install -m 0644 "$FONT_DIR/DejaVuSans-Bold.ttf" /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
+          sudo install -m 0644 "$FONT_DIR/DejaVuSans.ttf" /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
           command -v ffmpeg
-          test -f /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
-          python -m pip install --disable-pip-version-check --retries 2 --timeout 30 -r requirements.txt
-
+          ffmpeg -version | head -n 2
+          test -s /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
+          test -s /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
       - name: Enforce cooldown without crossing the pinned UTC slot
         id: cooldown
         env:
