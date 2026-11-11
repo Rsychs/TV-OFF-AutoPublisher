@@ -31,13 +31,16 @@
   "_published_audio_sha256": [
     "94b2efe917575ef3f1b604c6a73e186fc93d229165af8caad82ee49483ad0f9f",
     "b07fb4e1e3cf3af7daaab18c64a359af11e2e06d686d488d7797ba6bfc86cb50",
-    "703cfd6b340dba3c4576d4175df887758723e465ef58f1c52681f08bd64083fe"
+    "703cfd6b340dba3c4576d4175df887758723e465ef58f1c52681f08bd64083fe",
+    "a7b8fb0d02e24935c2c8705fdea1f288c802f5bd3acfb2e2318ee9081e3ac14a"
   ],
   "_published_video_sha256": [
     "2137b7d5f22b516222fe7838819517d213a97af58bd742203dc25ab55a24c5f8",
     "ab0c8eb59a24abfff47431bcd381aa5f997791ddb820955322a5289ed89a8cff",
-    "093a4e583f73d44e0986d16c0a2672d0bf43907f46b17dcd6594f4c897abd595"
+    "093a4e583f73d44e0986d16c0a2672d0bf43907f46b17dcd6594f4c897abd595",
+    "2f5612f9f714203be2cb394d857fff21140c5d88ad712d494a0e3dfd7b116756"
   ],
   "TV-OFF_Brownnoise_20261111_00_10-Hours.mp4": "97C30NNFQ4A",
-  "TV-OFF_Whitenoise_20261111_03_10-Hours.mp4": "98QF0cfus6k"
+  "TV-OFF_Whitenoise_20261111_03_10-Hours.mp4": "98QF0cfus6k",
+  "TV-OFF_Originalmusic_20261111_06_10-Hours.mp4": "fvhVo5L4Xt4"
 }
