@@ -1,0 +1,48 @@
+name: TV OFF CGI Short Render
+on:
+  push:
+    paths:
+      - "scripts/render_cgi_short.py"
+      - ".github/workflows/cgi-short-render.yml"
+  workflow_dispatch:
+    inputs:
+      quality:
+        description: Render quality
+        type: choice
+        options: [preview, production]
+        default: preview
+permissions:
+  contents: read
+concurrency:
+  group: tv-off-cgi-short-render
+  cancel-in-progress: false
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Blender and FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender ffmpeg
+      - name: Render modeled 3D room
+        env:
+          TV_OFF_RENDER_DIR: ${{ runner.temp }}/tv-off-cgi
+          QUALITY: ${{ inputs.quality || 'preview' }}
+        run: |
+          mkdir -p "$TV_OFF_RENDER_DIR"
+          blender --background --factory-startup --python scripts/render_cgi_short.py
+      - name: Encode 30-second vertical MP4
+        env:
+          TV_OFF_RENDER_DIR: ${{ runner.temp }}/tv-off-cgi
+        run: |
+          ffmpeg -y -framerate 24 -i "$TV_OFF_RENDER_DIR/frame_%04d.png" -t 30 -vf "scale=720:1280:flags=lanczos,format=yuv420p" -c:v libx264 -preset medium -crf 19 -movflags +faststart "$TV_OFF_RENDER_DIR/TV_OFF_CGI_Short.mp4"
+          ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 "$TV_OFF_RENDER_DIR/TV_OFF_CGI_Short.mp4"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tv-off-cgi-short-${{ github.run_number }}
+          path: |
+            ${{ runner.temp }}/tv-off-cgi/TV_OFF_CGI_Short.mp4
+            ${{ runner.temp }}/tv-off-cgi/tv_off_luxury_lounge.blend
+          retention-days: 7
