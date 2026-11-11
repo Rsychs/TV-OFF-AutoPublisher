@@ -72,9 +72,11 @@ jobs:
           # Ubuntu mirrors. Install bundled FFmpeg and DejaVu fonts from PyPI wheels.
           python -m pip install --disable-pip-version-check --retries 3 --timeout 30 -r requirements.txt
           FFMPEG_BIN="$(python -c 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())')"
-          mkdir -p "$RUNNER_TEMP/tv-off-bin" /usr/share/fonts/truetype/dejavu
+          mkdir -p "$RUNNER_TEMP/tv-off-bin"
+          sudo mkdir -p /usr/share/fonts/truetype/dejavu
           ln -sf "$FFMPEG_BIN" "$RUNNER_TEMP/tv-off-bin/ffmpeg"
           echo "$RUNNER_TEMP/tv-off-bin" >> "$GITHUB_PATH"
+          export PATH="$RUNNER_TEMP/tv-off-bin:$PATH"
           FONT_DIR="$(python -c 'import matplotlib; print(matplotlib.get_data_path() + "/fonts/ttf")')"
           sudo install -m 0644 "$FONT_DIR/DejaVuSans-Bold.ttf" /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
           sudo install -m 0644 "$FONT_DIR/DejaVuSans.ttf" /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
