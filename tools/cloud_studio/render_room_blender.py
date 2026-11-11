@@ -132,10 +132,10 @@ area("Warm sofa rim",(3,-.2,2.9),420,(1.0,.55,.28),2.5,(0,-1,1))
 # Camera portrait framing
 bpy.ops.object.camera_add(location=(0,-9.2,2.8)); cam=bpy.context.object
 cam.rotation_euler=(Vector((0,1.0,1.75))-cam.location).to_track_quat("-Z","Y").to_euler()
-cam.data.lens=38; cam.data.sensor_width=36; cam.data.sensor_fit="VERTICAL"; bpy.context.scene.camera=cam
+cam.data.lens=24; cam.data.sensor_width=36; cam.data.sensor_fit="VERTICAL"; bpy.context.scene.camera=cam
 scene=bpy.context.scene
 scene.render.engine="CYCLES"
-scene.cycles.samples=32
+scene.cycles.samples=128
 scene.cycles.use_denoising=False
 scene.cycles.device="CPU"
 scene.render.resolution_x=900; scene.render.resolution_y=1600; scene.render.resolution_percentage=100
