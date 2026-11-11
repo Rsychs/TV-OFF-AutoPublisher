@@ -51,8 +51,8 @@ def main():
         if last_at.tzinfo is None:
             last_at = last_at.replace(tzinfo=timezone.utc)
         elapsed = (now - last_at.astimezone(timezone.utc)).total_seconds()
-        if elapsed < 3600:
-            remaining = int(3600 - elapsed + 0.999)
+        if elapsed < 2400:
+            remaining = int(2400 - elapsed + 0.999)
             print(f"SHORT COOLDOWN ACTIVE: {remaining}s remaining since {last_at.isoformat()}")
             return
     # Shorts stay gated until at least one 10-hour soundscape video is recorded as uploaded.
