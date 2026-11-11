@@ -113,6 +113,9 @@ def main():
     ], check=True)
     wav_path.unlink(missing_ok=True)
     audio_sha256 = sha256_file(mp3_path)
+    (ROOT / "manifest.sha256").write_text(
+        f"{audio_sha256}  {mp3_path.name}\n", encoding="utf-8"
+    )
 
     manifest_path = ROOT / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
