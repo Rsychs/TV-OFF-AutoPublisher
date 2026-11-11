@@ -18,15 +18,15 @@ def mat(name, color, metallic=0.0, rough=.5, emission=None, strength=0):
         p.inputs["Emission Color"].default_value=(*emission,1); p.inputs["Emission Strength"].default_value=strength
     return m
 
-navy=mat("Midnight blue velvet",(.018,.035,.085),rough=.82)
-wall=mat("Deep blue plaster",(.025,.045,.095),rough=.9)
-floor=mat("Smoked oak",(.055,.035,.025),rough=.34)
+navy=mat("Midnight blue velvet",(.055,.075,.12),rough=.9)
+wall=mat("Warm midnight plaster",(.075,.065,.075),rough=.95)
+floor=mat("Honey oak",(.12,.075,.045),rough=.42)
 black=mat("Matte black metal",(.008,.012,.02),metallic=.55,rough=.28)
-screen=mat("TV luminous blue ambience",(.012,.045,.13),rough=.2,emission=(.015,.08,.28),strength=1.6)
+screen=mat("TV warm ambient glow",(.025,.055,.11),rough=.2,emission=(.035,.12,.28),strength=1.25)
 brass=mat("Brushed warm brass",(.34,.2,.075),metallic=.8,rough=.25)
-cream=mat("Warm linen",(.42,.31,.22),rough=.9)
-pillow=mat("Blue cushions",(.035,.07,.14),rough=.95)
-glass=mat("Night window",(.006,.018,.045),rough=.15,metallic=.25)
+cream=mat("Warm ivory linen",(.62,.48,.32),rough=.95)
+pillow=mat("Soft caramel cushions",(.38,.19,.09),rough=.98)
+glass=mat("Night window",(.012,.025,.055),rough=.15,metallic=.25)
 green=mat("Plant leaves",(.018,.11,.075),rough=.8)
 
 def cube(name, loc, scale, material, bevel=0):
@@ -71,6 +71,14 @@ for x in [-1.95,1.95]: cube("Sofa arm",(x,-1.15,.95),(.48,1.55,1.0),navy,.18)
 for x in [-1.05,0,1.05]:
     cube("Seat cushion",(x,-1.37,.91),(1.15,1.0,.22),pillow,.12)
     c=cube("Back cushion",(x,-.72,1.53),(1.08,.24,.88),pillow,.13); c.rotation_euler[1]=(-.05 if x<0 else .05)
+# Cozy layered textiles and warm details
+throw=mat("Chunky knit throw",(.48,.29,.16),rough=1.0)
+cube("Draped sofa throw",(-1.15,-1.25,1.12),(.82,1.05,.12),throw,.16)
+cube("Side table",(2.85,-1.0,.48),(.72,.72,.9),floor,.1)
+candle=mat("Candle flame",(.9,.35,.08),rough=.25,emission=(1.0,.22,.035),strength=3.0)
+bpy.ops.mesh.primitive_cylinder_add(vertices=32,radius=.095,depth=.28,location=(2.85,-1.0,1.07))
+bpy.context.object.data.materials.append(cream)
+uv("Candle flame",(2.85,-1.0,1.26),(.035,.035,.09),candle)
 # Coffee table and rug
 cube("Soft wool rug",(0,-2.55,.015),(4.9,2.0,.035),cream,.08)
 cube("Coffee table top",(0,-2.55,.48),(2.5,1.05,.12),floor,.12)
@@ -79,7 +87,7 @@ for x in [-1,1]: cube("Table leg",(x,-2.55,.23),(.07,.07,.45),brass,.02)
 bpy.ops.mesh.primitive_cylinder_add(vertices=32, radius=.035, depth=2.25, location=(2.8,1.45,1.12))
 bpy.context.object.data.materials.append(brass)
 uv("Lamp shade",(2.8,1.45,2.28),(.38,.38,.28),cream)
-area("Warm floor lamp",(2.8,1.35,2.2),180,(1.0,.55,.25),1.4,(1.8,1.8,0.8))
+area("Warm floor lamp",(2.8,1.35,2.2),360,(1.0,.55,.25),1.8,(1.8,1.8,0.8))
 # Plant pot and leaves
 bpy.ops.mesh.primitive_cone_add(vertices=32, radius1=.28, radius2=.19, depth=.48, location=(-3.15,1.65,.25))
 bpy.context.object.data.materials.append(black)
@@ -87,24 +95,24 @@ for i in range(9):
     ang=i*2.4; x=-3.15+math.cos(ang)*(.18+(i%3)*.09); y=1.65+math.sin(ang)*(.18+(i%3)*.09)
     leaf=uv("Ficus leaf",(x,y,.85+(i%4)*.18),(.12,.08,.48),green); leaf.rotation_euler[1]=math.cos(ang)*.45; leaf.rotation_euler[0]=math.sin(ang)*.35
 # Lighting
-area("Cool window fill",(-2.5,2.9,3.4),420,(.18,.32,1.0),3.0,(0,0,1))
-area("Soft ceiling bounce",(0,0,4.7),520,(.32,.43,1.0),4.5,(0,1,0))
-area("Warm sofa rim",(3,-.2,2.9),260,(1.0,.55,.28),2.5,(0,-1,1))
+area("Cool window fill",(-2.5,2.9,3.4),180,(.22,.34,.75),3.0,(0,0,1))
+area("Soft warm ceiling bounce",(0,0,4.7),680,(1.0,.68,.42),4.5,(0,1,0))
+area("Warm sofa rim",(3,-.2,2.9),420,(1.0,.55,.28),2.5,(0,-1,1))
 # Camera portrait framing
-bpy.ops.object.camera_add(location=(0,-7.6,2.25)); cam=bpy.context.object
-cam.rotation_euler=(Vector((0,1.0,1.65))-cam.location).to_track_quat("-Z","Y").to_euler()
-cam.data.lens=42; cam.data.sensor_width=36; cam.data.sensor_fit="VERTICAL"; bpy.context.scene.camera=cam
+bpy.ops.object.camera_add(location=(0,-9.2,2.8)); cam=bpy.context.object
+cam.rotation_euler=(Vector((0,1.0,1.75))-cam.location).to_track_quat("-Z","Y").to_euler()
+cam.data.lens=38; cam.data.sensor_width=36; cam.data.sensor_fit="VERTICAL"; bpy.context.scene.camera=cam
 scene=bpy.context.scene
 scene.render.engine="BLENDER_EEVEE"
-scene.eevee.taa_render_samples=48
+scene.eevee.taa_render_samples=64
 scene.render.resolution_x=720; scene.render.resolution_y=1280; scene.render.resolution_percentage=100
 scene.render.image_settings.file_format="PNG"; scene.render.film_transparent=False
-scene.world.color=(.025,.025,.04)
+scene.world.color=(.10,.075,.055)
 scene.view_settings.view_transform="AgX"
 scene.render.filepath=str(OUT/"room_scene.png")
 # gentle bloom via compositor
 scene.use_nodes=True; nt=scene.node_tree; nt.nodes.clear()
-rl=nt.nodes.new("CompositorNodeRLayers"); glare=nt.nodes.new("CompositorNodeGlare"); glare.glare_type="FOG_GLOW"; glare.threshold=1.4; glare.quality="HIGH"
+rl=nt.nodes.new("CompositorNodeRLayers"); glare=nt.nodes.new("CompositorNodeGlare"); glare.glare_type="FOG_GLOW"; glare.threshold=1.1; glare.quality="HIGH"
 comp=nt.nodes.new("CompositorNodeComposite"); nt.links.new(rl.outputs["Image"],glare.inputs["Image"]); nt.links.new(glare.outputs["Image"],comp.inputs["Image"])
 bpy.ops.render.render(write_still=True)
 print("BLENDER_ROOM_RENDER_COMPLETE")
