@@ -113,7 +113,7 @@ jobs:
                   raise RuntimeError("Invalid _last_published_at in shorts_state.json; refusing to bypass cooldown.") from exc
               if last_at.tzinfo is None:
                   last_at = last_at.replace(tzinfo=timezone.utc)
-              return last_at.astimezone(timezone.utc).timestamp() + 3600
+              return last_at.astimezone(timezone.utc).timestamp() + 2400
 
           def runway_seconds(state):
               try:
