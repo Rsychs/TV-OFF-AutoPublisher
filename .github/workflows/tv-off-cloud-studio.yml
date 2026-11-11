@@ -1,0 +1,86 @@
+name: TV OFF Cloud Studio
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_video_url:
+        description: "Direct MP4 download URL from a free-use video source (for example Pexels)"
+        required: true
+        type: string
+      source_page_url:
+        description: "Original source page URL for license/creator attribution"
+        required: true
+        type: string
+      creator_name:
+        description: "Creator name shown on the source page"
+        required: false
+        type: string
+        default: "Video creator"
+      title:
+        description: "Short title"
+        required: true
+        type: string
+        default: "Midnight Blue"
+      duration_seconds:
+        description: "Output duration (20–60 seconds)"
+        required: true
+        type: choice
+        options:
+          - "20"
+          - "30"
+          - "40"
+          - "50"
+          - "60"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tv-off-cloud-studio
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install renderer dependencies
+        run: python -m pip install --disable-pip-version-check numpy requests
+
+      - name: Render original TV OFF Short
+        env:
+          SOURCE_VIDEO_URL: ${{ inputs.source_video_url }}
+          SOURCE_PAGE_URL: ${{ inputs.source_page_url }}
+          CREATOR_NAME: ${{ inputs.creator_name }}
+          VIDEO_TITLE: ${{ inputs.title }}
+          DURATION_SECONDS: ${{ inputs.duration_seconds }}
+        run: python tools/cloud_studio/render_short.py
+
+      - name: Upload MP4 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tv-off-short-${{ github.run_number }}
+          path: output/*.mp4
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload production manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: tv-off-short-manifest-${{ github.run_number }}
+          path: output/production.json
+          if-no-files-found: error
+          retention-days: 7
