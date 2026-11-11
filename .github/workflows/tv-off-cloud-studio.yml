@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       source_page_url:
-        description: "Pexels source page (optional; default is the approved Midnight Blue rain-window clip)"
+        description: "Pexels source page (optional; default is the Midnight Blue rain-window clip)"
         required: false
         type: string
       title:
@@ -22,14 +22,14 @@ on:
         default: "30"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: tv-off-single-video
   cancel-in-progress: false
 
 jobs:
-  render:
+  render-and-publish:
     if: >-
       (github.event_name == 'workflow_dispatch') ||
       (github.event_name == 'issue_comment' &&
@@ -38,7 +38,7 @@ jobs:
        github.event.comment.user.login == 'Rsychs' &&
        github.event.comment.body == '/tv-off-studio')
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,28 +53,29 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install renderer dependencies
-        run: python -m pip install --disable-pip-version-check numpy requests scipy
+      - name: Install renderer and YouTube dependencies
+        run: python -m pip install --disable-pip-version-check numpy requests scipy google-api-python-client google-auth google-auth-httplib2
 
-      - name: Render original TV OFF Short from verified Pexels footage
+      - name: Render original TV OFF Short
         env:
           SOURCE_PAGE_URL: ${{ inputs.source_page_url || 'https://www.pexels.com/video/a-window-with-rain-falling-on-it-and-a-pillow-26586651/' }}
           VIDEO_TITLE: ${{ inputs.title || 'Midnight Blue' }}
           DURATION_SECONDS: ${{ inputs.duration_seconds || '30' }}
         run: python tools/cloud_studio/render_short.py
 
-      - name: Upload MP4 artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: tv-off-short-${{ github.run_number }}
-          path: output/*.mp4
-          if-no-files-found: error
-          retention-days: 7
+      - name: Upload to YouTube with shared cooldown and duplicate protection
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+        run: python tools/cloud_studio/upload_short.py
 
-      - name: Upload production manifest
-        uses: actions/upload-artifact@v4
-        with:
-          name: tv-off-short-manifest-${{ github.run_number }}
-          path: output/production.json
-          if-no-files-found: error
-          retention-days: 7
+      - name: Persist confirmed upload state
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f cloud_studio_state.json
+          git commit -m "Record confirmed TV OFF Cloud Studio upload"
+          git pull --rebase origin main
+          git push
