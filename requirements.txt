@@ -3,3 +3,5 @@ google-auth-oauthlib>=1.2.1
 google-auth-httplib2>=0.2.0
 numpy>=1.26
 scipy>=1.11
+imageio-ffmpeg>=0.5.1
+matplotlib>=3.8
