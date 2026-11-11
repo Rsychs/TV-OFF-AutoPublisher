@@ -104,9 +104,14 @@ def main():
         tags = "deep sleep ambient music;relaxing ambient music;sleep music;calming instrumental;TV OFF"
         print("MANUAL PRIORITY: original music selected for this confirmed production slot.")
 
+    # Seven-day duration experiment: two releases per day, cycling 1h/3h/8h/10h.
+    # The long-form task runs at 07:00 and 19:00 Europe/Riga.
+    duration_index = (slot_start.date().toordinal() * 2 + (1 if slot_hour >= 12 else 0)) % 4
+    duration_hours = (1, 3, 8, 10)[duration_index]
+    duration_seconds = duration_hours * 3600
     file_kind = kind.replace("_", "").title()
     display_kind = kind.replace("_", " ").title()
-    filename = f"TV-OFF_{file_kind}_{date_key}_{slot_key}_10-Hours.mp4"
+    filename = f"TV-OFF_{file_kind}_{date_key}_{slot_key}_{duration_hours}-Hours.mp4"
 
     if kind == "white_noise":
         description_intro = (
@@ -118,7 +123,7 @@ def main():
             "from your healthcare professional."
         )
         hashtags = "#WhiteNoise #SleepSounds #Relaxation #Focus #TVOFF"
-        thumbnail_descriptor = "WHITE NOISE • 10 HOURS"
+        thumbnail_descriptor = f"WHITE NOISE • {duration_hours} HOUR" + ("S" if duration_hours != 1 else "")
     elif kind == "brown_noise":
         description_intro = (
             "Looking for a deeper, softer sound to settle into? This steady brown noise creates "
@@ -126,7 +131,7 @@ def main():
             "unwinding after a long day. Get comfortable, press play and enjoy a quieter moment."
         )
         hashtags = "#BrownNoise #DeepSleep #Relaxation #Focus #TVOFF"
-        thumbnail_descriptor = "BROWN NOISE • 10 HOURS"
+        thumbnail_descriptor = f"BROWN NOISE • {duration_hours} HOUR" + ("S" if duration_hours != 1 else "")
     elif kind == "original_music":
         description_intro = (
             "Slow down and let the day fade into the background. This original ambient music "
@@ -135,14 +140,14 @@ def main():
             "Made especially for TV OFF, with an uninterrupted black screen."
         )
         hashtags = "#AmbientMusic #SleepMusic #RelaxingMusic #FocusMusic #TVOFF"
-        thumbnail_descriptor = "AMBIENT MUSIC • 10 HOURS"
+        thumbnail_descriptor = f"AMBIENT MUSIC • {duration_hours} HOUR" + ("S" if duration_hours != 1 else "")
     else:
         raise RuntimeError(f"Unsupported sound category: {kind}")
 
     description = (
         description_intro + "\n\n"
         "🎧 Find a comfortable volume, get settled and enjoy your time away from the noise.\n"
-        "🖤 10 hours of sound with a completely black screen.\n\n"
+        f"🖤 {duration_hours} hour" + ("s" if duration_hours != 1 else "") + " of sound with a completely black screen.\n\n"
         "Subscribe to TV OFF for more peaceful sounds and original music.\n\n"
         + hashtags
     )
@@ -151,21 +156,22 @@ def main():
     with OUT.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=[
             "filename", "soundscape", "title", "description", "tags",
-            "publish_at", "thumbnail_descriptor"
+            "publish_at", "thumbnail_descriptor", "duration_seconds"
         ])
         writer.writeheader()
         writer.writerow({
             "filename": filename,
             "soundscape": kind,
-            "title": f"{title} | 10 Hours, Black Screen — TV OFF",
+            "title": f"{title} | {duration_hours} Hour" + ("s" if duration_hours != 1 else "") + ", Black Screen — TV OFF",
             "description": description,
             "tags": ";".join([x.strip() for x in tags.split(";")] + [
-                "10 hours", "black screen", "TV OFF"
+                f"{duration_hours} hour" + ("s" if duration_hours != 1 else ""), "black screen", "TV OFF"
             ]),
             "publish_at": publish_at,
-            "thumbnail_descriptor": thumbnail_descriptor
+            "thumbnail_descriptor": thumbnail_descriptor,
+            "duration_seconds": duration_seconds
         })
-    print(f"3-HOUR SLOT: {slot_start.isoformat()} | {kind} | {filename} | {publish_at}")
+    print(f"3-HOUR SLOT: {slot_start.isoformat()} | {kind} | {duration_hours}h | {filename} | {publish_at}")
 
 if __name__ == "__main__":
     main()
