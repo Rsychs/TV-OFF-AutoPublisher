@@ -12,6 +12,8 @@ from zoneinfo import ZoneInfo
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 ANALYTICS_URL = "https://youtubeanalytics.googleapis.com/v2/reports"
 YOUTUBE_DATA_URL = "https://www.googleapis.com/youtube/v3/videos"
+YOUTUBE_CHANNELS_URL = "https://www.googleapis.com/youtube/v3/channels"
+YOUTUBE_PLAYLIST_ITEMS_URL = "https://www.googleapis.com/youtube/v3/playlistItems"
 DROPBOX_TOKEN_URL = "https://api.dropboxapi.com/oauth2/token"
 DROPBOX_UPLOAD_URL = "https://content.dropboxapi.com/2/files/upload"
 RIGA = ZoneInfo("Europe/Riga")
@@ -64,6 +66,35 @@ def fetch_report(access_token, start, end, metrics, dimensions=None, filters=Non
         if len(rows) < max_results: break
         start_index += len(rows)
     return result_rows
+
+
+def fetch_recent_upload_ids(access_token, max_pages=4):
+    """Return up to 200 newest uploads from the channel's uploads playlist."""
+    channel_query = urllib.parse.urlencode({"part":"contentDetails","mine":"true"})
+    channels = http_json(YOUTUBE_CHANNELS_URL + "?" + channel_query,
+        headers={"Authorization": f"Bearer {access_token}"})
+    items = channels.get("items", [])
+    if not items:
+        raise RuntimeError("YouTube Data API returned no channel for the authorized account.")
+    uploads_playlist = items[0].get("contentDetails", {}).get("relatedPlaylists", {}).get("uploads")
+    if not uploads_playlist:
+        raise RuntimeError("The channel's uploads playlist was not returned by YouTube Data API.")
+
+    video_ids, page_token = [], None
+    for _ in range(max_pages):
+        params = {"part":"contentDetails","playlistId":uploads_playlist,"maxResults":50}
+        if page_token:
+            params["pageToken"] = page_token
+        data = http_json(YOUTUBE_PLAYLIST_ITEMS_URL + "?" + urllib.parse.urlencode(params),
+            headers={"Authorization": f"Bearer {access_token}"})
+        for item in data.get("items", []):
+            video_id = item.get("contentDetails", {}).get("videoId")
+            if video_id and video_id not in video_ids:
+                video_ids.append(video_id)
+        page_token = data.get("nextPageToken")
+        if not page_token:
+            break
+    return video_ids
 
 def fetch_video_metadata(access_token, ids):
     output = {}
@@ -123,18 +154,73 @@ def main():
         google_token, start_date.isoformat(), end_date.isoformat(),
         "views,estimatedMinutesWatched,subscribersGained,subscribersLost",
         dimensions="day", sort="day", max_results=200)
-    video_ids = [str(row["video"]) for row in video_metrics if row.get("video")]
-    metadata = fetch_video_metadata(google_token, video_ids) if video_ids else {}
+
+    # Discover uploads independently: Analytics can omit newly published videos
+    # before their first reportable activity.
+    upload_inventory_error = None
+    try:
+        recent_upload_ids = fetch_recent_upload_ids(google_token, max_pages=4)
+    except RuntimeError as exc:
+        recent_upload_ids = []
+        upload_inventory_error = str(exc)[:300]
+
+    metric_ids = {str(row["video"]) for row in video_metrics if row.get("video")}
+    missing_recent_ids = [video_id for video_id in recent_upload_ids if video_id not in metric_ids]
+    if missing_recent_ids:
+        try:
+            targeted_rows = fetch_report(
+                google_token, start_date.isoformat(), end_date.isoformat(),
+                "views,engagedViews,comments,likes,shares,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,subscribersGained,subscribersLost",
+                dimensions="video", filters="video==" + ",".join(missing_recent_ids[:200]),
+                sort="-views", max_results=200)
+            targeted_by_id = {str(row["video"]): row for row in targeted_rows if row.get("video")}
+            video_metrics.extend(targeted_by_id.values())
+            metric_ids.update(targeted_by_id)
+        except RuntimeError as exc:
+            print(f"TARGETED_VIDEO_METRICS_UNAVAILABLE: {str(exc)[:250]}")
+
+    # Keep recent uploads visible even when YouTube has not populated metrics.
+    metric_columns = [
+        "views","engagedViews","comments","likes","shares",
+        "estimatedMinutesWatched","averageViewDuration","averageViewPercentage",
+        "subscribersGained","subscribersLost"
+    ]
+    for video_id in recent_upload_ids:
+        if video_id not in metric_ids:
+            placeholder = {"video":video_id,"metrics_status":"not_yet_available"}
+            placeholder.update({key:None for key in metric_columns})
+            video_metrics.append(placeholder)
+        else:
+            for row in video_metrics:
+                if str(row.get("video")) == video_id:
+                    row["metrics_status"] = "available"
+                    break
+
+    ranked_ids = [str(row["video"]) for row in video_metrics
+                  if row.get("video") and row.get("metrics_status") != "not_yet_available"]
+    retention_ids = list(dict.fromkeys(ranked_ids[:20] + recent_upload_ids[:10]))[:30]
+    all_video_ids = list(dict.fromkeys(
+        [str(row["video"]) for row in video_metrics if row.get("video")] + recent_upload_ids
+    ))
+    metadata = fetch_video_metadata(google_token, all_video_ids) if all_video_ids else {}
 
     retention = {}
-    for video_id in video_ids[:30]:
+    for video_id in retention_ids:
         try:
-            retention[video_id] = fetch_report(
+            rows = fetch_report(
                 google_token, start_date.isoformat(), end_date.isoformat(),
                 "audienceWatchRatio,relativeRetentionPerformance,startedWatching,stoppedWatching,totalSegmentImpressions",
                 dimensions="elapsedVideoTimeRatio", filters=f"video=={video_id}", max_results=200)
+            retention[video_id] = {
+                "status":"available" if rows else "no_data_yet",
+                "rows":rows,
+                "row_count":len(rows)
+            }
         except RuntimeError as exc:
-            retention[video_id] = {"unavailable_reason":str(exc)[:250]}
+            retention[video_id] = {
+                "status":"api_error","rows":[],"row_count":0,
+                "unavailable_reason":str(exc)[:250]
+            }
 
     snapshot = {
         "schema_version":1, "source":"YouTube Analytics API v2 (OAuth read-only)",
@@ -144,8 +230,14 @@ def main():
         "video_metadata":metadata, "audience_retention_top_30":retention,
         "coverage":{
             "video_rows":len(video_metrics),"daily_rows":len(daily_metrics),
-            "retention_attempted":min(len(video_ids),30),
-            "retention_not_fetched_after_rank_30":max(0,len(video_ids)-30),
+            "uploads_discovered":len(recent_upload_ids),
+            "uploads_without_metrics":sum(1 for row in video_metrics if row.get("metrics_status") == "not_yet_available"),
+            "upload_inventory_error":upload_inventory_error,
+            "retention_attempted":len(retention_ids),
+            "retention_with_data":sum(1 for item in retention.values() if item.get("status") == "available"),
+            "retention_no_data_yet":sum(1 for item in retention.values() if item.get("status") == "no_data_yet"),
+            "retention_api_errors":sum(1 for item in retention.values() if item.get("status") == "api_error"),
+            "retention_not_fetched_after_rank_30":max(0,len(all_video_ids)-30),
             "not_available_via_this_report":[
                 "YouTube Studio thumbnail impressions and CTR",
                 "Shorts shown-in-feed and viewed-vs-swiped-away",
@@ -157,7 +249,7 @@ def main():
     dropbox_token=refresh_dropbox_access_token()
     path=f"/youtube_analytics_{end_date.isoformat()}.json"
     uploaded=upload_dropbox(dropbox_token,path,payload)
-    print(f"ANALYTICS_EXPORT_OK date={end_date.isoformat()} videos={len(video_metrics)} daily_rows={len(daily_metrics)} retention={min(len(video_ids),30)}")
+    print(f"ANALYTICS_EXPORT_OK date={end_date.isoformat()} videos={len(video_metrics)} uploads={len(recent_upload_ids)} daily_rows={len(daily_metrics)} retention_attempted={len(retention_ids)}")
     print(f"DROPBOX_SAVED path={uploaded.get('path_display',path)}")
 
 if __name__ == "__main__":
