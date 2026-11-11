@@ -65,10 +65,19 @@ jobs:
           python-version: "3.11"
 
       - name: Install FFmpeg, fonts and dependencies
+        timeout-minutes: 12
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg fonts-dejavu-core
-          pip install -r requirements.txt
+          set -euo pipefail
+          # GitHub-hosted Ubuntu images normally include FFmpeg and DejaVu fonts.
+          # Avoid a full apt index refresh on every hourly Short.
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v fc-match >/dev/null 2>&1 || ! fc-match "DejaVu Sans" >/dev/null 2>&1; then
+            echo "Required media tools missing; installing with bounded apt operations."
+            timeout 180s sudo apt-get update -o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20
+            timeout 180s sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core
+          fi
+          command -v ffmpeg
+          fc-match "DejaVu Sans"
+          python -m pip install --disable-pip-version-check --retries 2 --timeout 30 -r requirements.txt
 
       - name: Enforce cooldown without crossing the pinned UTC slot
         id: cooldown
