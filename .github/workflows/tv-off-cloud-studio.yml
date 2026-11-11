@@ -58,7 +58,7 @@ jobs:
 
       - name: Render original TV OFF Short
         env:
-          SOURCE_PAGE_URL: ${{ inputs.source_page_url || 'https://www.pexels.com/video/a-window-with-rain-falling-on-it-and-a-pillow-26586651/' }}
+          SOURCE_PAGE_URL: ${{ inputs.source_page_url || 'https://commons.wikimedia.org/wiki/File:Radevormwald_-_Raindrops_on_a_window_04_(oT)_ies.ogv' }}
           VIDEO_TITLE: ${{ inputs.title || 'Midnight Blue' }}
           DURATION_SECONDS: ${{ inputs.duration_seconds || '30' }}
         run: python tools/cloud_studio/render_short.py
