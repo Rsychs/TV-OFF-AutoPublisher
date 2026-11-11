@@ -12,35 +12,51 @@ OUT = Path("output"); OUT.mkdir(exist_ok=True)
 VIDEO = OUT / "TV_OFF_Midnight_Blue.mp4"
 AUDIO = OUT / "original_ambient.wav"
 SOURCE = Path(tempfile.gettempdir()) / "tv_off_source.mp4"
-DEFAULT_PAGE = "https://www.pexels.com/video/a-window-with-rain-falling-on-it-and-a-pillow-26586651/"
+DEFAULT_PAGE = "https://commons.wikimedia.org/wiki/File:Radevormwald_-_Raindrops_on_a_window_04_(oT)_ies.ogv"
 
 def safe_page(value: str) -> str:
     p = urlparse(value)
-    if p.scheme != "https" or p.hostname not in {"pexels.com", "www.pexels.com"}:
-        raise SystemExit("Only HTTPS Pexels source pages are accepted by the autonomous source resolver")
+    if p.scheme != "https" or p.hostname not in {"commons.wikimedia.org", "www.pexels.com", "pexels.com"}:
+        raise SystemExit("Only HTTPS Wikimedia Commons or Pexels source pages are accepted")
     return value
 
-def resolve_pexels_page(page: str) -> tuple[str, str]:
-    r = requests.get(page, timeout=(20, 45), headers={"User-Agent":"Mozilla/5.0 TVOFFCloudStudio/1.0"})
+def resolve_source_page(page: str) -> tuple[str, str, str]:
+    host = urlparse(page).hostname
+    if host == "commons.wikimedia.org":
+        title = page.split("/wiki/", 1)[-1]
+        if not title.startswith("File:"):
+            raise SystemExit("Wikimedia URL must identify a File page")
+        api = "https://commons.wikimedia.org/w/api.php"
+        r = requests.get(api, params={"action":"query","titles":title,"prop":"imageinfo","iiprop":"url|extmetadata","format":"json"}, headers={"User-Agent":"TV-OFF-CloudStudio/1.0 (video production)"}, timeout=(20,45))
+        r.raise_for_status()
+        pages = r.json().get("query",{}).get("pages",{})
+        item = next(iter(pages.values()), {})
+        info = (item.get("imageinfo") or [{}])[0]
+        url = info.get("url","")
+        if not url.startswith("https://upload.wikimedia.org/"):
+            raise SystemExit("Wikimedia API did not return an approved direct media URL")
+        meta = info.get("extmetadata",{})
+        creator = re.sub("<[^>]+>", "", meta.get("Artist",{}).get("value","Wikimedia Commons contributor"))[:160]
+        license_name = re.sub("<[^>]+>", "", meta.get("LicenseShortName",{}).get("value","CC BY-SA 3.0"))[:100]
+        return url, creator, license_name
+    r = requests.get(page, timeout=(20,45), headers={"User-Agent":"Mozilla/5.0 TVOFFCloudStudio/1.0"})
     r.raise_for_status()
     if urlparse(r.url).hostname not in {"pexels.com", "www.pexels.com"}:
         raise SystemExit("Pexels page redirected to an unexpected host")
     html = r.text
-    # Pexels embeds downloadable MP4 variants in page metadata/JSON. Keep only
-    # HTTPS files on the official videos.pexels.com CDN.
     candidates = re.findall(r'https?:\\?/\\?/videos\\.pexels\\.com\\/video-files\\/[^"\\\\ ]+?\\.mp4(?:\\?[^"\\\\ ]*)?', html)
-    candidates += re.findall(r'https://videos\.pexels\.com/video-files/[^"\\\\ ]+?\.mp4(?:\\?[^"\\\\ ]*)?', html)
+    candidates += re.findall(r'https://videos\\.pexels\\.com/video-files/[^"\\\\ ]+?\\.mp4(?:\\?[^"\\\\ ]*)?', html)
     cleaned=[]
     for u in candidates:
         u=u.replace("\\/", "/").replace("&amp;", "&")
-        if u.startswith("https://videos.pexels.com/") and u not in cleaned:
-            cleaned.append(u)
+        if u.startswith("https://videos.pexels.com/") and u not in cleaned: cleaned.append(u)
     if not cleaned:
-        raise SystemExit("Pexels page did not expose a direct MP4 variant; refusing an unverified substitute")
-    creator = "Pexels creator"
-    m = re.search(r"<meta[^>]+name=['\\\"]author['\\\"][^>]+content=['\\\"]([^'\\\"]+)", html, re.I)
-    if m: creator = m.group(1)[:120]
-    return cleaned[0], creator
+        raise SystemExit("Pexels page did not expose a direct MP4 variant")
+    creator="Pexels creator"
+    m=re.search(r"<meta[^>]+name=['\\\"]author['\\\"][^>]+content=['\\\"]([^'\\\"]+)",html,re.I)
+    if m: creator=m.group(1)[:120]
+    return cleaned[0], creator, "Pexels License"
+
 
 def download_source(url: str) -> None:
     p=urlparse(url)
@@ -80,7 +96,7 @@ def main():
     title=os.environ.get("VIDEO_TITLE","Midnight Blue").strip()[:80] or "Midnight Blue"
     duration=int(os.environ.get("DURATION_SECONDS","30"))
     if duration not in (20,30,40,50,60): raise SystemExit("Duration must be 20–60 seconds")
-    source_url,creator=resolve_pexels_page(page)
+    source_url,creator,license_name=resolve_source_page(page)
     download_source(source_url)
     create_original_ambient(duration)
     probe=subprocess.run(["ffprobe","-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",str(SOURCE)],check=True,capture_output=True,text=True)
@@ -92,7 +108,7 @@ def main():
     outprobe=subprocess.run(["ffprobe","-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",str(VIDEO)],check=True,capture_output=True,text=True)
     actual=float(outprobe.stdout.strip())
     if abs(actual-duration)>.5: raise SystemExit(f"Duration mismatch: {actual}")
-    manifest={"title":title,"duration_seconds":duration,"format":"MP4 / H.264 / AAC","resolution":"1080x1920","fps":30,"visual_source_page":page,"visual_creator":creator,"music":"Original TV OFF ambient synthesis; no samples or third-party recordings","license":"Pexels license; source page retained for audit","published":False}
+    manifest={"title":title,"duration_seconds":duration,"format":"MP4 / H.264 / AAC","resolution":"1080x1920","fps":30,"visual_source_page":page,"visual_creator":creator,"music":"Original TV OFF ambient synthesis; no samples or third-party recordings","license":license_name,"required_attribution":creator,"source_page_retained":page,"published":False}
     (OUT/"production.json").write_text(json.dumps(manifest,indent=2),encoding="utf-8")
     print(f"Rendered and validated {VIDEO} ({actual:.2f}s)")
 
