@@ -85,6 +85,37 @@ def main():
     if not source.is_relative_to(AUDIO_DIR.resolve()) or not source.is_file():
         raise RuntimeError(f"Selected {kind} audio is missing or outside the local audio directory.")
 
+    # Require a standalone sha256sum-compatible sidecar generated alongside this exact audio.
+    sidecar_path = AUDIO_DIR / "manifest.sha256"
+    if not sidecar_path.is_file():
+        raise RuntimeError("Required generated-audio/manifest.sha256 is missing; refusing to build or upload.")
+    sidecar_lines = sidecar_path.read_text(encoding="utf-8").splitlines()
+    if len(sidecar_lines) != 1:
+        raise RuntimeError("manifest.sha256 must contain exactly one checksum entry.")
+    sidecar_parts = sidecar_lines[0].strip().split()
+    if len(sidecar_parts) != 2 or sidecar_parts[1].lstrip("*") != source.name:
+        raise RuntimeError("manifest.sha256 must contain the checksum and exact selected audio filename.")
+    sidecar_sha256 = sidecar_parts[0].lower()
+    if len(sidecar_sha256) != 64 or any(ch not in "0123456789abcdef" for ch in sidecar_sha256):
+        raise RuntimeError("manifest.sha256 contains an invalid SHA-256 digest.")
+
+    def sha256_file(path):
+        digest = hashlib.sha256()
+        with path.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+
+    audio_sha256 = sha256_file(source)
+    if sidecar_sha256 != audio_sha256:
+        raise RuntimeError("manifest.sha256 does not match the actual selected audio file.")
+    if info.get("sha256") != audio_sha256:
+        raise RuntimeError(f"manifest.json SHA-256 does not match generated {kind} audio.")
+
+    used_audio_hashes = set(state.get("_published_audio_sha256", [])) | set(main_state.get("_published_audio_sha256", []))
+    if audio_sha256 in used_audio_hashes:
+        raise RuntimeError(f"Duplicate audio detected (sha256={audio_sha256}); refusing to build or upload this Short.")
+
     OUT.mkdir(exist_ok=True)
     filename = f"TV-OFF_{file_kind}_Short_{slot}.mp4"
     target = OUT / filename
@@ -151,24 +182,9 @@ def main():
     if not target.is_file() or target.stat().st_size < 100000:
         raise RuntimeError("Short video output is missing or unexpectedly small.")
 
-    def sha256_file(path):
-        digest = hashlib.sha256()
-        with path.open("rb") as stream:
-            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-                digest.update(chunk)
-        return digest.hexdigest()
-
     # Content-level deduplication: slot uniqueness alone is not enough.
-    audio_sha256 = sha256_file(source)
     video_sha256 = sha256_file(target)
-    if info.get("sha256") != audio_sha256:
-        raise RuntimeError(f"Manifest SHA-256 does not match generated {kind} audio.")
-    used_audio_hashes = set(state.get("_published_audio_sha256", [])) | set(main_state.get("_published_audio_sha256", []))
     used_video_hashes = set(state.get("_published_video_sha256", [])) | set(main_state.get("_published_video_sha256", []))
-    if audio_sha256 in used_audio_hashes:
-        raise RuntimeError(
-            f"Duplicate audio detected (sha256={audio_sha256}); refusing to upload this Short."
-        )
     if video_sha256 in used_video_hashes:
         raise RuntimeError(
             f"Duplicate video detected (sha256={video_sha256}); refusing to upload this Short."
