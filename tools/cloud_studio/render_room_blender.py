@@ -95,7 +95,7 @@ bpy.ops.object.camera_add(location=(0,-7.6,2.25)); cam=bpy.context.object
 cam.rotation_euler=(Vector((0,1.0,1.65))-cam.location).to_track_quat("-Z","Y").to_euler()
 cam.data.lens=42; cam.data.sensor_width=36; cam.data.sensor_fit="VERTICAL"; bpy.context.scene.camera=cam
 scene=bpy.context.scene
-scene.render.engine="BLENDER_EEVEE_NEXT"
+scene.render.engine="BLENDER_EEVEE"
 scene.eevee.taa_render_samples=48
 scene.render.resolution_x=720; scene.render.resolution_y=1280; scene.render.resolution_percentage=100
 scene.render.image_settings.file_format="PNG"; scene.render.film_transparent=False
