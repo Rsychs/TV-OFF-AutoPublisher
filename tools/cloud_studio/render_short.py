@@ -62,7 +62,12 @@ def download_source(url: str) -> None:
     p=urlparse(url)
     if p.scheme!="https" or p.hostname not in {"videos.pexels.com", "upload.wikimedia.org"}:
         raise SystemExit("Resolved source is not on an approved Pexels or Wikimedia media host")
-    with requests.get(url,stream=True,timeout=(20,90)) as response:
+    # Wikimedia imageinfo URLs may carry tracking query parameters that trigger CDN denials.
+    clean_url = url.split("?", 1)[0] if p.hostname == "upload.wikimedia.org" else url
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; TV-OFF-CloudStudio/1.0)", "Accept": "video/*,application/octet-stream,*/*"}
+    if p.hostname == "upload.wikimedia.org":
+        headers["Referer"] = "https://commons.wikimedia.org/"
+    with requests.get(clean_url,headers=headers,stream=True,timeout=(20,90)) as response:
         response.raise_for_status()
         if urlparse(response.url).hostname not in {"videos.pexels.com", "upload.wikimedia.org"}:
             raise SystemExit("Video download redirected away from approved media hosts")
