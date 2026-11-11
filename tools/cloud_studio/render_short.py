@@ -106,8 +106,8 @@ def main():
     create_original_ambient(duration)
     probe=subprocess.run(["ffprobe","-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",str(SOURCE)],check=True,capture_output=True,text=True)
     source_duration=float(probe.stdout.strip())
-    if source_duration<duration: raise SystemExit(f"Source is only {source_duration:.1f}s; requested {duration}s")
-    vf="scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,eq=contrast=1.06:saturation=1.08:brightness=-0.015,unsharp=5:5:0.35:3:3:0.0,format=yuv420p"
+    if source_duration < duration - 2.0: raise SystemExit(f"Source is too short ({source_duration:.2f}s); need at least {duration - 2.0:.1f}s for safe end-frame extension")
+    vf="scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,tpad=stop_mode=clone:stop_duration=2,eq=contrast=1.06:saturation=1.08:brightness=-0.015,unsharp=5:5:0.35:3:3:0.0,format=yuv420p"
     cmd=["ffmpeg","-y","-i",str(SOURCE),"-i",str(AUDIO),"-t",str(duration),"-vf",vf,"-af",f"afade=t=in:st=0:d=1.8,afade=t=out:st={max(0,duration-2.8)}:d=2.8","-map","0:v:0","-map","1:a:0","-c:v","libx264","-preset","medium","-crf","19","-profile:v","high","-pix_fmt","yuv420p","-r","30","-c:a","aac","-b:a","192k","-movflags","+faststart",str(VIDEO)]
     subprocess.run(cmd,check=True)
     outprobe=subprocess.run(["ffprobe","-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",str(VIDEO)],check=True,capture_output=True,text=True)
