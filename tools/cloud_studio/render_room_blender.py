@@ -136,7 +136,7 @@ cam.data.lens=38; cam.data.sensor_width=36; cam.data.sensor_fit="VERTICAL"; bpy.
 scene=bpy.context.scene
 scene.render.engine="CYCLES"
 scene.cycles.samples=32
-scene.cycles.use_denoising=True
+scene.cycles.use_denoising=False
 scene.cycles.device="CPU"
 scene.render.resolution_x=900; scene.render.resolution_y=1600; scene.render.resolution_percentage=100
 scene.render.image_settings.file_format="PNG"; scene.render.film_transparent=False
