@@ -82,6 +82,10 @@ def main() -> None:
             f"Synthetic {KIND} audio is too short: {actual_duration:.2f}s"
         )
 
+    audio_sha256 = sha256(target)
+    sidecar_path = ROOT / "manifest.sha256"
+    sidecar_path.write_text(f"{audio_sha256}  {target.name}\n", encoding="utf-8")
+
     manifest_entry = {
         "file": target.name,
         "creator": "TV OFF (original synthetic audio)",
@@ -96,7 +100,7 @@ def main() -> None:
         "noise_color": color,
         "random_seed": seed,
         "duration_seconds": round(actual_duration, 2),
-        "sha256": sha256(target),
+        "sha256": audio_sha256,
         "downloaded_at": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -107,7 +111,7 @@ def main() -> None:
     )
     print(
         f"SYNTHETIC AUDIO PREFLIGHT PASSED: {KIND} | "
-        f"{actual_duration:.2f}s | seed={seed} | sha256={manifest_entry['sha256']} | "
+        f"{actual_duration:.2f}s | seed={seed} | sha256={audio_sha256} | manifest.sha256 written | "
         "local-only; no external audio source",
         flush=True,
     )
