@@ -40,7 +40,7 @@ box("Marble coffee table",(0,-1.05,.61),(2.7,1.5,.15),stone,.05)
 for i in range(3): box("Art book",(-.7+i*.1,-1.05,.72+i*.055),(.8,.48,.06),[walnut,linen,charcoal][i],.01)
 # plant with 3D leaves
 pot=material("Ceramic pot",(.13,.10,.07),.3); leaves=material("Olive leaves",(.035,.12,.06),.85)
-bpy.ops.mesh.primitive_cylinder_add(vertices=40,radius1=.32,radius2=.25,depth=.6,location=(4,1.5,.3)); bpy.context.object.data.materials.append(pot)
+bpy.ops.mesh.primitive_cone_add(vertices=40,radius1=.32,radius2=.25,depth=.6,location=(4,1.5,.3)); bpy.context.object.data.materials.append(pot)
 for i in range(14):
  a=i*2.4; bpy.ops.mesh.primitive_uv_sphere_add(segments=12,ring_count=8,radius=1,location=(4+math.cos(a)*.28,1.5+math.sin(a)*.28,1+(i%5)*.2)); o=bpy.context.object; o.scale=(.12,.055,.34); o.data.materials.append(leaves)
 # side table and lamp
