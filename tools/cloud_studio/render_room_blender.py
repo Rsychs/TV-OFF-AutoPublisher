@@ -29,6 +29,21 @@ pillow=mat("Soft caramel cushions",(.38,.19,.09),rough=.98)
 glass=mat("Night window",(.012,.025,.055),rough=.15,metallic=.25)
 green=mat("Plant leaves",(.018,.11,.075),rough=.8)
 
+def textured(m, scale=80.0, strength=.16, distance=.035):
+    n=m.node_tree.nodes; links=m.node_tree.links
+    p=n.get("Principled BSDF")
+    tex=n.new("ShaderNodeTexNoise"); tex.inputs["Scale"].default_value=scale
+    tex.inputs["Detail"].default_value=3.0; tex.inputs["Roughness"].default_value=.72
+    bump=n.new("ShaderNodeBump"); bump.inputs["Strength"].default_value=strength; bump.inputs["Distance"].default_value=distance
+    links.new(tex.outputs["Fac"],bump.inputs["Height"]); links.new(bump.outputs["Normal"],p.inputs["Normal"])
+    return m
+
+textured(navy,155,.22,.025)
+textured(wall,32,.18,.045)
+textured(floor,7,.13,.025)
+textured(cream,210,.28,.018)
+textured(pillow,175,.3,.025)
+
 def cube(name, loc, scale, material, bevel=0):
     bpy.ops.mesh.primitive_cube_add(size=1, location=loc); o=bpy.context.object; o.name=name
     o.dimensions=scale; bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
@@ -57,6 +72,11 @@ for x in [-3.53,-2.65,-1.77]: cube("Window mullion",(x,3.61,2.65),(.045,.09,2.52
 for z in [1.42,2.65,3.88]: cube("Window rail",(-2.65,3.61,z),(1.82,.09,.045),brass,.012)
 for i,(x,h,w) in enumerate([(-3.35,1.0,.24),(-3.05,1.55,.28),(-2.72,.8,.2),(-2.42,1.3,.25),(-2.1,.95,.22)]):
     cube("Distant skyline", (x,3.63,1.45+h/2),(w,.025,h),black,.01)
+# Full-length soft linen curtains framing the night window
+curtain=textured(mat("Natural linen curtains",(.28,.19,.14),rough=.98),190,.3,.025)
+for x in [-3.72,-1.58]:
+    for k in range(5):
+        pleat=cube("Curtain pleat",(x+(k-2)*.055,3.48,2.65),(.095,.12,2.65),curtain,.045)
 # TV console and large screen
 cube("Media console",(0,3.22,.42),(3.55,.62,.72),black,.08)
 cube("Console wood front",(0,2.895,.42),(3.35,.025,.52),navy,.025)
@@ -71,8 +91,12 @@ for x in [-1.95,1.95]: cube("Sofa arm",(x,-1.15,.95),(.48,1.55,1.0),navy,.18)
 for x in [-1.05,0,1.05]:
     cube("Seat cushion",(x,-1.37,.91),(1.15,1.0,.22),pillow,.12)
     c=cube("Back cushion",(x,-.72,1.53),(1.08,.24,.88),pillow,.13); c.rotation_euler[1]=(-.05 if x<0 else .05)
+# Plump accent cushions with organic silhouettes
+for x in [-1.1,1.1]:
+    pillow_obj=uv("Plump accent cushion",(x,-.92,1.64),(.48,.19,.43),cream)
+    pillow_obj.rotation_euler[1]=-.18 if x<0 else .18
 # Cozy layered textiles and warm details
-throw=mat("Chunky knit throw",(.48,.29,.16),rough=1.0)
+throw=textured(mat("Chunky knit throw",(.48,.29,.16),rough=1.0),240,.38,.04)
 cube("Draped sofa throw",(-1.15,-1.25,1.12),(.82,1.05,.12),throw,.16)
 cube("Side table",(2.85,-1.0,.48),(.72,.72,.9),floor,.1)
 candle=mat("Candle flame",(.9,.35,.08),rough=.25,emission=(1.0,.22,.035),strength=3.0)
@@ -83,6 +107,13 @@ uv("Candle flame",(2.85,-1.0,1.26),(.035,.035,.09),candle)
 cube("Soft wool rug",(0,-2.55,.015),(4.9,2.0,.035),cream,.08)
 cube("Coffee table top",(0,-2.55,.48),(2.5,1.05,.12),floor,.12)
 for x in [-1,1]: cube("Table leg",(x,-2.55,.23),(.07,.07,.45),brass,.02)
+# Styled coffee table: books and a handmade ceramic cup
+bookmat=mat("Book cover",(.12,.075,.055),rough=.8)
+cube("Coffee table book",(0.55,-2.48,.57),(.72,.5,.055),bookmat,.025)
+cube("Second book",(0.52,-2.46,.625),(.62,.44,.045),cream,.02)
+ceramic=mat("Glazed ceramic",(.22,.19,.15),rough=.18)
+bpy.ops.mesh.primitive_cylinder_add(vertices=48,radius=.12,depth=.18,location=(-.62,-2.55,.63))
+bpy.context.object.data.materials.append(ceramic)
 # Floor lamp with warm shade
 bpy.ops.mesh.primitive_cylinder_add(vertices=32, radius=.035, depth=2.25, location=(2.8,1.45,1.12))
 bpy.context.object.data.materials.append(brass)
@@ -103,12 +134,15 @@ bpy.ops.object.camera_add(location=(0,-9.2,2.8)); cam=bpy.context.object
 cam.rotation_euler=(Vector((0,1.0,1.75))-cam.location).to_track_quat("-Z","Y").to_euler()
 cam.data.lens=38; cam.data.sensor_width=36; cam.data.sensor_fit="VERTICAL"; bpy.context.scene.camera=cam
 scene=bpy.context.scene
-scene.render.engine="BLENDER_EEVEE"
-scene.eevee.taa_render_samples=64
-scene.render.resolution_x=720; scene.render.resolution_y=1280; scene.render.resolution_percentage=100
+scene.render.engine="CYCLES"
+scene.cycles.samples=32
+scene.cycles.use_denoising=True
+scene.cycles.device="CPU"
+scene.render.resolution_x=900; scene.render.resolution_y=1600; scene.render.resolution_percentage=100
 scene.render.image_settings.file_format="PNG"; scene.render.film_transparent=False
 scene.world.color=(.10,.075,.055)
 scene.view_settings.view_transform="AgX"
+scene.view_settings.look="AgX - Medium High Contrast"
 scene.render.filepath=str(OUT/"room_scene.png")
 # gentle bloom via compositor
 scene.use_nodes=True; nt=scene.node_tree; nt.nodes.clear()
