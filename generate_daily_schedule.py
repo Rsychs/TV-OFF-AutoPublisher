@@ -30,12 +30,18 @@ BROWN_NOISE_VARIANTS = [
 BROWN_NOISE = ("brown_noise", BROWN_NOISE_VARIANTS[0][0], BROWN_NOISE_VARIANTS[0][1])
 # Three-category rotation: white noise, brown noise, and original music only.
 STANDARD_SOUNDS = [
-    ("brown_noise", None, None),
-    ("white_noise", None, None),
+    # Rolling 10-release mix: 5 Original Music, 3 Brown Noise, 2 White Noise.
+    # This tests the current audience signal while retaining both noise categories.
     ("original_music", "Deep Sleep Ambient Music | Soft, Slow & Instrumental", "deep sleep ambient music;relaxing ambient music;sleep music;calming instrumental;TV OFF"),
     ("brown_noise", None, None),
-    ("white_noise", None, None),
     ("original_music", "Soft Ambient Music for Deep Rest & Nighttime Relaxation", "soft ambient music;music for deep sleep;peaceful instrumental;relaxation music;TV OFF"),
+    ("white_noise", None, None),
+    ("original_music", "Peaceful Ambient Music for Rest & Quiet Focus", "peaceful ambient music;quiet focus music;rest music;calming instrumental;TV OFF"),
+    ("brown_noise", None, None),
+    ("original_music", "Gentle Ambient Music for a Calm Evening", "gentle ambient music;calm evening music;relaxing instrumental;TV OFF"),
+    ("white_noise", None, None),
+    ("original_music", "Slow Ambient Music for Deep Rest", "slow ambient music;deep rest music;soft instrumental;TV OFF"),
+    ("brown_noise", None, None),
 ]
 def published_soundscapes():
     state_path = ROOT / "state.json"
