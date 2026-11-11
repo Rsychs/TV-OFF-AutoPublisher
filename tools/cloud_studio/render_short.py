@@ -60,12 +60,12 @@ def resolve_source_page(page: str) -> tuple[str, str, str]:
 
 def download_source(url: str) -> None:
     p=urlparse(url)
-    if p.scheme!="https" or p.hostname!="videos.pexels.com":
-        raise SystemExit("Resolved source is not on the official Pexels video CDN")
+    if p.scheme!="https" or p.hostname not in {"videos.pexels.com", "upload.wikimedia.org"}:
+        raise SystemExit("Resolved source is not on an approved Pexels or Wikimedia media host")
     with requests.get(url,stream=True,timeout=(20,90)) as response:
         response.raise_for_status()
-        if urlparse(response.url).hostname!="videos.pexels.com":
-            raise SystemExit("Video download redirected away from Pexels CDN")
+        if urlparse(response.url).hostname not in {"videos.pexels.com", "upload.wikimedia.org"}:
+            raise SystemExit("Video download redirected away from approved media hosts")
         total=0
         with SOURCE.open("wb") as target:
             for chunk in response.iter_content(1024*1024):
