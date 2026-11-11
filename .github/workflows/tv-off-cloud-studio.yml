@@ -63,6 +63,14 @@ jobs:
           DURATION_SECONDS: ${{ inputs.duration_seconds || '30' }}
         run: python tools/cloud_studio/render_short.py
 
+      - name: Preserve rendered MP4 and manifest for recovery
+        uses: actions/upload-artifact@v4
+        with:
+          name: tv-off-cloud-studio-${{ github.run_number }}
+          path: output/*
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Upload to YouTube with shared cooldown and duplicate protection
         env:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
