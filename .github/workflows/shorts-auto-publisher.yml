@@ -2,7 +2,6 @@ name: TV OFF — Shorts Auto Publisher
 # Event-driven only: ChatGPT tasks own the cadence; GitHub Actions executes approved requests.
 
 on:
-  workflow_dispatch:
   issue_comment:
     types: [created]
 
@@ -12,12 +11,11 @@ permissions:
 jobs:
   publish-short:
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'issue_comment' &&
-       github.event.issue.pull_request == null &&
-       github.event.issue.number == 15 &&
-       github.event.comment.user.login == 'Rsychs' &&
-       startsWith(github.event.comment.body, '/tv-off-short '))
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request == null &&
+      github.event.issue.number == 15 &&
+      github.event.comment.user.login == 'Rsychs' &&
+      startsWith(github.event.comment.body, '/tv-off-short ')
     concurrency:
       group: tv-off-single-video
       cancel-in-progress: false
