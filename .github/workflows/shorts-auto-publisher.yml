@@ -68,19 +68,22 @@ jobs:
         timeout-minutes: 12
         run: |
           set -euo pipefail
-          # GitHub's Ubuntu runner can point at an Azure mirror that is unreachable
-          # from some hosted-runner regions. Switch Ubuntu archive entries to the
-          # canonical public mirror before attempting a bounded package install.
-          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v fc-match >/dev/null 2>&1 || ! fc-match "DejaVu Sans" >/dev/null 2>&1; then
-            echo "Required media tools missing; switching away from the unavailable Azure Ubuntu mirror."
-            if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
-              sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g; s|http://security.ubuntu.com/ubuntu|https://security.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
-            fi
-            timeout 180s sudo apt-get update -o Acquire::Retries=2 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15
-            timeout 180s sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core
+          # Use an isolated apt source list: hosted runners may inject an Azure
+          # mirror through apt-mirrors.txt, so editing ubuntu.sources alone is
+          # insufficient. This bypasses that mirror selection entirely.
+          if ! command -v ffmpeg >/dev/null 2>&1 || [ ! -f /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf ]; then
+            echo "Installing media tools from canonical Ubuntu HTTPS repositories."
+            cat > "$RUNNER_TEMP/tv-off-ubuntu.sources.list" <<'EOF'
+          deb https://archive.ubuntu.com/ubuntu noble main universe
+          deb https://archive.ubuntu.com/ubuntu noble-updates main universe
+          deb https://security.ubuntu.com/ubuntu noble-security main universe
+          EOF
+            APT_SOURCE_OPTS=(-o "Dir::Etc::sourcelist=$RUNNER_TEMP/tv-off-ubuntu.sources.list" -o "Dir::Etc::sourceparts=-" -o "APT::Get::List-Cleanup=0")
+            timeout 180s sudo apt-get "${APT_SOURCE_OPTS[@]}" update -o Acquire::Retries=1 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15
+            timeout 180s sudo apt-get "${APT_SOURCE_OPTS[@]}" install -y --no-install-recommends ffmpeg fonts-dejavu-core
           fi
           command -v ffmpeg
-          fc-match "DejaVu Sans"
+          test -f /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
           python -m pip install --disable-pip-version-check --retries 2 --timeout 30 -r requirements.txt
 
       - name: Enforce cooldown without crossing the pinned UTC slot
