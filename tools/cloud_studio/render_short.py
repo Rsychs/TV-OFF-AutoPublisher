@@ -38,7 +38,7 @@ def resolve_pexels_page(page: str) -> tuple[str, str]:
     if not cleaned:
         raise SystemExit("Pexels page did not expose a direct MP4 variant; refusing an unverified substitute")
     creator = "Pexels creator"
-    m = re.search(r'<meta[^>]+name=["\\']author["\\'][^>]+content=["\\']([^"\\']+)', html, re.I)
+    m = re.search(r"<meta[^>]+name=['\\\"]author['\\\"][^>]+content=['\\\"]([^'\\\"]+)", html, re.I)
     if m: creator = m.group(1)[:120]
     return cleaned[0], creator
 
