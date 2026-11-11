@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       source_video_url:
-        description: "Direct MP4 download URL from a free-use video source (for example Pexels)"
+        description: "Direct MP4 download URL from a free-use video source"
         required: true
         type: string
       source_page_url:
@@ -58,7 +58,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install renderer dependencies
-        run: python -m pip install --disable-pip-version-check numpy requests
+        run: python -m pip install --disable-pip-version-check numpy requests scipy
 
       - name: Render original TV OFF Short
         env:
