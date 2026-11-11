@@ -32,7 +32,8 @@ jobs:
           QUALITY: ${{ inputs.quality || 'preview' }}
         run: |
           mkdir -p "$TV_OFF_RENDER_DIR"
-          blender --background --factory-startup --python scripts/render_cgi_short.py
+          blender --background --factory-startup --python-exit-code 1 --python scripts/render_cgi_short.py
+          test -f "$TV_OFF_RENDER_DIR/frame_0001.png"
       - name: Encode 30-second vertical MP4
         env:
           TV_OFF_RENDER_DIR: ${{ runner.temp }}/tv-off-cgi
