@@ -121,9 +121,14 @@ def make_thumbnail(row):
         bbox = draw.textbbox((0, 0), headline, font=headline_font)
     centered_text(draw, headline, 345, headline_font, (255, 255, 255, 255))
 
-    # A strong, readable duration pill helps the thumbnail communicate the format instantly.
+    # Show the actual experiment duration from the exact schedule row used to build the video.
+    duration_seconds = int(row.get("duration_seconds") or 0)
+    if duration_seconds not in {3600, 10800, 28800, 36000}:
+        raise RuntimeError(f"Unsupported experiment duration for thumbnail: {duration_seconds}s")
+    duration_hours = duration_seconds // 3600
+    duration_label = f"{duration_hours} HOUR" + ("S" if duration_hours != 1 else "")
     draw.rounded_rectangle((420, 455, 860, 520), radius=28, fill=(*accent, 235))
-    centered_text(draw, "10 HOURS  •  BLACK SCREEN", 470, font(23, True), (8, 12, 19, 255))
+    centered_text(draw, f"{duration_label}  •  BLACK SCREEN", 470, font(23, True), (8, 12, 19, 255))
     subtitle = source_title.upper()
     if len(subtitle) > 52:
         subtitle = subtitle[:49].rstrip() + "…"
