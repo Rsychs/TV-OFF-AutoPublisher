@@ -18,19 +18,24 @@ NOISE_COLORS = {
 
 
 def probe_seconds(path: Path) -> float:
+    # imageio-ffmpeg provides a portable ffmpeg binary but not ffprobe.
+    # Ask ffmpeg to inspect the media and parse its Duration line instead.
     result = subprocess.run(
-        [
-            "ffprobe", "-v", "error",
-            "-show_entries", "format=duration",
-            "-of", "default=noprint_wrappers=1:nokey=1",
-            str(path),
-        ],
+        ["ffmpeg", "-hide_banner", "-i", str(path)],
         capture_output=True,
         text=True,
-        check=True,
+        check=False,
         timeout=30,
     )
-    return float(result.stdout.strip())
+    import re
+    match = re.search(r"Duration: (\\d{2}):(\\d{2}):(\\d{2}(?:\\.\\d+)?)", result.stderr)
+    if not match:
+        raise RuntimeError(
+            f"FFmpeg could not read audio duration for {path.name}: "
+            f"{result.stderr[-1200:]}"
+        )
+    hours, minutes, seconds = match.groups()
+    return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
 
 
 def sha256(path: Path) -> str:
