@@ -166,6 +166,7 @@ def main():
 
     metric_ids = {str(row["video"]) for row in video_metrics if row.get("video")}
     missing_recent_ids = [video_id for video_id in recent_upload_ids if video_id not in metric_ids]
+    targeted_metrics_error = None
     if missing_recent_ids:
         try:
             targeted_rows = fetch_report(
@@ -177,7 +178,8 @@ def main():
             video_metrics.extend(targeted_by_id.values())
             metric_ids.update(targeted_by_id)
         except RuntimeError as exc:
-            print(f"TARGETED_VIDEO_METRICS_UNAVAILABLE: {str(exc)[:250]}")
+            targeted_metrics_error = str(exc)[:300]
+            print(f"TARGETED_VIDEO_METRICS_UNAVAILABLE: {targeted_metrics_error[:250]}")
 
     # Keep recent uploads visible even when YouTube has not populated metrics.
     metric_columns = [
@@ -187,7 +189,7 @@ def main():
     ]
     for video_id in recent_upload_ids:
         if video_id not in metric_ids:
-            placeholder = {"video":video_id,"metrics_status":"not_yet_available"}
+            placeholder = {"video":video_id,"metrics_status":"query_error" if targeted_metrics_error else "not_yet_available"}
             placeholder.update({key:None for key in metric_columns})
             video_metrics.append(placeholder)
         else:
@@ -231,7 +233,9 @@ def main():
         "coverage":{
             "video_rows":len(video_metrics),"daily_rows":len(daily_metrics),
             "uploads_discovered":len(recent_upload_ids),
-            "uploads_without_metrics":sum(1 for row in video_metrics if row.get("metrics_status") == "not_yet_available"),
+            "uploads_without_metrics":sum(1 for row in video_metrics if row.get("metrics_status") in ("not_yet_available","query_error")),
+            "uploads_not_yet_reported":sum(1 for row in video_metrics if row.get("metrics_status") == "not_yet_available"),
+            "targeted_metrics_error":targeted_metrics_error,
             "upload_inventory_error":upload_inventory_error,
             "retention_attempted":len(retention_ids),
             "retention_with_data":sum(1 for item in retention.values() if item.get("status") == "available"),
