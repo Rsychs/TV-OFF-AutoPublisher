@@ -68,11 +68,15 @@ jobs:
         timeout-minutes: 12
         run: |
           set -euo pipefail
-          # GitHub-hosted Ubuntu images normally include FFmpeg and DejaVu fonts.
-          # Avoid a full apt index refresh on every hourly Short.
+          # GitHub's Ubuntu runner can point at an Azure mirror that is unreachable
+          # from some hosted-runner regions. Switch Ubuntu archive entries to the
+          # canonical public mirror before attempting a bounded package install.
           if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v fc-match >/dev/null 2>&1 || ! fc-match "DejaVu Sans" >/dev/null 2>&1; then
-            echo "Required media tools missing; installing with bounded apt operations."
-            timeout 180s sudo apt-get update -o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20
+            echo "Required media tools missing; switching away from the unavailable Azure Ubuntu mirror."
+            if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+              sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g; s|http://security.ubuntu.com/ubuntu|https://security.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+            fi
+            timeout 180s sudo apt-get update -o Acquire::Retries=2 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15
             timeout 180s sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core
           fi
           command -v ffmpeg
