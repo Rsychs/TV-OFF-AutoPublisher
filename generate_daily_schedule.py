@@ -28,20 +28,20 @@ BROWN_NOISE_VARIANTS = [
     ("Brown Noise for Sleep & a Peaceful Night", "brown noise for sleep;brown noise for rest;peaceful night sounds;BrownNoise;SleepSounds", "A steady brown-noise soundscape for rest and peaceful nighttime listening. continuous sound with a completely black screen."),
 ]
 BROWN_NOISE = ("brown_noise", BROWN_NOISE_VARIANTS[0][0], BROWN_NOISE_VARIANTS[0][1])
-# Three-category rotation: white noise, brown noise, and original music only.
+# Original Music title variants rotate independently from the three-category mix.
+ORIGINAL_MUSIC_VARIANTS = [
+    ("Deep Sleep Ambient Music | Soft, Slow & Instrumental", "deep sleep ambient music;relaxing ambient music;sleep music;calming instrumental;TV OFF"),
+    ("Soft Ambient Music for Deep Rest & Nighttime Relaxation", "soft ambient music;music for deep sleep;peaceful instrumental;relaxation music;TV OFF"),
+    ("Peaceful Ambient Music for Rest & Quiet Focus", "peaceful ambient music;quiet focus music;rest music;calming instrumental;TV OFF"),
+    ("Gentle Ambient Music for a Calm Evening", "gentle ambient music;calm evening music;relaxing instrumental;TV OFF"),
+    ("Slow Ambient Music for Deep Rest", "slow ambient music;deep rest music;soft instrumental;TV OFF"),
+]
+# Strict three-release cycle. The current sequence continues after the last
+# confirmed Brown Noise release: Original Music, White Noise, Brown Noise.
 STANDARD_SOUNDS = [
-    # Rolling 10-release mix: 5 Original Music, 3 Brown Noise, 2 White Noise.
-    # This tests the current audience signal while retaining both noise categories.
-    ("original_music", "Deep Sleep Ambient Music | Soft, Slow & Instrumental", "deep sleep ambient music;relaxing ambient music;sleep music;calming instrumental;TV OFF"),
     ("brown_noise", None, None),
-    ("original_music", "Soft Ambient Music for Deep Rest & Nighttime Relaxation", "soft ambient music;music for deep sleep;peaceful instrumental;relaxation music;TV OFF"),
+    ("original_music", None, None),
     ("white_noise", None, None),
-    ("original_music", "Peaceful Ambient Music for Rest & Quiet Focus", "peaceful ambient music;quiet focus music;rest music;calming instrumental;TV OFF"),
-    ("brown_noise", None, None),
-    ("original_music", "Gentle Ambient Music for a Calm Evening", "gentle ambient music;calm evening music;relaxing instrumental;TV OFF"),
-    ("white_noise", None, None),
-    ("original_music", "Slow Ambient Music for Deep Rest", "slow ambient music;deep rest music;soft instrumental;TV OFF"),
-    ("brown_noise", None, None),
 ]
 def published_soundscapes():
     state_path = ROOT / "state.json"
@@ -91,7 +91,9 @@ def main():
             title, tags, brown_description = BROWN_NOISE_VARIANTS[(slot_number // len(STANDARD_SOUNDS)) % len(BROWN_NOISE_VARIANTS)]
         elif kind == "white_noise":
             title, tags, white_description = WHITE_NOISE_VARIANTS[(slot_number // len(STANDARD_SOUNDS)) % len(WHITE_NOISE_VARIANTS)]
-        print("PRIORITY QUEUE COMPLETE: both white and brown noise are published; using expanded standard rotation.")
+        elif kind == "original_music":
+            title, tags = ORIGINAL_MUSIC_VARIANTS[(slot_number // len(STANDARD_SOUNDS)) % len(ORIGINAL_MUSIC_VARIANTS)]
+        print("PRIORITY QUEUE COMPLETE: both white and brown noise are published; using an equal three-category rotation.")
 
     if os.environ.get("FORCE_SOUND", "").strip() == "original_music":
         if not published["brown_noise"] or not published["white_noise"]:
@@ -100,8 +102,7 @@ def main():
                 "Publish both noise categories with real YouTube IDs first."
             )
         kind = "original_music"
-        title = "Deep Sleep Ambient Music | Soft, Slow & Instrumental"
-        tags = "deep sleep ambient music;relaxing ambient music;sleep music;calming instrumental;TV OFF"
+        title, tags = ORIGINAL_MUSIC_VARIANTS[(slot_number // len(STANDARD_SOUNDS)) % len(ORIGINAL_MUSIC_VARIANTS)]
         print("MANUAL PRIORITY: original music selected for this confirmed production slot.")
 
     # Seven-day duration experiment: two releases per day, cycling 1h/3h/8h/10h.
