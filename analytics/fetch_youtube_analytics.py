@@ -143,11 +143,12 @@ def main():
     except ValueError:
         raise RuntimeError("Invalid GITHUB_RUN_ATTEMPT; refusing an untracked analytics retry.")
 
-    # Analytics window: every third day, anchored to 2026-11-12 at 12:00 Europe/Riga.
+    # Analytics window: daily at 12:00 Europe/Riga, starting 2026-11-12.
     anchor = date(2026, 11, 12)
+    cadence_days = 1
     days_from_anchor = (now_riga.date() - anchor).days
-    if days_from_anchor < 0 or days_from_anchor % 3 != 0:
-        print(f"SKIP: {now_riga.date().isoformat()} is outside the three-day analytics cycle.")
+    if days_from_anchor < 0 or days_from_anchor % cadence_days != 0:
+        print(f"SKIP: {now_riga.date().isoformat()} is before the daily analytics anchor.")
         return
 
     # First attempts run only at the exact local noon window. A failed workflow
@@ -248,7 +249,7 @@ def main():
     snapshot = {
         "schema_version":1, "source":"YouTube Analytics API v2 (OAuth read-only)",
         "generated_at":datetime.now(timezone.utc).isoformat(), "timezone":"Europe/Riga",
-        "analytics_window":{"anchor_date":"2026-11-12","cadence_days":3,"window_date":now_riga.date().isoformat(),"window_time":"12:00"},
+        "analytics_window":{"anchor_date":"2026-11-12","cadence_days":cadence_days,"window_date":now_riga.date().isoformat(),"window_time":"12:00"},
         "period":{"start_date":start_date.isoformat(),"end_date":end_date.isoformat()},
         "channel_video_metrics":video_metrics, "daily_channel_metrics":daily_metrics,
         "video_metadata":metadata, "audience_retention_top_30":retention,
