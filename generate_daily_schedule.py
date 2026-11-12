@@ -105,8 +105,8 @@ def main():
         title, tags = ORIGINAL_MUSIC_VARIANTS[(slot_number // len(STANDARD_SOUNDS)) % len(ORIGINAL_MUSIC_VARIANTS)]
         print("MANUAL PRIORITY: original music selected for this confirmed production slot.")
 
-    # Seven-day duration experiment: two releases per day, cycling 1h/3h/8h/10h.
-    # The long-form task runs at 07:00 and 19:00 Europe/Riga.
+    # Seven-day duration experiment: each confirmed 3-hour slot cycles 1h/3h/8h/10h.
+    # ChatGPT owns the cadence; this script only selects the current slot's duration.
     duration_index = slot_number % 4
     duration_hours = (1, 3, 8, 10)[duration_index]
     duration_seconds = duration_hours * 3600
