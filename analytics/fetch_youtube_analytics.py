@@ -137,9 +137,30 @@ def upload_dropbox(access_token, path, payload):
 
 def main():
     now_riga = datetime.now(RIGA)
-    if os.environ.get("GITHUB_EVENT_NAME") == "schedule" and now_riga.hour != 8:
-        print("SKIP: this UTC schedule occurrence is not 08:00 Europe/Riga.")
+    event_name = os.environ.get("GITHUB_EVENT_NAME", "")
+    try:
+        run_attempt = max(1, int(os.environ.get("GITHUB_RUN_ATTEMPT", "1")))
+    except ValueError:
+        raise RuntimeError("Invalid GITHUB_RUN_ATTEMPT; refusing an untracked analytics retry.")
+
+    # Analytics window: every third day, anchored to 2026-11-12 at 12:00 Europe/Riga.
+    anchor = date(2026, 11, 12)
+    days_from_anchor = (now_riga.date() - anchor).days
+    if days_from_anchor < 0 or days_from_anchor % 3 != 0:
+        print(f"SKIP: {now_riga.date().isoformat()} is outside the three-day analytics cycle.")
         return
+
+    # First attempts run only at the exact local noon window. A failed workflow
+    # job may be rerun later on the same cycle date; retries on other dates are
+    # rejected by the anchored-cycle check above.
+    if event_name in ("schedule", "workflow_dispatch"):
+        if now_riga.hour != 12 and run_attempt == 1:
+            print("SKIP: first analytics attempt is allowed only at 12:00 Europe/Riga.")
+            return
+    else:
+        raise RuntimeError(f"Unsupported analytics event {event_name!r}; refusing non-analytics trigger.")
+
+    print(f"ANALYTICS_WINDOW_OK date={now_riga.date().isoformat()} attempt={run_attempt}")
     end_date = now_riga.date() - timedelta(days=1)
     start_date = date.fromisoformat(os.environ.get("TV_OFF_ANALYTICS_START_DATE","2020-01-01"))
     if start_date > end_date:
@@ -227,6 +248,7 @@ def main():
     snapshot = {
         "schema_version":1, "source":"YouTube Analytics API v2 (OAuth read-only)",
         "generated_at":datetime.now(timezone.utc).isoformat(), "timezone":"Europe/Riga",
+        "analytics_window":{"anchor_date":"2026-11-12","cadence_days":3,"window_date":now_riga.date().isoformat(),"window_time":"12:00"},
         "period":{"start_date":start_date.isoformat(),"end_date":end_date.isoformat()},
         "channel_video_metrics":video_metrics, "daily_channel_metrics":daily_metrics,
         "video_metadata":metadata, "audience_retention_top_30":retention,
