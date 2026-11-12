@@ -1,0 +1,50 @@
+name: TV OFF — FreeLLMAPI Connection Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: Prompt for a connection smoke test
+        required: true
+        default: "Reply with exactly: TV OFF FreeLLMAPI connection OK"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tv-off-freellmapi-smoke-test
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Test FreeLLMAPI gateway
+        env:
+          FREELLMAPI_BASE_URL: ${{ secrets.FREELLMAPI_BASE_URL }}
+          FREELLMAPI_API_KEY: ${{ secrets.FREELLMAPI_API_KEY }}
+          FREELLMAPI_MODEL: auto
+          TEST_PROMPT: ${{ inputs.prompt }}
+        run: |
+          python - <<'PY'
+          import os
+          import subprocess
+          import sys
+          prompt = os.environ["TEST_PROMPT"]
+          result = subprocess.run(
+              [sys.executable, "tv_off_ai.py", prompt],
+              text=True,
+              capture_output=True,
+              timeout=120,
+          )
+          if result.returncode:
+              print(result.stderr.strip() or "Gateway test failed.")
+              raise SystemExit(result.returncode)
+          print("Gateway responded successfully.")
+          print(result.stdout.strip())
+          PY
