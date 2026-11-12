@@ -295,19 +295,19 @@ def main():
         # fragments, requires the category keyword, and filters all used titles.
         recipes = {
             "white_noise": {
-                "openers": ["Steady White Noise", "Gentle White Noise", "Soft White Noise", "Pure White Noise", "White Noise for", "A Calm White Noise Sound for"],
+                "openers": ["Steady White Noise for", "Gentle White Noise for", "Soft White Noise for", "Pure White Noise for", "White Noise for", "A Calm White Noise Sound for"],
                 "contexts": ["a Quieter Mind", "Deep Focus", "Restful Moments", "Reading and Relaxing", "a Peaceful Night", "Everyday Calm", "Uninterrupted Work", "a Gentle Reset", "Better Sleep", "Quiet Time"],
-                "closers": ["", " | Relax and Unwind", " for Sleep and Focus", " to Help You Switch Off"],
+                "closers": ["", " | TV OFF", " to Help You Switch Off", " — Relax and Unwind"],
             },
             "brown_noise": {
-                "openers": ["Deep Brown Noise", "Warm Brown Noise", "Soft Brown Noise", "Rich Brown Noise", "Brown Noise for", "A Deeper Brown Noise Sound for"],
+                "openers": ["Deep Brown Noise for", "Warm Brown Noise for", "Soft Brown Noise for", "Rich Brown Noise for", "Brown Noise for", "A Deeper Brown Noise Sound for"],
                 "contexts": ["Quiet Focus", "Restful Sleep", "a Calmer Mind", "Reading and Relaxing", "a Peaceful Night", "Deep Work", "Unwinding", "a Gentle Reset", "Everyday Calm", "Quiet Time"],
-                "closers": ["", " | Relax and Unwind", " for Sleep and Focus", " to Help You Switch Off"],
+                "closers": ["", " | TV OFF", " to Help You Switch Off", " — Relax and Unwind"],
             },
             "original_music": {
-                "openers": ["Original Ambient Music", "Soft Ambient Music", "Gentle Instrumental Music", "Peaceful Original Music", "Ambient Music for", "A Quiet Instrumental Soundtrack for"],
+                "openers": ["Original Ambient Music for", "Soft Ambient Music for", "Gentle Instrumental Music for", "Peaceful Original Music for", "Ambient Music for", "A Quiet Instrumental Soundtrack for"],
                 "contexts": ["a Slower Moment", "Deep Focus", "Rest and Reflection", "Reading and Relaxing", "a Peaceful Night", "Quiet Evenings", "Unwinding", "a Gentle Reset", "Creative Flow", "Quiet Time"],
-                "closers": ["", " | Relax and Unwind", " for Sleep and Focus", " to Help You Switch Off"],
+                "closers": ["", " | TV OFF", " to Help You Switch Off", " — Relax and Unwind"],
             },
         }
         recipe = recipes[category]
