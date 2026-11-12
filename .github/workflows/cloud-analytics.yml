@@ -4,9 +4,10 @@ on:
   workflow_dispatch:
   schedule:
     # Europe/Riga is UTC+2 in winter and UTC+3 in summer.
-    # Run at both UTC hours; the script proceeds only at local 08:00.
-    - cron: "0 5 * * *"
-    - cron: "0 6 * * *"
+    # Run at both UTC offsets; the script proceeds only at 12:00 Riga
+    # on the three-day cycle anchored at 2026-11-12.
+    - cron: "0 9 * * *"
+    - cron: "0 10 * * *"
 
 permissions:
   contents: read
