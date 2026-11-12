@@ -25,7 +25,7 @@ jobs:
       - name: Install Blender and FFmpeg
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender ffmpeg
+          sudo apt-get install -y blender ffmpeg libegl1 libgl1 libopengl0 libgl1-mesa-dri
       - name: Render modeled 3D room
         env:
           TV_OFF_RENDER_DIR: ${{ runner.temp }}/tv-off-cgi
