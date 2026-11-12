@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import re
 import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -276,8 +277,14 @@ def main():
     }
     # Select a title that has never been used on this channel. Never recycle a
     # title just because the UTC slot changed or the sound category repeats.
+    def normalize_title(value):
+        # Normalize case/spacing and strip the Shorts suffix case-insensitively.
+        title = " ".join(str(value).strip().split())
+        title = re.sub(r"\s+#shorts\s*$", "", title, flags=re.IGNORECASE)
+        return title.casefold()
+
     used_titles = {
-        str(title).strip().removesuffix(" #shorts").casefold()
+        normalize_title(title)
         for title in state.get("_published_titles", [])
         if isinstance(title, str)
     }
@@ -305,13 +312,13 @@ def main():
         }
         recipe = recipes[category]
         generated = []
-        seen = {str(x).strip().casefold() for x in existing}
+        seen = {normalize_title(x) for x in existing}
         # Stable ordering avoids random title selection and keeps reruns predictable.
         for opener in recipe["openers"]:
             for context in recipe["contexts"]:
                 for closer in recipe["closers"]:
                     candidate = f"{opener} {context}{closer}".strip()
-                    key = candidate.casefold()
+                    key = normalize_title(candidate)
                     if key not in seen:
                         seen.add(key)
                         generated.append(candidate)
@@ -323,7 +330,7 @@ def main():
     generated_titles = generated_by_category.setdefault(kind, [])
     available = [
         title for title in variants + generated_titles
-        if title.casefold() not in used_titles
+        if normalize_title(title) not in used_titles
     ]
     if len(available) <= 5:
         fresh = generate_fresh_titles(kind, used_titles | {x.casefold() for x in variants + generated_titles})
@@ -335,7 +342,7 @@ def main():
             print(f"TITLE GENERATOR: {kind} had {len(available)} titles remaining; added {len(fresh)} fresh titles.")
 
     variants = variants + generated_titles
-    available = [title for title in variants if title.casefold() not in used_titles]
+    available = [title for title in variants if normalize_title(title) not in used_titles]
     if not available:
         raise RuntimeError(
             f"Title generator produced no unused titles for {kind}; refusing duplicate metadata."
