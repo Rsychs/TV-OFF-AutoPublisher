@@ -26,24 +26,33 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y blender ffmpeg libegl1 libgl1 libopengl0 libgl1-mesa-dri
-      - name: Render modeled 3D room
+      - name: Render modeled 3D room with Cycles
         env:
           TV_OFF_RENDER_DIR: ${{ runner.temp }}/tv-off-cgi
           QUALITY: ${{ inputs.quality || 'preview' }}
         run: |
           mkdir -p "$TV_OFF_RENDER_DIR"
           blender --background --factory-startup --python-exit-code 1 --python scripts/render_cgi_short.py
-          test -f "$TV_OFF_RENDER_DIR/frame_0001.png"
+          if [ "$QUALITY" = "production" ]; then
+            test -f "$TV_OFF_RENDER_DIR/frame_0001.png"
+          else
+            test -f "$TV_OFF_RENDER_DIR/TV_OFF_CGI_Preview.png"
+          fi
       - name: Encode 30-second vertical MP4
+        if: inputs.quality == 'production'
         env:
           TV_OFF_RENDER_DIR: ${{ runner.temp }}/tv-off-cgi
         run: |
           ffmpeg -y -framerate 24 -start_number 1 -i "$TV_OFF_RENDER_DIR/frame_%04d.png" -t 30 -vf "scale=720:1280:flags=lanczos,format=yuv420p" -c:v libx264 -preset medium -crf 19 -movflags +faststart "$TV_OFF_RENDER_DIR/TV_OFF_CGI_Short.mp4"
           ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 "$TV_OFF_RENDER_DIR/TV_OFF_CGI_Short.mp4"
-      - uses: actions/upload-artifact@v4
+      - name: Upload preview and scene
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: tv-off-cgi-short-${{ github.run_number }}
+          name: tv-off-cgi-preview-${{ github.run_number }}
           path: |
+            ${{ runner.temp }}/tv-off-cgi/TV_OFF_CGI_Preview.png
             ${{ runner.temp }}/tv-off-cgi/TV_OFF_CGI_Short.mp4
             ${{ runner.temp }}/tv-off-cgi/tv_off_luxury_lounge.blend
+          if-no-files-found: warn
           retention-days: 7
