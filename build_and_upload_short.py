@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parent
 STATE = ROOT / "shorts_state.json"
 AUDIO_DIR = Path(os.environ.get("SOURCE_AUDIO_DIR", ROOT / "generated-audio"))
 OUT = ROOT / "shorts"
-DURATION = 18
+DURATION = 30
 
 def run(args):
     subprocess.run(args, check=True, timeout=900)
@@ -139,16 +139,13 @@ def main():
     OUT.mkdir(exist_ok=True)
     filename = f"TV-OFF_{file_kind}_Short_{slot}.mp4"
     target = OUT / filename
-    # Category-led vertical visual: a soft luminous frame, animated waveform and a timed end-card CTA.
+    # Every Short receives a newly rendered, slot-selected 3D environment.
     themes = {
         "white_noise": ("0xA9D8FF", "WHITE NOISE", "A LITTLE MORE QUIET"),
         "brown_noise": ("0xC99563", "BROWN NOISE", "LET THE WORLD FADE OUT"),
-        "original_music": ("0xB7A6E5", "DEEP SLEEP AMBIENT", "SLOW DOWN AND LET GO"),
+        "original_music": ("0xB7A6E5", "ORIGINAL AMBIENT MUSIC", "SLOW DOWN AND LET GO"),
     }
-    accent, headline, tagline = themes.get(
-        kind, ("0xA9C7E8", display_kind.upper(), "SOUND TO SWITCH OFF TO")
-    )
-    # Three distinct Brown Noise hooks, rotated across Brown Noise slots.
+    accent, headline, tagline = themes[kind]
     slot_hour_utc = int(slot[-2:])
     variant_index = (slot_hour_utc + slot_hour_utc // 6) % 3
     brown_hooks = [
@@ -161,41 +158,49 @@ def main():
         accent = ["0xC99563", "0xD6AE82", "0xA97852"][variant_index]
     else:
         hook = "A MOMENT FOR YOU"
+
+    scene_png = OUT / f"scene_{slot}_{kind}.png"
+    scene_script = ROOT / "scripts" / "render_tv_off_short_scene.py"
+    if not scene_script.is_file():
+        raise RuntimeError(f"Required 3D scene renderer is missing: {scene_script}")
+    subprocess.run([
+        "blender", "--background", "--factory-startup", "--python", str(scene_script),
+        "--", "--out", str(scene_png), "--kind", kind, "--slot", slot
+    ], check=True, timeout=1500)
+    if not scene_png.is_file() or scene_png.stat().st_size < 100000:
+        raise RuntimeError("The cinematic 3D scene render is missing or unexpectedly small.")
+
     graph = (
-        f"[1:a]volume=3.5,showwaves=s=920x280:mode=cline:scale=sqrt:rate=30:colors={accent},format=rgba[w];"
-        "[0:v]format=rgba,"
-        f"drawbox=x=54:y=260:w=972:h=1390:color={accent}@0.075:t=fill,"
-        f"drawbox=x=82:y=288:w=916:h=1334:color={accent}@0.45:t=3,"
-        f"drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='{hook}':fontcolor=0xDCE5F2:fontsize=27:"
-        "x=(w-text_w)/2:y=390,"
+        "[0:v]zoompan=z='min(1.085,1+0.000095*on)':"
+        "x='iw/2-(iw/zoom/2)+2*sin(on/115)':"
+        "y='ih/2-(ih/zoom/2)+3*cos(on/145)':d=1:s=1080x1920:fps=30,"
+        "eq=contrast=1.035:saturation=1.06,format=yuv420p[bg];"
+        f"[1:a]showwaves=s=900x150:mode=cline:scale=sqrt:rate=30:colors={accent},"
+        "format=rgba,colorchannelmixer=aa=0.78[w];"
+        "[bg][w]overlay=(W-w)/2:1450:shortest=1,"
+        f"drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
+        f"text='{hook}':fontcolor=0xF1F4FA:fontsize=34:"
+        "x=(w-text_w)/2:y=250:shadowcolor=black@0.45:shadowx=2:shadowy=3,"
+        f"drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
+        f"text='{headline}':fontcolor=white:fontsize=66:"
+        "x=(w-text_w)/2:y=355:shadowcolor=black@0.55:shadowx=2:shadowy=3,"
+        f"drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:"
+        f"text='{tagline}':fontcolor={accent}:fontsize=28:"
+        "x=(w-text_w)/2:y=445:shadowcolor=black@0.45:shadowx=2:shadowy=3,"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
-        f"text='{headline}':fontcolor=white:fontsize=76:"
-        "x=(w-text_w)/2:y=600,"
+        "text='TV OFF':fontcolor=white:fontsize=38:"
+        "x=(w-text_w)/2:y=1665,"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:"
-        f"text='{tagline}':fontcolor={accent}:fontsize=30:"
-        "x=(w-text_w)/2:y=735[vbase];"
-        "[vbase][w]overlay=(W-w)/2:885:shortest=1,"
-        "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
-        "text='TV OFF':fontcolor=white:fontsize=44:"
-        "x=(w-text_w)/2:y=1250,"
-        "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:"
-        "text='SOUND TO SWITCH OFF TO':fontcolor=0xAAB2C4:fontsize=24:"
-        "x=(w-text_w)/2:y=1320,"
-        "drawbox=x=105:y=1490:w=870:h=112:color=0x172337@0.96:t=fill:"
-        "enable='gte(t,11)',"
-        "drawbox=x=105:y=1490:w=870:h=112:color=white@0.55:t=2:"
-        "enable='gte(t,11)',"
-        "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
-        "text='MORE SOUNDS ON OUR CHANNEL':fontcolor=white:fontsize=31:"
-        "x=(w-text_w)/2:y=1526:alpha='if(lt(t,12),t-11,1)':enable='gte(t,11)'[v]"
+        "text='MORE SOUNDS ON OUR CHANNEL':fontcolor=white:fontsize=27:"
+        "x=(w-text_w)/2:y=1775:alpha='if(lt(t,26),0, min(1,(t-26)))':enable='gte(t,26)'[v]"
     )
     run([
-        "ffmpeg", "-y", "-hide_banner", "-f", "lavfi", "-i",
-        f"color=c=black:s=1080x1920:r=30:d={DURATION}",
-        "-stream_loop", "-1", "-i", str(source),
+        "ffmpeg", "-y", "-hide_banner", "-loop", "1", "-framerate", "30",
+        "-i", str(scene_png), "-i", str(source),
         "-filter_complex", graph, "-map", "[v]", "-map", "1:a:0",
         "-t", str(DURATION), "-c:v", "libx264", "-preset", "veryfast",
-        "-pix_fmt", "yuv420p", "-r", "30", "-c:a", "aac", "-b:a", "160k",
+        "-crf", "19", "-pix_fmt", "yuv420p", "-r", "30",
+        "-c:a", "aac", "-b:a", "160k",
         "-af", "loudnorm=I=-18:TP=-2:LRA=11", "-movflags", "+faststart",
         str(target)
     ])
