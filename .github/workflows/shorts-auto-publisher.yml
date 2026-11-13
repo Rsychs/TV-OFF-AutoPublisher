@@ -64,8 +64,8 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install FFmpeg, fonts and dependencies
-        timeout-minutes: 12
+      - name: Install FFmpeg, Blender, fonts and dependencies
+        timeout-minutes: 25
         run: |
           set -euo pipefail
           # Do not use apt: this runner currently has DNS/network failures for
