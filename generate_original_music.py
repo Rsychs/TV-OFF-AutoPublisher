@@ -18,7 +18,7 @@ BAR_SECONDS = 4.5 if SHORT_MODE else 60
 BARS = 8 if SHORT_MODE else 32
 TIME_SCALE = BAR_SECONDS / 60.0
 DURATION = BAR_SECONDS * BARS
-N = SR * DURATION
+N = int(SR * DURATION)
 ROOT = Path(os.environ.get("SOURCE_AUDIO_DIR", Path(__file__).resolve().parent / "generated-audio"))
 ROOT.mkdir(parents=True, exist_ok=True)
 
