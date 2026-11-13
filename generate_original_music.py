@@ -162,6 +162,8 @@ def main():
     seed = secrets.randbelow(2**32 - 1) + 1
     rng = np.random.default_rng(seed)
     mode_name = str(rng.choice(list(MODES.keys())))
+    style_name = str(rng.choice(list(MUSIC_STYLES.keys())))
+    style = MUSIC_STYLES[style_name]
     profile_name = str(rng.choice(list(PROFILES.keys())))
     profile = PROFILES[profile_name]
     root_midi = int(rng.integers(40, 53))
@@ -231,7 +233,7 @@ def main():
             melody_state = int(np.clip(
                 melody_state + int(rng.choice([-2, -1, 1, 2])), 0, 6
             ))
-        melody_count = int(rng.integers(1, 3))
+        melody_count = int(rng.integers(1, 3)) if rng.random() < style["melody_probability"] else 0
         for note_index in range(melody_count):
             if note_index:
                 melody_state = int(np.clip(
@@ -297,7 +299,9 @@ def main():
         "sample_rate": SR,
         "random_seed": seed,
         "musical_mode": mode_name,
-        "sound_profile": profile_name,\n        "music_style": style_name,\n        "music_style_description": style["description"],
+        "sound_profile": profile_name,
+        "music_style": style_name,
+        "music_style_description": style["description"],
         "root_midi": root_midi,
         "progression_degrees": progression,
         "section_key_shifts_semitones": section_shifts,
