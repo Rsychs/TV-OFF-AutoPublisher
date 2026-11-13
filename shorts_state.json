@@ -25,8 +25,8 @@
   "2026111015": "eXTpe8xmXpQ",
   "2026111016": "7NheFoOCszI",
   "2026111018": "TLshjH7g1Ec",
-  "_last_published_at": "2026-11-13T19:05:00.047554+00:00",
-  "_last_production_duration_seconds": 58,
+  "_last_published_at": "2026-11-13T20:06:43.716276+00:00",
+  "_last_production_duration_seconds": 10,
   "_published_titles": [
     "A Little White Noise for a Quieter Moment #Shorts",
     "Brown Noise for Reading and Deep Focus #Shorts",
@@ -79,7 +79,8 @@
     "Steady White Noise for a Peaceful Night | TV OFF #Shorts",
     "Soft Tones for a Slower Moment #Shorts",
     "Gentle White Noise for a Peaceful Break #Shorts",
-    "Deep Brown Noise for a Peaceful Night \u2014 Relax and Unwind #Shorts"
+    "Deep Brown Noise for a Peaceful Night \u2014 Relax and Unwind #Shorts",
+    "Original Ambient Music for Deep Focus | TV OFF #Shorts"
   ],
   "_generated_titles_by_category": {
     "brown_noise": [
@@ -217,7 +218,8 @@
     "ba426210ba358dee783cea57770467188b62b3b13e254ead3545f91d09c9ef43",
     "8dc88e4a7602f51c9bad4bc8f8a597b19fca03098522eeac295548211b505796",
     "25f2f30f60d0b81153455c765ab34c10c2aa9a7af768e61af9b94e815185c79d",
-    "9824ad1aeebe4be57d998fe702bfdc2f43500a1b80fa555dec554fb696de00d8"
+    "9824ad1aeebe4be57d998fe702bfdc2f43500a1b80fa555dec554fb696de00d8",
+    "4d720902b02df50cb0e126670a612b1eae66986f8a3ccc0c2407150284952968"
   ],
   "_published_video_sha256": [
     "e218556701641d41aa762d5693fe977f9faa7aa25c69e4f5ee6b769175c7aa98",
@@ -274,7 +276,8 @@
     "3b04ba8445d91f413e8687989ba4e4c2c6a305b14daee4c27ea877335c6c5dd3",
     "dde5a2e3994d5194529b4427e9580198b2d41fb4292b9559ccdcd77324f31049",
     "82a61ce9ec3f07ea4e6db7b23cc26cf4e866525d856f77ac37064a9b9666487c",
-    "40628a894df6345bc79b7a84719252a7ee4462b3d5d703e73d20cc8f3375df1e"
+    "40628a894df6345bc79b7a84719252a7ee4462b3d5d703e73d20cc8f3375df1e",
+    "af8373461ebfb22825d08f13f2207ff629bb087bb9ecbce2c9acb4bcb871cf52"
   ],
   "2026111020": "KqXmnU4wbQY",
   "2026111021": "iEXFSo5Fytw",
@@ -340,8 +343,21 @@
       "duration_seconds": 36.0,
       "bar_seconds": 4.5,
       "audio_sha256": "8dc88e4a7602f51c9bad4bc8f8a597b19fca03098522eeac295548211b505796"
+    },
+    {
+      "video_id": "JY8TryPpvj0",
+      "published_at": "2026-11-13T20:06:43.716276+00:00",
+      "title": "Original Ambient Music for Deep Focus | TV OFF #Shorts",
+      "music_style": "cinematic_ambient",
+      "sound_profile": "velvet_piano",
+      "musical_mode": "lydian",
+      "composition_mode": "short_form_fast_harmonic_movement",
+      "duration_seconds": 36.0,
+      "bar_seconds": 4.5,
+      "audio_sha256": "4d720902b02df50cb0e126670a612b1eae66986f8a3ccc0c2407150284952968"
     }
   ],
   "2026111318": "HBt31H9s8-M",
-  "2026111319": "ldgqoSTYiJc"
+  "2026111319": "ldgqoSTYiJc",
+  "2026111320": "JY8TryPpvj0"
 }
