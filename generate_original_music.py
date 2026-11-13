@@ -49,6 +49,46 @@ PROFILES = {
 }
 
 
+MUSIC_STYLES = {
+    "deep_ambient": {
+        "description": "Deep Ambient — long evolving pads, restrained melody and deep harmonic space",
+        "arp_probability": 0.28, "melody_probability": 0.38,
+        "pad_scale": 1.18, "bass_scale": 1.12, "arp_scale": 0.62,
+        "melody_scale": 0.72, "melody_timbre": "pad",
+    },
+    "soft_keys": {
+        "description": "Soft Keys — gentle felt-like synthetic keys, intimate phrases and warm harmony",
+        "arp_probability": 0.58, "melody_probability": 0.82,
+        "pad_scale": 0.78, "bass_scale": 0.82, "arp_scale": 0.92,
+        "melody_scale": 1.18, "melody_timbre": "pluck",
+    },
+    "cinematic_ambient": {
+        "description": "Cinematic Ambient — wide layered harmony, gradual lifts and expressive counter-lines",
+        "arp_probability": 0.72, "melody_probability": 0.76,
+        "pad_scale": 1.12, "bass_scale": 1.0, "arp_scale": 0.88,
+        "melody_scale": 1.12, "melody_timbre": "bell",
+    },
+    "warm_analog": {
+        "description": "Warm Analog — rounded synth layers, gentle pulse-like movement and soft low end",
+        "arp_probability": 0.68, "melody_probability": 0.58,
+        "pad_scale": 1.08, "bass_scale": 1.2, "arp_scale": 0.82,
+        "melody_scale": 0.88, "melody_timbre": "pad",
+    },
+    "celestial": {
+        "description": "Celestial — airy upper-register tones, delicate bell colours and spacious harmony",
+        "arp_probability": 0.76, "melody_probability": 0.68,
+        "pad_scale": 0.92, "bass_scale": 0.72, "arp_scale": 1.16,
+        "melody_scale": 1.08, "melody_timbre": "bell",
+    },
+    "minimal_meditation": {
+        "description": "Minimal Meditation — sparse notes, slow harmonic breathing and very low melodic density",
+        "arp_probability": 0.18, "melody_probability": 0.30,
+        "pad_scale": 1.22, "bass_scale": 0.9, "arp_scale": 0.48,
+        "melody_scale": 0.62, "melody_timbre": "pad",
+    },
+}
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -142,7 +182,7 @@ def main():
             pan = float(np.clip(-0.52 + index * 0.17 + rng.uniform(-0.09, 0.09), -0.78, 0.78))
             add_voice(
                 mix, freq * octave, start + rng.uniform(0.0, 2.8), 62.0,
-                profile["pad_gain"] * (1.0 if index == 0 else 0.66 if index < 4 else 0.38),
+                profile["pad_gain"] * style["pad_scale"] * (1.0 if index == 0 else 0.66 if index < 4 else 0.38),
                 pan, rng, harmonics=profile["pad_harmonics"],
                 brightness=float(rng.uniform(1.55, 2.45)),
                 attack=float(rng.uniform(7.0, 14.0)),
@@ -154,7 +194,7 @@ def main():
         bass_root = chord[0] * 0.5
         add_voice(
             mix, bass_root, start + rng.uniform(0.0, 1.2), 59.0,
-            profile["bass_gain"], float(rng.uniform(-0.08, 0.08)), rng,
+            profile["bass_gain"] * style["bass_scale"], float(rng.uniform(-0.08, 0.08)), rng,
             harmonics=2, brightness=2.2, attack=5.0, release=12.0,
             timbre="pad", vibrato_depth=0.006,
         )
@@ -167,14 +207,14 @@ def main():
             )
 
         # Slow arpeggiated inner voice appears and disappears between sections.
-        if rng.random() < (0.86 if section in (1, 2) else 0.62):
+        if rng.random() < style["arp_probability"] * (1.08 if section in (1, 2) else 0.88):
             arp_count = int(rng.integers(3, 7))
             for note_index in range(arp_count):
                 freq = float(rng.choice(chord)) * float(rng.choice([2.0, 4.0]))
                 onset = start + 5.0 + note_index * float(rng.uniform(7.0, 11.0))
                 add_voice(
                     mix, freq, onset, float(rng.uniform(7.0, 13.0)),
-                    profile["arp_gain"] * float(rng.uniform(0.65, 1.15)),
+                    profile["arp_gain"] * style["arp_scale"] * float(rng.uniform(0.65, 1.15)),
                     float(rng.choice([-0.58, -0.32, 0.24, 0.52])), rng,
                     harmonics=profile["bell_harmonics"],
                     brightness=float(rng.uniform(1.8, 2.8)),
@@ -207,13 +247,13 @@ def main():
             bell = rng.random() < 0.58
             add_voice(
                 mix, freq, onset, float(rng.uniform(8.0, 19.0)),
-                profile["melody_gain"] * float(rng.uniform(0.55, 1.1)),
+                profile["melody_gain"] * style["melody_scale"] * float(rng.uniform(0.55, 1.1)),
                 float(rng.choice([-0.62, -0.38, 0.0, 0.34, 0.60])), rng,
                 harmonics=profile["bell_harmonics"] if bell else 3,
                 brightness=float(rng.uniform(1.5, 2.6)),
                 attack=float(rng.uniform(0.5, 2.5)),
                 release=float(rng.uniform(6.0, 12.0)),
-                timbre="bell" if bell else "pad",
+                timbre=style["melody_timbre"] if not bell else "bell",
                 vibrato_depth=float(rng.uniform(0.006, 0.025)),
             )
 
@@ -257,7 +297,7 @@ def main():
         "sample_rate": SR,
         "random_seed": seed,
         "musical_mode": mode_name,
-        "sound_profile": profile_name,
+        "sound_profile": profile_name,\n        "music_style": style_name,\n        "music_style_description": style["description"],
         "root_midi": root_midi,
         "progression_degrees": progression,
         "section_key_shifts_semitones": section_shifts,
@@ -268,7 +308,7 @@ def main():
     manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
     print(
         f"Generated {DURATION // 60}-minute original composition: "
-        f"profile={profile_name}, mode={mode_name}, root_midi={root_midi}, "
+        f"style={style_name}, profile={profile_name}, mode={mode_name}, root_midi={root_midi}, "
         f"progression={progression}, section_shifts={section_shifts}, sha256={digest}"
     )
 
