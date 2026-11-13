@@ -4,7 +4,7 @@ Run with: blender --background --python scripts/render_tv_off_short_scene.py -- 
 import bpy, math, os, sys, argparse
 from mathutils import Vector
 
-argv=sys.argv[sys.argv.index("--")+1:] if "--" in sys.argv else []
+argv=sys.argv[sys.argv.index("--")+1:] if "--" in sys.argv else sys.argv[1:]
 ap=argparse.ArgumentParser()
 ap.add_argument("--out",required=True); ap.add_argument("--kind",required=True); ap.add_argument("--slot",required=True)
 a=ap.parse_args(argv)
