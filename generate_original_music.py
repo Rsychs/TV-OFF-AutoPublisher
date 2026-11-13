@@ -129,6 +129,7 @@ def main():
     section_shifts = [0, int(rng.choice([2, 5, 7])), int(rng.choice([-2, 2, 5])), 0]
     chords = build_chords(rng, mode_name, root_midi, progression, section_shifts)
     mix = np.zeros((N, 2), dtype=np.float32)
+    melody_state = int(rng.integers(1, 6))
 
     for bar in range(BARS):
         section = min(3, bar // 8)
@@ -181,11 +182,28 @@ def main():
                     vibrato_depth=0.012,
                 )
 
-        # A separate counter-melody uses chord tones at changing octaves and positions.
-        melody_count = int(rng.integers(1, 4))
-        for _ in range(melody_count):
-            freq = float(rng.choice(chord)) * float(rng.choice([2.0, 4.0, 8.0]))
-            onset = start + float(rng.uniform(6.0, 52.0))
+        # A phrase-shaped counter-melody moves by nearby scale steps. Each
+        # four-bar phrase gets a fresh starting note; intervening notes move
+        # mostly by step, with occasional chord-tone landings.
+        if bar % 4 == 0:
+            melody_state = int(rng.integers(1, 6))
+        else:
+            melody_state = int(np.clip(
+                melody_state + int(rng.choice([-2, -1, 1, 2])), 0, 6
+            ))
+        melody_count = int(rng.integers(1, 3))
+        for note_index in range(melody_count):
+            if note_index:
+                melody_state = int(np.clip(
+                    melody_state + int(rng.choice([-1, 1])), 0, 6
+                ))
+            scale_semitone = MODES[mode_name][melody_state]
+            melody_midi = root_midi + section_shifts[section] + scale_semitone + int(rng.choice([24, 36]))
+            freq = midi_frequency(melody_midi)
+            # The first note of each phrase often lands on a chord tone.
+            if bar % 4 == 0 and note_index == 0 and rng.random() < 0.72:
+                freq = float(rng.choice(chord)) * 4.0
+            onset = start + float(rng.uniform(6.0, 48.0))
             bell = rng.random() < 0.58
             add_voice(
                 mix, freq, onset, float(rng.uniform(8.0, 19.0)),
