@@ -74,12 +74,26 @@ def sha256(path: Path) -> str:
 
 
 def probe_seconds(path: Path) -> float:
+    # imageio-ffmpeg bundles the ffmpeg executable, not ffprobe. Ask FFmpeg
+    # to inspect the input header and parse its reported duration instead.
+    # FFmpeg exits non-zero when no output target is supplied; that is expected.
     result = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-         "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
-        capture_output=True, text=True, check=True, timeout=30,
+        ["ffmpeg", "-hide_banner", "-i", str(path)],
+        capture_output=True, text=True, check=False, timeout=30,
     )
-    return float(result.stdout.strip())
+    diagnostic = (result.stderr or "") + "\n" + (result.stdout or "")
+    match = re.search(
+        r"\\bDuration:\\s*(\\d+):(\\d+):(\\d+(?:\\.\\d+)?)",
+        diagnostic,
+    )
+    if not match:
+        detail = diagnostic[-600:].strip()
+        raise RuntimeError(
+            "FFmpeg could not read the generated audio duration; "
+            f"exit={result.returncode}; output={detail!r}"
+        )
+    hours, minutes, seconds = match.groups()
+    return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
 
 
 def main() -> None:
