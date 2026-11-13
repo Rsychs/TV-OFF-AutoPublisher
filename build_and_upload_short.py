@@ -164,8 +164,8 @@ def main():
     if not scene_script.is_file():
         raise RuntimeError(f"Required 3D scene renderer is missing: {scene_script}")
     subprocess.run([
-        "blender", "--background", "--factory-startup", "--python", str(scene_script),
-        "--", "--out", str(scene_png), "--kind", kind, "--slot", slot
+        os.sys.executable, str(scene_script),
+        "--out", str(scene_png), "--kind", kind, "--slot", slot
     ], check=True, timeout=1500)
     if not scene_png.is_file() or scene_png.stat().st_size < 100000:
         raise RuntimeError("The cinematic 3D scene render is missing or unexpectedly small.")
