@@ -10,8 +10,13 @@ import numpy as np
 from scipy.io.wavfile import write
 
 SR = 22050
-BAR_SECONDS = 60
-BARS = 32
+# Shorts workflow exports TARGET_SLOT before invoking this generator. Give Shorts
+# a compact arrangement with a chord change every 4.5 seconds; long-form keeps
+# the slower 60-second harmonic movement and 32-minute source master.
+SHORT_MODE = bool(os.environ.get("TARGET_SLOT", "").strip())
+BAR_SECONDS = 4.5 if SHORT_MODE else 60
+BARS = 8 if SHORT_MODE else 32
+TIME_SCALE = BAR_SECONDS / 60.0
 DURATION = BAR_SECONDS * BARS
 N = SR * DURATION
 ROOT = Path(os.environ.get("SOURCE_AUDIO_DIR", Path(__file__).resolve().parent / "generated-audio"))
@@ -162,7 +167,11 @@ def main():
     seed = secrets.randbelow(2**32 - 1) + 1
     rng = np.random.default_rng(seed)
     mode_name = str(rng.choice(list(MODES.keys())))
-    style_name = str(rng.choice(list(MUSIC_STYLES.keys())))
+    style_pool = (
+        ["soft_keys", "cinematic_ambient", "warm_analog", "celestial"]
+        if SHORT_MODE else list(MUSIC_STYLES.keys())
+    )
+    style_name = str(rng.choice(style_pool))
     style = MUSIC_STYLES[style_name]
     profile_name = str(rng.choice(list(PROFILES.keys())))
     profile = PROFILES[profile_name]
@@ -174,7 +183,7 @@ def main():
     melody_state = int(rng.integers(1, 6))
 
     for bar in range(BARS):
-        section = min(3, bar // 8)
+        section = min(3, bar // max(1, BARS // 4))
         chord = chords[bar]
         start = bar * BAR_SECONDS
 
@@ -183,28 +192,28 @@ def main():
             octave = 1.0 if index < 4 else 2.0
             pan = float(np.clip(-0.52 + index * 0.17 + rng.uniform(-0.09, 0.09), -0.78, 0.78))
             add_voice(
-                mix, freq * octave, start + rng.uniform(0.0, 2.8), 62.0,
+                mix, freq * octave, start + rng.uniform(0.0, 2.8) * TIME_SCALE, BAR_SECONDS * 1.04,
                 profile["pad_gain"] * style["pad_scale"] * (1.0 if index == 0 else 0.66 if index < 4 else 0.38),
                 pan, rng, harmonics=profile["pad_harmonics"],
                 brightness=float(rng.uniform(1.55, 2.45)),
-                attack=float(rng.uniform(7.0, 14.0)),
-                release=float(rng.uniform(10.0, 18.0)),
+                attack=float(rng.uniform(7.0, 14.0)) * TIME_SCALE,
+                release=float(rng.uniform(10.0, 18.0)) * TIME_SCALE,
                 timbre="pad", vibrato_depth=float(rng.uniform(0.008, 0.035)),
             )
 
         # Sub-bass follows the changing harmony; occasional fifths add movement.
         bass_root = chord[0] * 0.5
         add_voice(
-            mix, bass_root, start + rng.uniform(0.0, 1.2), 59.0,
+            mix, bass_root, start + rng.uniform(0.0, 1.2) * TIME_SCALE, BAR_SECONDS * 0.98,
             profile["bass_gain"] * style["bass_scale"], float(rng.uniform(-0.08, 0.08)), rng,
-            harmonics=2, brightness=2.2, attack=5.0, release=12.0,
+            harmonics=2, brightness=2.2, attack=5.0 * TIME_SCALE, release=12.0 * TIME_SCALE,
             timbre="pad", vibrato_depth=0.006,
         )
         if rng.random() < 0.55:
             add_voice(
-                mix, bass_root * 1.5, start + rng.uniform(8.0, 18.0), 38.0,
+                mix, bass_root * 1.5, start + rng.uniform(8.0, 18.0) * TIME_SCALE, BAR_SECONDS * 0.72,
                 profile["bass_gain"] * 0.34, float(rng.uniform(-0.2, 0.2)), rng,
-                harmonics=2, brightness=2.0, attack=4.0, release=9.0,
+                harmonics=2, brightness=2.0, attack=4.0 * TIME_SCALE, release=9.0 * TIME_SCALE,
                 timbre="pad", vibrato_depth=0.008,
             )
 
@@ -213,14 +222,14 @@ def main():
             arp_count = int(rng.integers(3, 7))
             for note_index in range(arp_count):
                 freq = float(rng.choice(chord)) * float(rng.choice([2.0, 4.0]))
-                onset = start + 5.0 + note_index * float(rng.uniform(7.0, 11.0))
+                onset = start + 5.0 * TIME_SCALE + note_index * float(rng.uniform(7.0, 11.0)) * TIME_SCALE
                 add_voice(
-                    mix, freq, onset, float(rng.uniform(7.0, 13.0)),
+                    mix, freq, onset, float(rng.uniform(7.0, 13.0)) * TIME_SCALE,
                     profile["arp_gain"] * style["arp_scale"] * float(rng.uniform(0.65, 1.15)),
                     float(rng.choice([-0.58, -0.32, 0.24, 0.52])), rng,
                     harmonics=profile["bell_harmonics"],
                     brightness=float(rng.uniform(1.8, 2.8)),
-                    attack=0.35, release=6.0, timbre="pluck",
+                    attack=0.35 * TIME_SCALE, release=6.0 * TIME_SCALE, timbre="pluck",
                     vibrato_depth=0.012,
                 )
 
@@ -233,7 +242,8 @@ def main():
             melody_state = int(np.clip(
                 melody_state + int(rng.choice([-2, -1, 1, 2])), 0, 6
             ))
-        melody_count = int(rng.integers(1, 3)) if rng.random() < style["melody_probability"] else 0
+        melody_probability = max(style["melody_probability"], 0.75) if SHORT_MODE else style["melody_probability"]
+        melody_count = int(rng.integers(1, 3)) if rng.random() < melody_probability else 0
         for note_index in range(melody_count):
             if note_index:
                 melody_state = int(np.clip(
@@ -245,16 +255,16 @@ def main():
             # The first note of each phrase often lands on a chord tone.
             if bar % 4 == 0 and note_index == 0 and rng.random() < 0.72:
                 freq = float(rng.choice(chord)) * 4.0
-            onset = start + float(rng.uniform(6.0, 48.0))
+            onset = start + float(rng.uniform(6.0, 48.0)) * TIME_SCALE
             bell = rng.random() < 0.58
             add_voice(
-                mix, freq, onset, float(rng.uniform(8.0, 19.0)),
+                mix, freq, onset, float(rng.uniform(8.0, 19.0)) * TIME_SCALE,
                 profile["melody_gain"] * style["melody_scale"] * float(rng.uniform(0.55, 1.1)),
                 float(rng.choice([-0.62, -0.38, 0.0, 0.34, 0.60])), rng,
                 harmonics=profile["bell_harmonics"] if bell else 3,
                 brightness=float(rng.uniform(1.5, 2.6)),
-                attack=float(rng.uniform(0.5, 2.5)),
-                release=float(rng.uniform(6.0, 12.0)),
+                attack=float(rng.uniform(0.5, 2.5)) * TIME_SCALE,
+                release=float(rng.uniform(6.0, 12.0)) * TIME_SCALE,
                 timbre=style["melody_timbre"] if not bell else "bell",
                 vibrato_depth=float(rng.uniform(0.006, 0.025)),
             )
@@ -263,9 +273,9 @@ def main():
         if section in (1, 2) and rng.random() < 0.7:
             upper = float(rng.choice(chord[-2:])) * 2.0
             add_voice(
-                mix, upper, start + rng.uniform(2.0, 12.0), 48.0,
+                mix, upper, start + rng.uniform(2.0, 12.0) * TIME_SCALE, BAR_SECONDS * 0.8,
                 profile["pad_gain"] * 0.22, float(rng.uniform(-0.7, 0.7)), rng,
-                harmonics=2, brightness=2.0, attack=12.0, release=15.0,
+                harmonics=2, brightness=2.0, attack=12.0 * TIME_SCALE, release=15.0 * TIME_SCALE,
                 timbre="pad", vibrato_depth=0.018,
             )
 
@@ -296,6 +306,8 @@ def main():
         "source_url": "Original composition synthesized locally by TV OFF; no external source.",
         "license": "Original composition synthesized for TV OFF; no third-party samples, recordings, or borrowed melodies used.",
         "duration_seconds": DURATION,
+        "composition_mode": "short_form_fast_harmonic_movement" if SHORT_MODE else "long_form_slow_ambient",
+        "bar_seconds": BAR_SECONDS,
         "sample_rate": SR,
         "random_seed": seed,
         "musical_mode": mode_name,
@@ -311,7 +323,7 @@ def main():
     }
     manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
     print(
-        f"Generated {DURATION // 60}-minute original composition: "
+        f"Generated {'Shorts' if SHORT_MODE else str(DURATION // 60) + '-minute'} original composition: "
         f"style={style_name}, profile={profile_name}, mode={mode_name}, root_midi={root_midi}, "
         f"progression={progression}, section_shifts={section_shifts}, sha256={digest}"
     )
