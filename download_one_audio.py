@@ -83,7 +83,7 @@ def probe_seconds(path: Path) -> float:
     )
     diagnostic = (result.stderr or "") + "\n" + (result.stdout or "")
     match = re.search(
-        r"\\bDuration:\\s*(\\d+):(\\d+):(\\d+(?:\\.\\d+)?)",
+        r"\bDuration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)",
         diagnostic,
     )
     if not match:
