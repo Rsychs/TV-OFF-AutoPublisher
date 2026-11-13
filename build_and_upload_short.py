@@ -73,6 +73,25 @@ def main():
     if kind not in {"white_noise", "brown_noise", "original_music"}:
         raise RuntimeError(f"Disallowed TV OFF category for Shorts: {kind}; nature and field recordings are retired.")
     info = manifest[kind]
+    if kind == "original_music":
+        try:
+            music_duration = int(info.get("duration_seconds", -1))
+            music_bar_seconds = float(info.get("bar_seconds", -1))
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError("Original Music Shorts manifest has invalid duration/bar_seconds.") from exc
+        if (
+            info.get("composition_mode") != "short_form_fast_harmonic_movement"
+            or music_duration != 36
+            or abs(music_bar_seconds - 4.5) > 1e-9
+            or not str(info.get("music_style", "")).strip()
+            or not str(info.get("sound_profile", "")).strip()
+        ):
+            raise RuntimeError(
+                "Original Music Short requires manifest composition_mode=short_form_fast_harmonic_movement, "
+                "duration_seconds=36, bar_seconds=4.5, music_style and sound_profile."
+            )
+        if not isinstance(state.get("_published_music_metadata", []), list):
+            raise RuntimeError("Invalid _published_music_metadata ledger; refusing Original Music Short upload.")
     display_kind = kind.replace("_", " ").title()
     file_kind = kind.replace("_", "").title()
     expected_platforms = {
@@ -278,17 +297,27 @@ def main():
     # Select a title that has never been used on this channel. Never recycle a
     # title just because the UTC slot changed or the sound category repeats.
     def normalize_title(value):
-        # Normalize case/spacing and strip the Shorts suffix case-insensitively.
+        # One normalization rule for published, base and generated titles.
         title = " ".join(str(value).strip().split())
         title = re.sub(r"\s+#shorts\s*$", "", title, flags=re.IGNORECASE)
         return title.casefold()
+
+    def unique_titles(values):
+        result = []
+        seen = set()
+        for value in values:
+            key = normalize_title(value)
+            if key and key not in seen:
+                seen.add(key)
+                result.append(" ".join(str(value).strip().split()))
+        return result
 
     used_titles = {
         normalize_title(title)
         for title in state.get("_published_titles", [])
         if isinstance(title, str)
     }
-    variants = list(short_title_variants[kind])
+    variants = unique_titles(short_title_variants[kind])
 
     def generate_fresh_titles(category, existing, count=24):
         # Local deterministic title generator: combines human-written phrase
@@ -327,22 +356,32 @@ def main():
         return generated
 
     generated_by_category = state.setdefault("_generated_titles_by_category", {})
-    generated_titles = generated_by_category.setdefault(kind, [])
-    available = [
+    generated_titles = unique_titles(generated_by_category.setdefault(kind, []))
+    generated_by_category[kind] = generated_titles
+    available = unique_titles([
         title for title in variants + generated_titles
         if normalize_title(title) not in used_titles
-    ]
+    ])
     if len(available) <= 5:
-        fresh = generate_fresh_titles(kind, used_titles | {x.casefold() for x in variants + generated_titles})
-        if fresh:
-            generated_titles.extend(fresh)
-            generated_by_category[kind] = list(dict.fromkeys(generated_titles))
-            state["_generated_titles_by_category"] = generated_by_category
-            STATE.write_text(json.dumps(state, indent=2), encoding="utf-8")
-            print(f"TITLE GENERATOR: {kind} had {len(available)} titles remaining; added {len(fresh)} fresh titles.")
+        existing_titles = used_titles | {
+            normalize_title(x) for x in variants + generated_titles
+        }
+        fresh = unique_titles(generate_fresh_titles(kind, existing_titles, count=24))
+        if len(fresh) < 24:
+            raise RuntimeError(
+                f"Title generator produced only {len(fresh)} unique fresh titles for {kind}; "
+                "refusing upload before the title pool is replenished."
+            )
+        generated_titles = unique_titles(generated_titles + fresh)
+        generated_by_category[kind] = generated_titles
+        state["_generated_titles_by_category"] = generated_by_category
+        STATE.write_text(json.dumps(state, indent=2), encoding="utf-8")
+        print(f"TITLE GENERATOR: {kind} had {len(available)} unique titles remaining; added {len(fresh)} fresh titles.")
 
-    variants = variants + generated_titles
-    available = [title for title in variants if normalize_title(title) not in used_titles]
+    variants = unique_titles(variants + generated_titles)
+    available = unique_titles(
+        title for title in variants if normalize_title(title) not in used_titles
+    )
     if not available:
         raise RuntimeError(
             f"Title generator produced no unused titles for {kind}; refusing duplicate metadata."
@@ -350,6 +389,8 @@ def main():
     title_start = int(audio_sha256[:8], 16) % len(available)
     short_title_base = available[title_start]
     short_title = f"{short_title_base} #Shorts"
+    if normalize_title(short_title) in used_titles:
+        raise RuntimeError("Selected Shorts title is already published; refusing duplicate metadata.")
     short_tags = ["Shorts", display_kind, "Relaxation", "Sleep Sounds", "Focus", "TV OFF"]
     body = {
         "snippet": {
@@ -389,6 +430,22 @@ def main():
     state["_published_video_sha256"] = list(dict.fromkeys(
         state.get("_published_video_sha256", []) + [video_sha256]
     ))[-500:]
+    if kind == "original_music":
+        music_records = state.setdefault("_published_music_metadata", [])
+        if not any(item.get("video_id") == video_id for item in music_records if isinstance(item, dict)):
+            music_records.append({
+                "video_id": video_id,
+                "published_at": published_at.isoformat(),
+                "title": short_title,
+                "music_style": info["music_style"],
+                "sound_profile": info["sound_profile"],
+                "musical_mode": info.get("musical_mode"),
+                "composition_mode": info["composition_mode"],
+                "duration_seconds": info["duration_seconds"],
+                "bar_seconds": info["bar_seconds"],
+                "audio_sha256": audio_sha256,
+            })
+            state["_published_music_metadata"] = music_records[-100:]
     state["_last_published_at"] = published_at.isoformat()
     state["_last_production_duration_seconds"] = max(
         0, int(published_at.timestamp() - production_started_epoch)
