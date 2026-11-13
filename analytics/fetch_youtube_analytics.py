@@ -143,7 +143,7 @@ def main():
     except ValueError:
         raise RuntimeError("Invalid GITHUB_RUN_ATTEMPT; refusing an untracked analytics retry.")
 
-    # Analytics window: daily at 12:00 Europe/Riga, starting 2026-11-12.
+    # Analytics collection is available any time; daily anchor starts 2026-11-12.
     anchor = date(2026, 11, 12)
     cadence_days = 1
     days_from_anchor = (now_riga.date() - anchor).days
