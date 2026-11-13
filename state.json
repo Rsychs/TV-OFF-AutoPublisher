@@ -50,7 +50,8 @@
     "1fc97edd71bb8e9850d9120820b8a6e0eb666bba4794deaf3bcd8bf56942231c",
     "c07044f0a80e9e85df9f83fc3eab0637aad5a02d6b14d64eeadde6b897e432d3",
     "f7b83db1126acb0f92b8832b910fbe91b3b23cbc5f7bea4e1d2eaeba08c5eca7",
-    "1e0297c46ca7e2f74cea549e037ffbab76f90b5bc88530d15fee482e48a75e87"
+    "1e0297c46ca7e2f74cea549e037ffbab76f90b5bc88530d15fee482e48a75e87",
+    "4a38f9b29a43cf0dc380614c4fa1a2c70e8a0ef3f6e62f0263b6eb329057bd5b"
   ],
   "_published_video_sha256": [
     "2137b7d5f22b516222fe7838819517d213a97af58bd742203dc25ab55a24c5f8",
@@ -74,7 +75,8 @@
     "790e8574f57f9b889da2eb7219f98fcbfeafffdc0da446b5448dce18220c319e",
     "fa374d1ee02b6c415f1c54eab0817282668352320b28cba3a7a5818f9ed7ab4f",
     "140c7e266ac3d39dbfad180ef9c47a218c32ca416d47d1db11bc9dfb85d2933d",
-    "2e7c3dda5b67ef0746650b5e51476c32a8638883d0efa9f627c5001842b56e51"
+    "2e7c3dda5b67ef0746650b5e51476c32a8638883d0efa9f627c5001842b56e51",
+    "035de533bf528b0db398bd90b6ff1266a81715571a5bb7980f9cfe6c484e4eb3"
   ],
   "TV-OFF_Brownnoise_20261111_00_10-Hours.mp4": "97C30NNFQ4A",
   "TV-OFF_Whitenoise_20261111_03_10-Hours.mp4": "98QF0cfus6k",
@@ -96,5 +98,6 @@
   "TV-OFF_Whitenoise_20261113_12_10-Hours.mp4": "xs98xPuCV1g",
   "TV-OFF_Brownnoise_20261113_15_1-Hours.mp4": "-merHjfppHQ",
   "TV-OFF_Originalmusic_20261113_18_3-Hours.mp4": "gB5weSQXI6s",
-  "TV-OFF_Whitenoise_20261113_21_8-Hours.mp4": "741WgNrh_I0"
+  "TV-OFF_Whitenoise_20261113_21_8-Hours.mp4": "741WgNrh_I0",
+  "TV-OFF_Brownnoise_20261114_00_10-Hours.mp4": "w-wUFrJ_2Gw"
 }
