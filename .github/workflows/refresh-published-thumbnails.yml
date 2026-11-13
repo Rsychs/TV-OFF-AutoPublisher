@@ -1,7 +1,8 @@
 name: TV OFF - Refresh All Published Thumbnails
 
 on:
-  workflow_dispatch:
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
@@ -12,6 +13,12 @@ concurrency:
 
 jobs:
   refresh:
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request == null &&
+      github.event.issue.number == 15 &&
+      github.event.comment.user.login == 'Rsychs' &&
+      github.event.comment.body == '/tv-off-refresh-thumbnails'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -29,7 +36,7 @@ jobs:
         run: |
           pip install -r requirements.txt pillow
 
-      - name: Regenerate and apply the new branded thumbnails
+      - name: Regenerate and apply branded thumbnails to every published long-form video
         env:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
