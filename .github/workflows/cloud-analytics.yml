@@ -3,11 +3,9 @@ name: TV OFF — Cloud analytics (OAuth)
 on:
   workflow_dispatch:
   schedule:
-    # Europe/Riga is UTC+2 in winter and UTC+3 in summer.
-    # Run at both UTC offsets; the script proceeds only at 12:00 Riga
-    # on the three-day cycle anchored at 2026-11-12.
-    - cron: "0 9 * * *"
-    - cron: "0 10 * * *"
+    # Hourly safety net; workflow_dispatch is also available at any time.
+    # The script records the actual Europe/Riga execution time.
+    - cron: "0 * * * *"
 
 permissions:
   contents: read
