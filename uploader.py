@@ -107,6 +107,23 @@ def main():
         source = manifest.get(soundscape, {})
         if source.get("audio_type") != "synthetic" or source.get("platform") != ALLOWED_PLATFORMS[soundscape]:
             raise RuntimeError(f"{soundscape}: only the approved local synthetic generator is allowed.")
+        if soundscape == "original_music":
+            try:
+                music_duration = int(source.get("duration_seconds", -1))
+                music_bar_seconds = float(source.get("bar_seconds", -1))
+            except (TypeError, ValueError) as exc:
+                raise RuntimeError("Original Music Long-form manifest has invalid duration/bar_seconds.") from exc
+            if (
+                source.get("composition_mode") != "long_form_slow_ambient"
+                or music_duration != 1920
+                or abs(music_bar_seconds - 60.0) > 1e-9
+                or not str(source.get("music_style", "")).strip()
+                or not str(source.get("sound_profile", "")).strip()
+            ):
+                raise RuntimeError(
+                    "Original Music Long-form requires manifest composition_mode=long_form_slow_ambient, "
+                    "duration_seconds=1920, bar_seconds=60, music_style and sound_profile."
+                )
         for field in ("file", "sha256"):
             if not source.get(field):
                 raise RuntimeError(f"{soundscape}: manifest is missing {field}.")
