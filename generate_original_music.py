@@ -82,6 +82,8 @@ def add_voice(mix, freq, start, length, gain, pan, rng, harmonics=4,
     wave = np.zeros(count, dtype=np.float32)
     for h in range(1, harmonics + 1):
         partial = h * (1.0 + 0.0018 * h) if timbre == "bell" else h
+        if freq * partial >= SR * 0.47:
+            continue
         weight = 1.0 / (h ** brightness)
         phase = rng.uniform(0.0, 2.0 * np.pi)
         wave += np.sin(2.0 * np.pi * freq * partial * t + vibrato + phase).astype(np.float32) * weight
