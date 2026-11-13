@@ -25,8 +25,8 @@
   "2026111015": "eXTpe8xmXpQ",
   "2026111016": "7NheFoOCszI",
   "2026111018": "TLshjH7g1Ec",
-  "_last_published_at": "2026-11-13T17:02:12.009779+00:00",
-  "_last_production_duration_seconds": 11,
+  "_last_published_at": "2026-11-13T18:09:38.106220+00:00",
+  "_last_production_duration_seconds": 49,
   "_published_titles": [
     "A Little White Noise for a Quieter Moment #Shorts",
     "Brown Noise for Reading and Deep Focus #Shorts",
@@ -77,7 +77,8 @@
     "Deep Brown Noise for Deep Work to Help You Switch Off #Shorts",
     "Deep Brown Noise for a Peaceful Night to Help You Switch Off #Shorts",
     "Steady White Noise for a Peaceful Night | TV OFF #Shorts",
-    "Soft Tones for a Slower Moment #Shorts"
+    "Soft Tones for a Slower Moment #Shorts",
+    "Gentle White Noise for a Peaceful Break #Shorts"
   ],
   "_generated_titles_by_category": {
     "brown_noise": [
@@ -213,7 +214,8 @@
     "c152daa2b82d6f6ec1eeb133bf1b87acf3938e6e5da6bf87a0aee9d2904bb9a4",
     "7aca7dbfe91bb438b64a5f39e1c9bd94c6eb48d712bc08bf6a3aaec192799d5e",
     "ba426210ba358dee783cea57770467188b62b3b13e254ead3545f91d09c9ef43",
-    "8dc88e4a7602f51c9bad4bc8f8a597b19fca03098522eeac295548211b505796"
+    "8dc88e4a7602f51c9bad4bc8f8a597b19fca03098522eeac295548211b505796",
+    "25f2f30f60d0b81153455c765ab34c10c2aa9a7af768e61af9b94e815185c79d"
   ],
   "_published_video_sha256": [
     "e218556701641d41aa762d5693fe977f9faa7aa25c69e4f5ee6b769175c7aa98",
@@ -268,7 +270,8 @@
     "9d154312aebf580b1e6156d2eae8f8819293c4447c1fb0a29cf9a81f26dde0ba",
     "3d8a304c8e13b7b2aeca2a7cd3c1acbb0476813f699fbece084e0ad46a8eec53",
     "3b04ba8445d91f413e8687989ba4e4c2c6a305b14daee4c27ea877335c6c5dd3",
-    "dde5a2e3994d5194529b4427e9580198b2d41fb4292b9559ccdcd77324f31049"
+    "dde5a2e3994d5194529b4427e9580198b2d41fb4292b9559ccdcd77324f31049",
+    "82a61ce9ec3f07ea4e6db7b23cc26cf4e866525d856f77ac37064a9b9666487c"
   ],
   "2026111020": "KqXmnU4wbQY",
   "2026111021": "iEXFSo5Fytw",
@@ -335,5 +338,6 @@
       "bar_seconds": 4.5,
       "audio_sha256": "8dc88e4a7602f51c9bad4bc8f8a597b19fca03098522eeac295548211b505796"
     }
-  ]
+  ],
+  "2026111318": "HBt31H9s8-M"
 }
