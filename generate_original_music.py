@@ -166,14 +166,42 @@ def build_chords(rng, mode_name, root_midi, progression, section_shifts):
 def main():
     seed = secrets.randbelow(2**32 - 1) + 1
     rng = np.random.default_rng(seed)
-    mode_name = str(rng.choice(list(MODES.keys())))
     style_pool = (
         ["soft_keys", "cinematic_ambient", "warm_analog", "celestial"]
         if SHORT_MODE else list(MUSIC_STYLES.keys())
     )
-    style_name = str(rng.choice(style_pool))
+    previous_combo = None
+    if SHORT_MODE:
+        history_path = ROOT.parent / "shorts_state.json"
+        if history_path.is_file():
+            history = json.loads(history_path.read_text(encoding="utf-8"))
+            records = history.get("_published_music_metadata", [])
+            if not isinstance(records, list):
+                raise RuntimeError("Invalid Shorts Original Music metadata ledger; refusing an untracked combination.")
+            for record in reversed(records):
+                if not isinstance(record, dict):
+                    continue
+                candidate = (
+                    str(record.get("music_style", "")).strip(),
+                    str(record.get("sound_profile", "")).strip(),
+                    str(record.get("musical_mode", "")).strip(),
+                )
+                if all(candidate):
+                    previous_combo = candidate
+                    break
+    combinations = [
+        (mode, style, profile)
+        for mode in MODES
+        for style in style_pool
+        for profile in PROFILES
+    ]
+    eligible_combinations = [item for item in combinations if item != previous_combo]
+    if not eligible_combinations:
+        eligible_combinations = combinations
+    mode_name, style_name, profile_name = eligible_combinations[
+        int(rng.integers(0, len(eligible_combinations)))
+    ]
     style = MUSIC_STYLES[style_name]
-    profile_name = str(rng.choice(list(PROFILES.keys())))
     profile = PROFILES[profile_name]
     root_midi = int(rng.integers(40, 53))
     progression = list(PROGRESSIONS[int(rng.integers(0, len(PROGRESSIONS)))])
@@ -295,7 +323,6 @@ def main():
     wav_path.unlink(missing_ok=True)
 
     digest = sha256_file(mp3_path)
-    (ROOT / "manifest.sha256").write_text(f"{digest}  {mp3_path.name}\n", encoding="utf-8")
     manifest_path = ROOT / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
     manifest["original_music"] = {
@@ -322,6 +349,11 @@ def main():
         "downloaded_at": datetime.now(timezone.utc).isoformat(),
     }
     manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+    manifest_digest = sha256_file(manifest_path)
+    (ROOT / "manifest.sha256").write_text(
+        f"{digest}  {mp3_path.name}\n{manifest_digest}  {manifest_path.name}\n",
+        encoding="utf-8",
+    )
     print(
         f"Generated {'Shorts' if SHORT_MODE else str(DURATION // 60) + '-minute'} original composition: "
         f"style={style_name}, profile={profile_name}, mode={mode_name}, root_midi={root_midi}, "
