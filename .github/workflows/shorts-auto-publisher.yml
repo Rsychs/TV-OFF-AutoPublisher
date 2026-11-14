@@ -70,8 +70,10 @@ jobs:
           set -euo pipefail
           # Blender's bpy wheel still needs the OS EGL/OpenGL runtime libraries.
           # Install Mesa's headless EGL stack before importing bpy; no display server is used.
-          sudo apt-get update -o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30
-          sudo apt-get install -y --no-install-recommends \
+          if ! sudo apt-get update -o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30; then
+            echo "::warning::Ubuntu package index refresh failed; attempting installation with the runner's existing package indexes."
+          fi
+          sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends \
             libegl1 libegl-mesa0 libgl1 libglx-mesa0 libgbm1 \
             libx11-6 libxi6 libxrender1 libxfixes3 libsm6 libxxf86vm1 \
             libxkbcommon0 libxkbcommon-x11-0 libfontconfig1
@@ -92,7 +94,32 @@ jobs:
           FONT_DIR="$(python -c 'import matplotlib; print(matplotlib.get_data_path() + "/fonts/ttf")')"
           sudo install -m 0644 "$FONT_DIR/DejaVuSans-Bold.ttf" /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
           sudo install -m 0644 "$FONT_DIR/DejaVuSans.ttf" /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
-          python -c 'import bpy; print("Blender Python", bpy.app.version_string)'
+          python - <<'PY'
+          import bpy
+          from pathlib import Path
+          from mathutils import Vector
+
+          scene = bpy.context.scene
+          scene.render.engine = "BLENDER_EEVEE_NEXT"
+          scene.eevee.taa_render_samples = 8
+          scene.render.resolution_x = 96
+          scene.render.resolution_y = 96
+          scene.render.resolution_percentage = 100
+          bpy.ops.mesh.primitive_cube_add(size=1)
+          bpy.ops.object.camera_add(location=(3, -4, 3))
+          camera = bpy.context.object
+          camera.rotation_euler = (Vector((0, 0, 0)) - camera.location).to_track_quat("-Z", "Y").to_euler()
+          scene.camera = camera
+          bpy.ops.object.light_add(type="AREA", location=(2, -3, 4))
+          bpy.context.object.data.energy = 500
+          smoke = Path("/tmp/tv-off-egl-smoke.png")
+          scene.render.image_settings.file_format = "PNG"
+          scene.render.filepath = str(smoke)
+          bpy.ops.render.render(write_still=True)
+          if not smoke.is_file() or smoke.stat().st_size < 1024:
+              raise RuntimeError("Blender EGL smoke render produced no valid image.")
+          print("BLENDER_EGL_SMOKE_RENDER_PASSED", bpy.app.version_string, smoke.stat().st_size)
+          PY
           command -v ffmpeg
           ffmpeg -version | head -n 2
           test -s /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
