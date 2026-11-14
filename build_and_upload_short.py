@@ -217,7 +217,7 @@ def main():
         f"drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
         f"text='{hook}':fontcolor=0xF1F4FA:fontsize=34:"
         "x=(w-text_w)/2:y=250:shadowcolor=black@0.45:shadowx=2:shadowy=3:"
-        f"alpha='if(lt(t,{hook_end_seconds - 0.5}),1,max(0,{hook_end_seconds}-t))':"
+        f"alpha='if(lt(t,{hook_end_seconds - 0.5}),1,max(0,2*({hook_end_seconds}-t)))':"
         f"enable='lt(t,{hook_end_seconds})',"
         f"drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
         f"text='{headline}':fontcolor=white:fontsize=66:"
@@ -239,7 +239,7 @@ def main():
         "-t", str(DURATION), "-c:v", "libx264", "-preset", "veryfast",
         "-crf", "19", "-pix_fmt", "yuv420p", "-r", "30",
         "-c:a", "aac", "-b:a", "160k",
-        "-af", "loudnorm=I=-18:TP=-2:LRA=11", "-movflags", "+faststart",
+        "-af", "afade=t=in:st=0:d=0.25,loudnorm=I=-18:TP=-2:LRA=11", "-movflags", "+faststart",
         str(target)
     ])
     if not target.is_file() or target.stat().st_size < 100000:
@@ -252,7 +252,7 @@ def main():
         or f"if(lt(t,{CTA_START_SECONDS}),0, min(1,(t-{CTA_START_SECONDS})))" not in graph
         or f"text='{hook}'" not in graph
         or f"enable='lt(t,{hook_end_seconds})'" not in graph
-        or "alpha='if(lt(t,1.5),1,max(0,2.0-t))'" not in graph
+        or "alpha='if(lt(t,1.5),1,max(0,2*(2.0-t)))'" not in graph
     ):
         raise RuntimeError("Rendered Short hook or CTA timing does not match the approved opening/11–18 second layout.")
     probe = subprocess.run(
