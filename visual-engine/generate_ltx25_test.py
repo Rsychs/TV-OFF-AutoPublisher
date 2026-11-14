@@ -90,6 +90,32 @@ def main() -> int:
         text=True,
     )
 
+    # Build a 30-second review draft from this fresh 5-second generation.
+    # Normalize every segment to CFR before crossfading to avoid timestamp drift.
+    draft = out / "tv-off-static-camera-rain-fire-30s-draft.mp4"
+    subprocess.run(
+        [
+            "ffmpeg", "-y",
+            "-i", str(final), "-i", str(final), "-i", str(final),
+            "-i", str(final), "-i", str(final), "-i", str(final),
+            "-filter_complex",
+            "[0:v]fps=24,settb=1/24,setpts=PTS-STARTPTS[v0];"
+            "[1:v]fps=24,settb=1/24,setpts=PTS-STARTPTS[v1];"
+            "[2:v]fps=24,settb=1/24,setpts=PTS-STARTPTS[v2];"
+            "[3:v]fps=24,settb=1/24,setpts=PTS-STARTPTS[v3];"
+            "[4:v]fps=24,settb=1/24,setpts=PTS-STARTPTS[v4];"
+            "[5:v]fps=24,settb=1/24,setpts=PTS-STARTPTS[v5];"
+            "[v0][v1]xfade=transition=fade:duration=0.20:offset=4.80[x1];"
+            "[x1][v2]xfade=transition=fade:duration=0.20:offset=9.60[x2];"
+            "[x2][v3]xfade=transition=fade:duration=0.20:offset=14.40[x3];"
+            "[x3][v4]xfade=transition=fade:duration=0.20:offset=19.20[x4];"
+            "[x4][v5]xfade=transition=fade:duration=0.20:offset=24.00,trim=duration=30,setpts=PTS-STARTPTS[v]",
+            "-map", "[v]", "-an", "-c:v", "libx264", "-preset", "medium",
+            "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+            str(draft),
+        ], check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+    )
+
     manifest = {
         "space": SPACE,
         "api_name": "/run",
