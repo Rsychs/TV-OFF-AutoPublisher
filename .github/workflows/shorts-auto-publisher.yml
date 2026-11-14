@@ -82,6 +82,8 @@ jobs:
           ldconfig -p | grep -q 'libGL.so.1'
           python -m pip install --disable-pip-version-check --retries 3 --timeout 30 -r requirements.txt
           python -m pip install --disable-pip-version-check --retries 3 --timeout 60 "bpy==4.2.0"
+          python -m py_compile build_and_upload_short.py generate_original_music.py download_one_audio.py scripts/render_tv_off_short_scene.py
+          echo "TV_OFF_PYTHON_SYNTAX_PREFLIGHT_PASSED"
           echo "EGL_PLATFORM=surfaceless" >> "$GITHUB_ENV"
           echo "LIBGL_ALWAYS_SOFTWARE=1" >> "$GITHUB_ENV"
           echo "GALLIUM_DRIVER=llvmpipe" >> "$GITHUB_ENV"
