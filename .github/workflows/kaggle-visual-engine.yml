@@ -39,19 +39,23 @@ jobs:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
         run: |
           set -euo pipefail
-          kaggle kernels push -p visual-engine/kaggle-smoke --timeout 1800 --accelerator NvidiaTeslaT4
+          kaggle kernels push -p visual-engine/kaggle-smoke --timeout 1800 --accelerator NvidiaTeslaT4 2>&1 | tee /tmp/kaggle-push.log
+          echo 'Push response captured.'
+          grep -Eo '([A-Za-z0-9_-]+)/([A-Za-z0-9_-]+)' /tmp/kaggle-push.log | tail -1 > /tmp/kernel-ref || true
+          echo "Kernel ref from push: $(cat /tmp/kernel-ref 2>/dev/null || true)"
       - name: Wait for Kaggle execution and collect logs
         env:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
         run: |
           set -uo pipefail
-          KERNEL='TVOffset/tv-off-kaggle-gpu-smoke'
+          KERNEL="$(cat /tmp/kernel-ref 2>/dev/null || true)"
+          if [ -z "$KERNEL" ]; then KERNEL='TVOffset/tv-off-kaggle-gpu-smoke'; fi
           for i in $(seq 1 35); do
             echo "Kaggle status check $i/35"
             STATUS="$(kaggle kernels status "$KERNEL" 2>&1)" || { echo "$STATUS"; sleep 30; continue; }
             echo "$STATUS"
             case "$STATUS" in
-              *complete*) break ;;
+              *complete*|*Complete*) break ;;
               *error*|*Error*|*ERROR*) kaggle kernels logs "$KERNEL" || true; exit 1 ;;
             esac
             sleep 45
