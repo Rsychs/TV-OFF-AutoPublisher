@@ -1,0 +1,53 @@
+name: TV OFF — isolated visual engine benchmark
+on:
+  issue_comment:
+    types: [created]
+permissions:
+  contents: read
+  issues: read
+jobs:
+  render:
+    if: >-
+      github.event.issue.pull_request == null &&
+      github.event.issue.title == 'TV OFF Visual Engine — isolated 30s Shorts build' &&
+      github.event.comment.body == '/run-visual-benchmark' &&
+      github.event.comment.user.login == 'Rsychs'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: visual-engine-prototype
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install FFmpeg and client
+        run: |
+          python -m pip install --upgrade gradio_client
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+      - name: Generate isolated 5-second visual quality sample
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python visual-engine/generate_ltx25_test.py
+      - name: Validate MP4 metadata and duration
+        run: |
+          ffprobe -v error -show_entries format=duration,size -of json visual-engine-output/tv-off-ltx25-static-rain-fire-5s-vertical.mp4 | tee visual-engine-output/ffprobe.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('visual-engine-output/ffprobe.json').read_text())
+          d=float(p['format']['duration'])
+          s=int(p['format']['size'])
+          if not 3.5 <= d <= 6.5 or s < 100_000:
+              raise SystemExit(f'Invalid sample: duration={d}, bytes={s}')
+          print(f'VALID_SAMPLE duration={d:.2f}s bytes={s}')
+          PY
+      - name: Upload review artifact (never publish)
+        if: always() && hashFiles('visual-engine-output/**') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: tv-off-visual-benchmark-no-publish
+          path: visual-engine-output/
+          if-no-files-found: warn
+          retention-days: 7
