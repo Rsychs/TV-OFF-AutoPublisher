@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-shot 20-second TV OFF test against the public Lightricks LTX-2.5 Space.
+"""One-shot 5-second TV OFF test against the public Lightricks LTX-2.5 Space.
 
 The request deliberately calls the Space API directly: its UI slider is capped
 at 5 seconds, but the underlying run() handler accepts duration_s and converts
@@ -18,7 +18,7 @@ from pathlib import Path
 from gradio_client import Client
 
 SPACE = "Lightricks/LTX-2.5"
-DURATION_SECONDS = 20.0
+DURATION_SECONDS = 5.0
 # Portrait-ish 4:5 render: keeps GPU reservation near the free ZeroGPU quota.
 # Center-crop to 9:16 and upscale after generation.
 HEIGHT, WIDTH = 640, 512
@@ -51,7 +51,7 @@ def main() -> int:
     # Current Space app.py _INPUTS order:
     # prompt, image, height, width, duration_s, seed, decoder, auto_len,
     # randomize_seed, enhance_toggle.
-    # API call intentionally requests 20s even though the public UI slider maxes at 5s.
+    # API call uses the public Space maximum of 5s.
     result = client.predict(
         PROMPT,
         None,
@@ -72,7 +72,7 @@ def main() -> int:
         raise RuntimeError(f"Space returned no local MP4 file: {result!r}")
 
     raw = out / "tv-off-ltx25-bedroom-rain-raw.mp4"
-    final = out / "tv-off-ltx25-bedroom-rain-20s-vertical.mp4"
+    final = out / "tv-off-ltx25-bedroom-rain-5s-vertical.mp4"
     shutil.copy2(str(video_path), raw)
 
     # Convert the 4:5 source into a centered 9:16 Shorts master.
@@ -96,7 +96,7 @@ def main() -> int:
         "height": HEIGHT,
         "width": WIDTH,
         "duration_seconds_requested": DURATION_SECONDS,
-        "frames_requested": 481,
+        "frames_requested": 121,
         "fps": 24,
         "seed": SEED,
         "decoder": "conv",
@@ -104,7 +104,7 @@ def main() -> int:
         "source_video": raw.name,
         "shorts_master": final.name,
         "result": repr(result),
-        "note": "20s direct API request; UI slider is capped at 5s. Verify actual output duration before acceptance.",
+        "note": "5s request at the current public Space API limit. Verify actual output duration before acceptance."",
     }
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     print(
