@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """One-shot 5-second TV OFF test against the public Lightricks LTX-2.5 Space.
 
-The request deliberately calls the Space API directly: its UI slider is capped
-at 5 seconds, but the underlying run() handler accepts duration_s and converts
-it to frames. This tests whether the free ZeroGPU reservation permits 20 sec.
+The request tests a static-camera rain-and-fire scene suitable for crossfaded looping.
 No YouTube workflow or production resource is touched.
 """
 from __future__ import annotations
@@ -24,17 +22,20 @@ DURATION_SECONDS = 5.0
 HEIGHT, WIDTH = 640, 512
 SEED = 42
 PROMPT = (
-    "One continuous photorealistic cinematic shot inside a luxury bedroom at "
-    "midnight. A wide elegant room with floor-to-ceiling rain-covered windows, "
-    "warm amber bedside lamps against deep navy shadows, refined natural "
-    "materials, realistic glass reflections and detailed soft fabric. The "
-    "camera makes an extremely slow, perfectly smooth dolly forward throughout "
-    "the entire shot. Rain trails move naturally down the glass; sheer curtains "
-    "breathe subtly in a faint indoor draft; lamp light flickers almost "
-    "imperceptibly. The room layout, furniture, windows, lamps and lighting "
-    "remain consistent from first frame to last. Calm premium sleep ambience, "
-    "physically plausible motion, no people, no text, no logos, no cuts, no "
-    "transitions, no sudden movement, no morphing, no geometry changes."
+    "A locked-off tripod camera, absolutely static composition, inside a "
+    "beautiful realistic cozy luxury cabin living room at night. Wide view: "
+    "large rain-covered window on the left, a stone fireplace with visible "
+    "natural orange flames on the right, warm amber practical lighting, "
+    "deep navy evening shadows, realistic wood and stone textures. The camera "
+    "does not move at all: no pan, no tilt, no zoom, no dolly, no shake, no "
+    " reframing. Only two things move: fine rain droplets slowly travel down "
+    "the window glass, and the fireplace flames flicker naturally with subtle "
+    "changing embers. All furniture, architecture, reflections, lighting and "
+    "framing remain perfectly fixed. Calm premium sleep ambience, photorealistic "
+    "cinematography, stable geometry, no people, no text, no logos, no cuts, "
+    "no transitions, no sudden motion, no morphing. The motion is gentle and "
+    "continuous, with the beginning and ending composition visually similar "
+    "so the clip can be crossfaded into a seamless long loop."
 )
 
 def main() -> int:
@@ -71,8 +72,8 @@ def main() -> int:
     if not video_path or not Path(str(video_path)).is_file():
         raise RuntimeError(f"Space returned no local MP4 file: {result!r}")
 
-    raw = out / "tv-off-ltx25-bedroom-rain-raw.mp4"
-    final = out / "tv-off-ltx25-bedroom-rain-5s-vertical.mp4"
+    raw = out / "tv-off-ltx25-static-rain-fire-raw.mp4"
+    final = out / "tv-off-ltx25-static-rain-fire-5s-vertical.mp4"
     shutil.copy2(str(video_path), raw)
 
     # Convert the 4:5 source into a centered 9:16 Shorts master.
