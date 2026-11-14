@@ -153,7 +153,6 @@ def main() -> None:
         raise RuntimeError(f"Generated audio is too short: {actual_duration:.2f}s")
 
     digest = sha256(target)
-    (ROOT / "manifest.sha256").write_text(f"{digest}  {target.name}\n", encoding="utf-8")
     manifest = {
         KIND: {
             "file": target.name,
@@ -174,8 +173,14 @@ def main() -> None:
             "downloaded_at": datetime.now(timezone.utc).isoformat(),
         }
     }
-    (ROOT / "manifest.json").write_text(
+    manifest_path = ROOT / "manifest.json"
+    manifest_path.write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    manifest_digest = sha256(manifest_path)
+    (ROOT / "manifest.sha256").write_text(
+        f"{digest}  {target.name}\n{manifest_digest}  {manifest_path.name}\n",
+        encoding="utf-8",
     )
     print(
         f"NOISE PREFLIGHT PASSED: {KIND} | {profile_name} | "
