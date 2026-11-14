@@ -1,6 +1,6 @@
 {
   "id": "TVOffset/tv-off-kaggle-gpu-smoke",
-  "title": "TV OFF Kaggle GPU Smoke Test",
+  "title": "TV OFF Kaggle GPU Smoke",
   "code_file": "smoke_test.ipynb",
   "language": "python",
   "kernel_type": "notebook",
