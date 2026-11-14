@@ -1,0 +1,40 @@
+name: TV OFF Visual Engine — issue-triggered LTX-2.5 test
+on:
+  issue_comment:
+    types: [created]
+permissions:
+  contents: read
+  issues: read
+jobs:
+  generate:
+    if: >-
+      github.event.issue.pull_request == null &&
+      github.event.issue.title == 'TV OFF Visual Engine — 20s LTX-2.5 experiment' &&
+      github.event.comment.body == '/run-ltx25-test' &&
+      github.event.comment.user.login == 'Rsychs'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: visual-engine-prototype
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Gradio client and FFmpeg
+        run: |
+          python -m pip install --upgrade gradio_client
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+      - name: Call hosted LTX-2.5 ZeroGPU
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python visual-engine/generate_ltx25_test.py
+      - name: Upload generated MP4 and manifest
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tv-off-ltx25-20s-experiment
+          path: visual-engine-output/
+          if-no-files-found: error
+          retention-days: 7
