@@ -181,10 +181,12 @@ def main():
             for record in reversed(records):
                 if not isinstance(record, dict):
                     continue
+                # Match the tuple order used by combinations below:
+                # (musical_mode, music_style, sound_profile).
                 candidate = (
+                    str(record.get("musical_mode", "")).strip(),
                     str(record.get("music_style", "")).strip(),
                     str(record.get("sound_profile", "")).strip(),
-                    str(record.get("musical_mode", "")).strip(),
                 )
                 if all(candidate):
                     previous_combo = candidate
@@ -201,6 +203,13 @@ def main():
     mode_name, style_name, profile_name = eligible_combinations[
         int(rng.integers(0, len(eligible_combinations)))
     ]
+    if SHORT_MODE and previous_combo == (mode_name, style_name, profile_name):
+        raise RuntimeError("Short-form Original Music repeated the previous mode/style/profile combination.")
+    if SHORT_MODE:
+        print(
+            f"SHORT MUSIC COMBO: previous={previous_combo or 'none'} "
+            f"selected={(mode_name, style_name, profile_name)}"
+        )
     style = MUSIC_STYLES[style_name]
     profile = PROFILES[profile_name]
     root_midi = int(rng.integers(40, 53))
