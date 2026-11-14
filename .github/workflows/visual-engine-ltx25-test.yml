@@ -1,0 +1,37 @@
+name: TV OFF Visual Engine — LTX-2.5 test
+on:
+  workflow_dispatch:
+    inputs:
+      use_hf_token:
+        description: "Use HF_TOKEN secret if configured (only needed if public Space denies anonymous API access)"
+        required: false
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  actions: read
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: visual-engine-prototype
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Gradio client
+        run: python -m pip install --upgrade gradio_client
+      - name: Call hosted LTX-2.5 ZeroGPU
+        env:
+          HF_TOKEN: ${{ inputs.use_hf_token && secrets.HF_TOKEN || '' }}
+        run: python visual-engine/generate_ltx25_test.py
+      - name: Upload generated MP4 and manifest
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tv-off-ltx25-test
+          path: visual-engine-output/
+          if-no-files-found: error
+          retention-days: 7
