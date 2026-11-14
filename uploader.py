@@ -134,17 +134,30 @@ def main():
         if not sidecar_path.is_file():
             raise RuntimeError(f"{soundscape}: required manifest.sha256 is missing; refusing upload.")
         sidecar_lines = sidecar_path.read_text(encoding="utf-8").splitlines()
-        if len(sidecar_lines) != 1:
-            raise RuntimeError("manifest.sha256 must contain exactly one checksum entry.")
-        sidecar_parts = sidecar_lines[0].strip().split()
-        if len(sidecar_parts) != 2 or sidecar_parts[1].lstrip("*") != source_audio.name:
-            raise RuntimeError("manifest.sha256 must contain the checksum and exact selected audio filename.")
-        sidecar_sha256 = sidecar_parts[0].lower()
-        if len(sidecar_sha256) != 64 or any(ch not in "0123456789abcdef" for ch in sidecar_sha256):
-            raise RuntimeError("manifest.sha256 contains an invalid SHA-256 digest.")
+        if len(sidecar_lines) != 2:
+            raise RuntimeError("manifest.sha256 must contain exactly two checksum entries: audio and manifest.json.")
+
+        def parse_sidecar_entry(line, expected_name):
+            parts = line.strip().split()
+            if len(parts) != 2 or parts[1].lstrip("*") != expected_name:
+                raise RuntimeError(f"manifest.sha256 must contain the exact filename {expected_name}.")
+            checksum = parts[0].lower()
+            if len(checksum) != 64 or any(ch not in "0123456789abcdef" for ch in checksum):
+                raise RuntimeError(f"manifest.sha256 contains an invalid SHA-256 digest for {expected_name}.")
+            return checksum
+
+        sidecar_audio_sha256 = parse_sidecar_entry(sidecar_lines[0], source_audio.name)
+        sidecar_manifest_sha256 = parse_sidecar_entry(sidecar_lines[1], MANIFEST_FILE.name)
         audio_sha256 = sha256_file(source_audio)
-        if sidecar_sha256 != audio_sha256 or audio_sha256 != source["sha256"]:
-            raise RuntimeError(f"{soundscape}: manifest.sha256/manifest.json do not match the generated audio.")
+        manifest_sha256 = sha256_file(MANIFEST_FILE)
+        if (
+            sidecar_audio_sha256 != audio_sha256
+            or audio_sha256 != source["sha256"]
+            or sidecar_manifest_sha256 != manifest_sha256
+        ):
+            raise RuntimeError(
+                f"{soundscape}: manifest.sha256/manifest.json do not match the generated audio and manifest."
+            )
         video_sha256 = sha256_file(filename)
         used_audio_hashes = set(state.get("_published_audio_sha256", [])) | set(shorts_state.get("_published_audio_sha256", []))
         used_video_hashes = set(state.get("_published_video_sha256", [])) | set(shorts_state.get("_published_video_sha256", []))
