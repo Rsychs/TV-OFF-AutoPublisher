@@ -77,3 +77,12 @@ Do not publish model outputs until the exact weights, dependencies, dataset term
 - No publishing workflow, scheduler, issue trigger, OAuth secret, YouTube token, production state file or existing media is modified.
 - Cloud Studio remains frozen.
 - No automatic YouTube upload. Prototype outputs are research artifacts only.
+
+
+## 20-second Shorts feasibility — verified from the live Space source
+
+The official LTX-2.5 ZeroGPU Space UI slider is capped at 5 seconds, but its public `/run` handler accepts `duration_s` and calls `frames_from_duration(duration_s)`; the underlying `generate()` function accepts an explicit frame count. The same source caps *automatic* duration at 15 seconds for quota reservation, not because the model itself is limited to 15 seconds. The model's official API supports up to 20 seconds at selected resolutions/FPS.
+
+A 20-second direct API request is therefore a technically grounded experiment, not a proven successful free run. ZeroGPU estimates reservation from pixel count and doubles it for the xlarge slice; the free daily quota may reject the request, and queue/runtime are not guaranteed. The 20-second test script now requests 481 frames at 24 fps and 512x640, then center-crops/upscales to a 720x1280 Shorts master. This keeps the request smaller than a native 9:16 render in the hope of fitting the free reservation while preserving 20 seconds.
+
+**Important:** the API may reject the out-of-slider duration, the quota may be insufficient, or the output may not sustain coherent motion for 20 seconds. The acceptance test must inspect actual MP4 duration and quality; no successful generation is claimed yet. If it fails, next options are two or more overlapping clips with matched keyframes (if I2V is available), or a self-hosted Kaggle HunyuanVideo-1.5/Wan2GP run with the relevant GPU quota. Concatenating unrelated clips without continuity control is not an acceptable final solution.
