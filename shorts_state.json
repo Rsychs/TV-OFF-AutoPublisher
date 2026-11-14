@@ -25,8 +25,8 @@
   "2026111015": "eXTpe8xmXpQ",
   "2026111016": "7NheFoOCszI",
   "2026111018": "TLshjH7g1Ec",
-  "_last_published_at": "2026-11-14T14:05:13.087287+00:00",
-  "_last_production_duration_seconds": 81,
+  "_last_published_at": "2026-11-14T15:09:23.734419+00:00",
+  "_last_production_duration_seconds": 118,
   "_published_titles": [
     "A Little White Noise for a Quieter Moment #Shorts",
     "Brown Noise for Reading and Deep Focus #Shorts",
@@ -87,7 +87,8 @@
     "Steady White Noise for Deep Focus \u2014 Relax and Unwind #Shorts",
     "Steady White Noise to Help You Switch Off #Shorts",
     "Relax into a Steady Brown Noise Bed #Shorts",
-    "Original Ambient Music for a Slower Moment to Help You Switch Off #Shorts"
+    "Original Ambient Music for a Slower Moment to Help You Switch Off #Shorts",
+    "Deep Brown Noise for Restful Sleep \u2014 Relax and Unwind #Shorts"
   ],
   "_generated_titles_by_category": {
     "brown_noise": [
@@ -233,7 +234,8 @@
     "bf16155760a4392c2fd7812a14e156e500c8d87df88853597c688d7e8ba6e086",
     "8ee16bf0676029b67d99b9f06739772c9a24d3945babe7ad72d64ad5c295d562",
     "293cdf316d21161c1e9a69a68b4364221fb725ad3d9bec8d91c63fa926afab26",
-    "32983403476dc9670d78e1e7b9d705cddda6f2db6bb1b74cc269584d599e86ad"
+    "32983403476dc9670d78e1e7b9d705cddda6f2db6bb1b74cc269584d599e86ad",
+    "8106be83e3d7f223c2caf10147cb3c958851cfb6d150dc1e7cb2d7029e039264"
   ],
   "_published_video_sha256": [
     "e218556701641d41aa762d5693fe977f9faa7aa25c69e4f5ee6b769175c7aa98",
@@ -298,7 +300,8 @@
     "ee438da6d28ea4345ed84333fd6311628d73727c9402576393d376fdddef1811",
     "3da54bbc8066543d6c94f9f03e4f7353bfa6986bac362f12bcab056496781023",
     "c740973357d07012f48a37e7d970337600a6bab22eb048d186937eefe130db60",
-    "a33fe8ee3825bb060ecec1d74727a8c9ea8a5fc2344887a3ea0e8a21d4cff1ef"
+    "a33fe8ee3825bb060ecec1d74727a8c9ea8a5fc2344887a3ea0e8a21d4cff1ef",
+    "c474d63f6fc12ff2e79c9f6878d8ac217689ddfd13b5c3089cb38d15690ed4ca"
   ],
   "2026111020": "KqXmnU4wbQY",
   "2026111021": "iEXFSo5Fytw",
@@ -411,5 +414,6 @@
   "2026111410": "y0VAANxmYkg",
   "2026111412": "7V-i7512cec",
   "2026111413": "lGqzKdQG5G8",
-  "2026111414": "BnAPJmpsM-0"
+  "2026111414": "BnAPJmpsM-0",
+  "2026111415": "VcWLh9wKLMQ"
 }
