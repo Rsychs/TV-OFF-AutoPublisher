@@ -97,7 +97,7 @@ def main() -> int:
         [
             "ffmpeg", "-y",
             "-i", str(final), "-i", str(final), "-i", str(final),
-            "-i", str(final), "-i", str(final), "-i", str(final),
+            "-i", str(final), "-i", str(final), "-i", str(final), "-i", str(final),
             "-filter_complex",
             "[0:v]fps=24,settb=1/24,setpts=PTS-STARTPTS[v0];"
             "[1:v]fps=24,settb=1/24,setpts=PTS-STARTPTS[v1];"
@@ -105,11 +105,13 @@ def main() -> int:
             "[3:v]fps=24,settb=1/24,setpts=PTS-STARTPTS[v3];"
             "[4:v]fps=24,settb=1/24,setpts=PTS-STARTPTS[v4];"
             "[5:v]fps=24,settb=1/24,setpts=PTS-STARTPTS[v5];"
+            "[6:v]fps=24,settb=1/24,setpts=PTS-STARTPTS[v6];"
             "[v0][v1]xfade=transition=fade:duration=0.20:offset=4.80[x1];"
             "[x1][v2]xfade=transition=fade:duration=0.20:offset=9.60[x2];"
             "[x2][v3]xfade=transition=fade:duration=0.20:offset=14.40[x3];"
             "[x3][v4]xfade=transition=fade:duration=0.20:offset=19.20[x4];"
-            "[x4][v5]xfade=transition=fade:duration=0.20:offset=24.00,trim=duration=30,setpts=PTS-STARTPTS[v]",
+            "[x4][v5]xfade=transition=fade:duration=0.20:offset=24.00[x5];"
+            "[x5][v6]xfade=transition=fade:duration=0.20:offset=28.80,trim=duration=30,setpts=PTS-STARTPTS[v]",
             "-map", "[v]", "-an", "-c:v", "libx264", "-preset", "medium",
             "-crf", "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
             str(draft),
