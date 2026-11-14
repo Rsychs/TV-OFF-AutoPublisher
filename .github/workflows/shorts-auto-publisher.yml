@@ -120,6 +120,11 @@ jobs:
               raise RuntimeError("Blender EGL smoke render produced no valid image.")
           print("BLENDER_EGL_SMOKE_RENDER_PASSED", bpy.app.version_string, smoke.stat().st_size)
           PY
+          python scripts/render_tv_off_short_scene.py --out /tmp/tv-off-short-scene-smoke.png --kind original_music --slot 2026111400
+          test -s /tmp/tv-off-short-scene-smoke.png
+          SCENE_BYTES="$(stat -c%s /tmp/tv-off-short-scene-smoke.png)"
+          test "$SCENE_BYTES" -ge 100000
+          echo "BLENDER_TV_OFF_SCENE_SMOKE_RENDER_PASSED bytes=$SCENE_BYTES"
           command -v ffmpeg
           ffmpeg -version | head -n 2
           test -s /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
