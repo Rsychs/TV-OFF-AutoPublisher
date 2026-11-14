@@ -68,12 +68,21 @@ jobs:
         timeout-minutes: 25
         run: |
           set -euo pipefail
-          # Do not use apt: this runner currently has DNS/network failures for
-          # Ubuntu mirrors. Install bundled FFmpeg and DejaVu fonts from PyPI wheels.
+          # Blender's bpy wheel still needs the OS EGL/OpenGL runtime libraries.
+          # Install Mesa's headless EGL stack before importing bpy; no display server is used.
+          sudo apt-get update -o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30
+          sudo apt-get install -y --no-install-recommends \
+            libegl1 libegl-mesa0 libgl1 libglx-mesa0 libgbm1 \
+            libx11-6 libxi6 libxrender1 libxfixes3 libsm6 libxxf86vm1 \
+            libxkbcommon0 libxkbcommon-x11-0 libfontconfig1
+          sudo ldconfig
+          ldconfig -p | grep -q 'libEGL.so.1'
+          ldconfig -p | grep -q 'libGL.so.1'
           python -m pip install --disable-pip-version-check --retries 3 --timeout 30 -r requirements.txt
-          # bpy is Blender's official headless Python module, distributed on PyPI.
-          # This avoids Ubuntu apt mirrors and allows the Shorts renderer to build real 3D scenes.
           python -m pip install --disable-pip-version-check --retries 3 --timeout 60 "bpy==4.2.0"
+          echo "EGL_PLATFORM=surfaceless" >> "$GITHUB_ENV"
+          echo "LIBGL_ALWAYS_SOFTWARE=1" >> "$GITHUB_ENV"
+          echo "GALLIUM_DRIVER=llvmpipe" >> "$GITHUB_ENV"
           FFMPEG_BIN="$(python -c 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())')"
           mkdir -p "$RUNNER_TEMP/tv-off-bin"
           sudo mkdir -p /usr/share/fonts/truetype/dejavu
