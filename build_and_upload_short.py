@@ -159,16 +159,41 @@ def main():
     accent, headline, tagline = themes[kind]
     slot_hour_utc = int(slot[-2:])
     variant_index = (slot_hour_utc + slot_hour_utc // 6) % 3
-    brown_hooks = [
-        ("SLOW DOWN. BREATHE.", "A DEEPER SOUND FOR REST"),
-        ("LET YOUR MIND UNWIND", "A QUIETER MOMENT STARTS HERE"),
-        ("FIND YOUR QUIET FOCUS", "STAY WITH THE TASK"),
-    ]
+    hook_banks = {
+        "white_noise": [
+            "STAY. BREATHE. RELAX.",
+            "NEED A MOMENT OF PEACE?",
+            "LET THE NOISE FADE AWAY",
+            "TAKE A QUIET MOMENT",
+            "BREATHE IN. LET GO.",
+        ],
+        "brown_noise": [
+            "STAY. BREATHE. RELAX.",
+            "LET YOUR MIND SLOW DOWN",
+            "FIND YOUR QUIET FOCUS",
+            "SLOW DOWN. BREATHE.",
+            "A DEEPER MOMENT OF CALM",
+        ],
+        "original_music": [
+            "STAY. BREATHE. RELAX.",
+            "ESCAPE FOR A MOMENT",
+            "LET YOUR THOUGHTS DRIFT",
+            "A MOMENT JUST FOR YOU",
+            "SLOW DOWN. FEEL MORE.",
+        ],
+    }
+    hook = hook_banks[kind][slot_hour_utc % len(hook_banks[kind])]
+    # The hook is a brief opening cue, not a persistent overlay. Audio remains
+    # continuous from frame zero; the hook fades away before the main message.
+    hook_end_seconds = 2.0
     if kind == "brown_noise":
-        hook, tagline = brown_hooks[variant_index]
+        brown_taglines = [
+            "A DEEPER SOUND FOR REST",
+            "A QUIETER MOMENT STARTS HERE",
+            "STAY WITH THE TASK",
+        ]
+        tagline = brown_taglines[variant_index]
         accent = ["0xC99563", "0xD6AE82", "0xA97852"][variant_index]
-    else:
-        hook = "A MOMENT FOR YOU"
 
     scene_png = OUT / f"scene_{slot}_{kind}.png"
     scene_script = ROOT / "scripts" / "render_tv_off_short_scene.py"
@@ -191,7 +216,9 @@ def main():
         "[bg][w]overlay=(W-w)/2:1450:shortest=1,"
         f"drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
         f"text='{hook}':fontcolor=0xF1F4FA:fontsize=34:"
-        "x=(w-text_w)/2:y=250:shadowcolor=black@0.45:shadowx=2:shadowy=3,"
+        "x=(w-text_w)/2:y=250:shadowcolor=black@0.45:shadowx=2:shadowy=3:"
+        f"alpha='if(lt(t,{hook_end_seconds - 0.5}),1,max(0,{hook_end_seconds}-t))':"
+        f"enable='lt(t,{hook_end_seconds})',"
         f"drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
         f"text='{headline}':fontcolor=white:fontsize=66:"
         "x=(w-text_w)/2:y=355:shadowcolor=black@0.55:shadowx=2:shadowy=3,"
@@ -223,8 +250,11 @@ def main():
         f"text='{CTA_TEXT}'" not in graph
         or f"enable='gte(t,{CTA_START_SECONDS})'" not in graph
         or f"if(lt(t,{CTA_START_SECONDS}),0, min(1,(t-{CTA_START_SECONDS})))" not in graph
+        or f"text='{hook}'" not in graph
+        or f"enable='lt(t,{hook_end_seconds})'" not in graph
+        or "alpha='if(lt(t,1.5),1,max(0,2.0-t))'" not in graph
     ):
-        raise RuntimeError("Rendered Short CTA filter does not match the required 11–18 second window.")
+        raise RuntimeError("Rendered Short hook or CTA timing does not match the approved opening/11–18 second layout.")
     probe = subprocess.run(
         ["ffmpeg", "-hide_banner", "-i", str(target)],
         capture_output=True, text=True, check=False, timeout=60
@@ -475,6 +505,17 @@ def main():
     state["_published_video_sha256"] = list(dict.fromkeys(
         state.get("_published_video_sha256", []) + [video_sha256]
     ))[-500:]
+    hook_records = state.setdefault("_published_hook_metadata", [])
+    if not any(item.get("video_id") == video_id for item in hook_records if isinstance(item, dict)):
+        hook_records.append({
+            "video_id": video_id,
+            "published_at": published_at.isoformat(),
+            "category": kind,
+            "hook": hook,
+            "hook_duration_seconds": hook_end_seconds,
+            "audio_starts_at_seconds": 0,
+        })
+        state["_published_hook_metadata"] = hook_records[-200:]
     if kind == "original_music":
         music_records = state.setdefault("_published_music_metadata", [])
         if not any(item.get("video_id") == video_id for item in music_records if isinstance(item, dict)):
