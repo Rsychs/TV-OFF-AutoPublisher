@@ -1,0 +1,72 @@
+name: TV OFF Kaggle GPU smoke test
+on:
+  issue_comment:
+    types: [created]
+permissions:
+  contents: read
+  issues: read
+jobs:
+  kaggle-smoke:
+    if: >-
+      github.event.issue.pull_request == null &&
+      github.event.issue.title == 'TV OFF Kaggle GPU smoke test' &&
+      github.event.comment.body == '/run-kaggle-smoke' &&
+      github.event.comment.user.login == 'Rsychs'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: visual-engine-prototype
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Kaggle CLI
+        run: python -m pip install --upgrade kaggle
+      - name: Verify Kaggle authentication without exposing credentials
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os, sys
+          token = os.environ.get("KAGGLE_API_TOKEN", "")
+          if not token:
+              raise SystemExit("KAGGLE_API_TOKEN secret is missing or empty")
+          print("KAGGLE_API_TOKEN is present; value is not displayed.")
+          PY
+      - name: Push and launch GPU smoke test
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          kaggle kernels push -p visual-engine/kaggle-smoke --timeout 1800 --accelerator NvidiaTeslaT4
+      - name: Wait for Kaggle execution and collect logs
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+        run: |
+          set -uo pipefail
+          KERNEL='TVOffset/tv-off-kaggle-gpu-smoke'
+          for i in $(seq 1 35); do
+            echo "Kaggle status check $i/35"
+            STATUS="$(kaggle kernels status "$KERNEL" 2>&1)" || { echo "$STATUS"; sleep 30; continue; }
+            echo "$STATUS"
+            case "$STATUS" in
+              *complete*) break ;;
+              *error*|*Error*|*ERROR*) kaggle kernels logs "$KERNEL" || true; exit 1 ;;
+            esac
+            sleep 45
+          done
+          kaggle kernels logs "$KERNEL" || true
+          kaggle kernels output "$KERNEL" -p visual-engine/kaggle-smoke-output || true
+          if [ -d visual-engine/kaggle-smoke-output ]; then
+            find visual-engine/kaggle-smoke-output -maxdepth 2 -type f -printf '%p (%s bytes)\\n'
+          fi
+      - name: Upload smoke-test logs and output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tv-off-kaggle-gpu-smoke
+          path: |
+            visual-engine/kaggle-smoke-output/
+          if-no-files-found: ignore
+          retention-days: 7
