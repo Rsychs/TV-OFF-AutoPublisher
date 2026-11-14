@@ -104,7 +104,7 @@ def main() -> int:
         "source_video": raw.name,
         "shorts_master": final.name,
         "result": repr(result),
-        "note": "5s request at the current public Space API limit. Verify actual output duration before acceptance."",
+        "note": "5s request at the current public Space API limit. Verify actual output duration before acceptance.",
     }
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     print(
