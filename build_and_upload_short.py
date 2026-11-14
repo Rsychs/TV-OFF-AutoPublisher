@@ -182,7 +182,15 @@ def main():
             "SLOW DOWN. FEEL MORE.",
         ],
     }
-    hook = hook_banks[kind][slot_hour_utc % len(hook_banks[kind])]
+    published_hook_records = state.get("_published_hook_metadata", [])
+    if not isinstance(published_hook_records, list):
+        raise RuntimeError("Invalid published hook ledger; refusing to select an untracked Shorts hook.")
+    # Select by confirmed successful publications, not by wall-clock slot. This
+    # makes the next five published Shorts use five distinct opening variants,
+    # even when a slot is skipped by the shared concurrency guard.
+    hook_sequence_number = len(published_hook_records) + 1
+    hook_index = (hook_sequence_number - 1) % len(hook_banks[kind])
+    hook = hook_banks[kind][hook_index]
     # The hook is a brief opening cue, not a persistent overlay. Audio remains
     # continuous from frame zero; the hook fades away before the main message.
     hook_end_seconds = 2.0
@@ -506,14 +514,20 @@ def main():
         state.get("_published_video_sha256", []) + [video_sha256]
     ))[-500:]
     hook_records = state.setdefault("_published_hook_metadata", [])
+    if not isinstance(hook_records, list):
+        raise RuntimeError("Invalid published hook ledger after upload; manual state reconciliation is required.")
     if not any(item.get("video_id") == video_id for item in hook_records if isinstance(item, dict)):
         hook_records.append({
             "video_id": video_id,
             "published_at": published_at.isoformat(),
             "category": kind,
             "hook": hook,
+            "hook_experiment_id": "opening-hook-v1",
+            "hook_sequence_number": hook_sequence_number,
+            "hook_variant_index": hook_index,
             "hook_duration_seconds": hook_end_seconds,
             "audio_starts_at_seconds": 0,
+            "audio_fade_in_seconds": 0.25,
         })
         state["_published_hook_metadata"] = hook_records[-200:]
     if kind == "original_music":
