@@ -230,7 +230,7 @@ def main():
         capture_output=True, text=True, check=False, timeout=60
     )
     probe_output = (probe.stderr or "") + "\n" + (probe.stdout or "")
-    duration_match = re.search(r"Duration:\\s*(\\d+):(\\d+):(\\d+(?:\\.\\d+)?)", probe_output)
+    duration_match = re.search(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)", probe_output)
     if not duration_match:
         raise RuntimeError("Could not verify rendered Short duration with FFmpeg; refusing upload.")
     actual_video_duration = (
