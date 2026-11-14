@@ -25,8 +25,8 @@
   "2026111015": "eXTpe8xmXpQ",
   "2026111016": "7NheFoOCszI",
   "2026111018": "TLshjH7g1Ec",
-  "_last_published_at": "2026-11-14T13:09:10.741191+00:00",
-  "_last_production_duration_seconds": 122,
+  "_last_published_at": "2026-11-14T14:05:13.087287+00:00",
+  "_last_production_duration_seconds": 81,
   "_published_titles": [
     "A Little White Noise for a Quieter Moment #Shorts",
     "Brown Noise for Reading and Deep Focus #Shorts",
@@ -86,7 +86,8 @@
     "Deep Brown Noise for Reading and Relaxing | TV OFF #Shorts",
     "Steady White Noise for Deep Focus \u2014 Relax and Unwind #Shorts",
     "Steady White Noise to Help You Switch Off #Shorts",
-    "Relax into a Steady Brown Noise Bed #Shorts"
+    "Relax into a Steady Brown Noise Bed #Shorts",
+    "Original Ambient Music for a Slower Moment to Help You Switch Off #Shorts"
   ],
   "_generated_titles_by_category": {
     "brown_noise": [
@@ -231,7 +232,8 @@
     "22cc531f6cd9931e80e9330ca0a4526ed9d46e8c49026780f3fb03ed103ab753",
     "bf16155760a4392c2fd7812a14e156e500c8d87df88853597c688d7e8ba6e086",
     "8ee16bf0676029b67d99b9f06739772c9a24d3945babe7ad72d64ad5c295d562",
-    "293cdf316d21161c1e9a69a68b4364221fb725ad3d9bec8d91c63fa926afab26"
+    "293cdf316d21161c1e9a69a68b4364221fb725ad3d9bec8d91c63fa926afab26",
+    "32983403476dc9670d78e1e7b9d705cddda6f2db6bb1b74cc269584d599e86ad"
   ],
   "_published_video_sha256": [
     "e218556701641d41aa762d5693fe977f9faa7aa25c69e4f5ee6b769175c7aa98",
@@ -295,7 +297,8 @@
     "3aa4dbe0cd3d83d856b7e464fbccad1ca13949a913e8dfe2eb39ce45a408441a",
     "ee438da6d28ea4345ed84333fd6311628d73727c9402576393d376fdddef1811",
     "3da54bbc8066543d6c94f9f03e4f7353bfa6986bac362f12bcab056496781023",
-    "c740973357d07012f48a37e7d970337600a6bab22eb048d186937eefe130db60"
+    "c740973357d07012f48a37e7d970337600a6bab22eb048d186937eefe130db60",
+    "a33fe8ee3825bb060ecec1d74727a8c9ea8a5fc2344887a3ea0e8a21d4cff1ef"
   ],
   "2026111020": "KqXmnU4wbQY",
   "2026111021": "iEXFSo5Fytw",
@@ -385,6 +388,18 @@
       "duration_seconds": 36.0,
       "bar_seconds": 4.5,
       "audio_sha256": "50587de6169afc59bce6c88439c351e41adf758c2f3262c23230d76f13f70a38"
+    },
+    {
+      "video_id": "BnAPJmpsM-0",
+      "published_at": "2026-11-14T14:05:13.087287+00:00",
+      "title": "Original Ambient Music for a Slower Moment to Help You Switch Off #Shorts",
+      "music_style": "celestial",
+      "sound_profile": "glass_and_felt",
+      "musical_mode": "major",
+      "composition_mode": "short_form_fast_harmonic_movement",
+      "duration_seconds": 36.0,
+      "bar_seconds": 4.5,
+      "audio_sha256": "32983403476dc9670d78e1e7b9d705cddda6f2db6bb1b74cc269584d599e86ad"
     }
   ],
   "2026111318": "HBt31H9s8-M",
@@ -395,5 +410,6 @@
   "2026111409": "6ztNvS0qZ1E",
   "2026111410": "y0VAANxmYkg",
   "2026111412": "7V-i7512cec",
-  "2026111413": "lGqzKdQG5G8"
+  "2026111413": "lGqzKdQG5G8",
+  "2026111414": "BnAPJmpsM-0"
 }
