@@ -46,7 +46,7 @@ def main() -> int:
         f"request={DURATION_SECONDS}s @ {WIDTH}x{HEIGHT}",
         flush=True,
     )
-    client = Client(SPACE, hf_token=token or None, verbose=True)
+    client = Client(SPACE, token=token or None, verbose=True, httpx_kwargs={"timeout": 600})
 
     # Current Space app.py _INPUTS order:
     # prompt, image, height, width, duration_s, seed, decoder, auto_len,
