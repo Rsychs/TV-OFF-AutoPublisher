@@ -16,6 +16,8 @@ STATE = ROOT / "shorts_state.json"
 AUDIO_DIR = Path(os.environ.get("SOURCE_AUDIO_DIR", ROOT / "generated-audio"))
 OUT = ROOT / "shorts"
 DURATION = 18
+CTA_START_SECONDS = 11
+CTA_TEXT = "MORE SOUNDS ON OUR CHANNEL"
 
 def run(args):
     subprocess.run(args, check=True, timeout=900)
@@ -105,19 +107,25 @@ def main():
     if not source.is_relative_to(AUDIO_DIR.resolve()) or not source.is_file():
         raise RuntimeError(f"Selected {kind} audio is missing or outside the local audio directory.")
 
-    # Require a standalone sha256sum-compatible sidecar generated alongside this exact audio.
+    # Require exact audio and manifest checksums in a sha256sum-compatible sidecar.
     sidecar_path = AUDIO_DIR / "manifest.sha256"
     if not sidecar_path.is_file():
         raise RuntimeError("Required generated-audio/manifest.sha256 is missing; refusing to build or upload.")
     sidecar_lines = sidecar_path.read_text(encoding="utf-8").splitlines()
-    if len(sidecar_lines) != 1:
-        raise RuntimeError("manifest.sha256 must contain exactly one checksum entry.")
-    sidecar_parts = sidecar_lines[0].strip().split()
-    if len(sidecar_parts) != 2 or sidecar_parts[1].lstrip("*") != source.name:
-        raise RuntimeError("manifest.sha256 must contain the checksum and exact selected audio filename.")
-    sidecar_sha256 = sidecar_parts[0].lower()
-    if len(sidecar_sha256) != 64 or any(ch not in "0123456789abcdef" for ch in sidecar_sha256):
-        raise RuntimeError("manifest.sha256 contains an invalid SHA-256 digest.")
+    if len(sidecar_lines) != 2:
+        raise RuntimeError("manifest.sha256 must contain exactly two checksum entries: audio and manifest.json.")
+
+    def parse_sidecar_entry(line, expected_name):
+        parts = line.strip().split()
+        if len(parts) != 2 or parts[1].lstrip("*") != expected_name:
+            raise RuntimeError(f"manifest.sha256 must contain the exact filename {expected_name}.")
+        checksum = parts[0].lower()
+        if len(checksum) != 64 or any(ch not in "0123456789abcdef" for ch in checksum):
+            raise RuntimeError(f"manifest.sha256 contains an invalid SHA-256 digest for {expected_name}.")
+        return checksum
+
+    sidecar_audio_sha256 = parse_sidecar_entry(sidecar_lines[0], source.name)
+    sidecar_manifest_sha256 = parse_sidecar_entry(sidecar_lines[1], manifest_path.name)
 
     def sha256_file(path):
         digest = hashlib.sha256()
@@ -127,8 +135,11 @@ def main():
         return digest.hexdigest()
 
     audio_sha256 = sha256_file(source)
-    if sidecar_sha256 != audio_sha256:
-        raise RuntimeError("manifest.sha256 does not match the actual selected audio file.")
+    manifest_sha256 = sha256_file(manifest_path)
+    if sidecar_audio_sha256 != audio_sha256:
+        raise RuntimeError("manifest.sha256 audio checksum does not match the actual selected audio file.")
+    if sidecar_manifest_sha256 != manifest_sha256:
+        raise RuntimeError("manifest.sha256 manifest checksum does not match the actual manifest.json file.")
     if info.get("sha256") != audio_sha256:
         raise RuntimeError(f"manifest.json SHA-256 does not match generated {kind} audio.")
 
@@ -191,8 +202,8 @@ def main():
         "text='TV OFF':fontcolor=white:fontsize=38:"
         "x=(w-text_w)/2:y=1665,"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:"
-        "text='MORE SOUNDS ON OUR CHANNEL':fontcolor=white:fontsize=27:"
-        "x=(w-text_w)/2:y=1775:alpha='if(lt(t,11),0, min(1,(t-11)))':enable='gte(t,11)'[v]"
+        f"text='{CTA_TEXT}':fontcolor=white:fontsize=27:"
+        f"x=(w-text_w)/2:y=1775:alpha='if(lt(t,{CTA_START_SECONDS}),0, min(1,(t-{CTA_START_SECONDS})))':enable='gte(t,{CTA_START_SECONDS})'[v]"
     )
     run([
         "ffmpeg", "-y", "-hide_banner", "-loop", "1", "-framerate", "30",
@@ -206,6 +217,35 @@ def main():
     ])
     if not target.is_file() or target.stat().st_size < 100000:
         raise RuntimeError("Short video output is missing or unexpectedly small.")
+    if DURATION != 18 or CTA_START_SECONDS != 11 or DURATION - CTA_START_SECONDS != 7:
+        raise RuntimeError("Short render configuration must be exactly 18 seconds with a 7-second CTA from second 11.")
+    if (
+        f"text='{CTA_TEXT}'" not in graph
+        or f"enable='gte(t,{CTA_START_SECONDS})'" not in graph
+        or f"if(lt(t,{CTA_START_SECONDS}),0, min(1,(t-{CTA_START_SECONDS})))" not in graph
+    ):
+        raise RuntimeError("Rendered Short CTA filter does not match the required 11–18 second window.")
+    probe = subprocess.run(
+        ["ffmpeg", "-hide_banner", "-i", str(target)],
+        capture_output=True, text=True, check=False, timeout=60
+    )
+    probe_output = (probe.stderr or "") + "\n" + (probe.stdout or "")
+    duration_match = re.search(r"Duration:\\s*(\\d+):(\\d+):(\\d+(?:\\.\\d+)?)", probe_output)
+    if not duration_match:
+        raise RuntimeError("Could not verify rendered Short duration with FFmpeg; refusing upload.")
+    actual_video_duration = (
+        int(duration_match.group(1)) * 3600
+        + int(duration_match.group(2)) * 60
+        + float(duration_match.group(3))
+    )
+    if abs(actual_video_duration - DURATION) > 0.10:
+        raise RuntimeError(
+            f"Rendered Short duration is {actual_video_duration:.2f}s, expected exactly {DURATION}s."
+        )
+    print(
+        f"SHORT RENDER PREFLIGHT PASSED: duration={actual_video_duration:.2f}s; "
+        f"CTA active from {CTA_START_SECONDS}s through {DURATION}s."
+    )
 
     # Content-level deduplication: slot uniqueness alone is not enough.
     video_sha256 = sha256_file(target)
