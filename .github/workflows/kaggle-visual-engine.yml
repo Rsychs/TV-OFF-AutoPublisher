@@ -34,6 +34,17 @@ jobs:
               raise SystemExit("KAGGLE_API_TOKEN secret is missing or empty")
           print("KAGGLE_API_TOKEN is present; value is not displayed.")
           PY
+      - name: Inspect Kaggle GPU quota and CLI capabilities
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+        run: |
+          set +e
+          echo "Kaggle CLI version:"
+          kaggle --version
+          echo "Kaggle quota command:"
+          kaggle quota 2>&1 || echo "Quota command unavailable through this CLI/account."
+          echo "Kernel command help (accelerator options):"
+          kaggle kernels push --help 2>&1 | grep -i -A3 -B2 accelerator || true
       - name: Push and launch GPU smoke test
         env:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
