@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parent
 STATE = ROOT / "shorts_state.json"
 AUDIO_DIR = Path(os.environ.get("SOURCE_AUDIO_DIR", ROOT / "generated-audio"))
 OUT = ROOT / "shorts"
-DURATION = 30
+DURATION = 18
 
 def run(args):
     subprocess.run(args, check=True, timeout=900)
@@ -192,7 +192,7 @@ def main():
         "x=(w-text_w)/2:y=1665,"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:"
         "text='MORE SOUNDS ON OUR CHANNEL':fontcolor=white:fontsize=27:"
-        "x=(w-text_w)/2:y=1775:alpha='if(lt(t,26),0, min(1,(t-26)))':enable='gte(t,26)'[v]"
+        "x=(w-text_w)/2:y=1775:alpha='if(lt(t,11),0, min(1,(t-11)))':enable='gte(t,11)'[v]"
     )
     run([
         "ffmpeg", "-y", "-hide_banner", "-loop", "1", "-framerate", "30",
