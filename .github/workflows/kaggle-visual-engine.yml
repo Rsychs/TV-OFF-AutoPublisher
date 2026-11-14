@@ -54,9 +54,10 @@ jobs:
             echo "Kaggle status check $i/35"
             STATUS="$(kaggle kernels status "$KERNEL" 2>&1)" || { echo "$STATUS"; sleep 30; continue; }
             echo "$STATUS"
-            case "$STATUS" in
-              *complete*|*Complete*) break ;;
-              *error*|*Error*|*ERROR*) kaggle kernels logs "$KERNEL" || true; exit 1 ;;
+            STATUS_LC="$(printf '%s' "$STATUS" | tr '[:upper:]' '[:lower:]')"
+            case "$STATUS_LC" in
+              *complete*) echo "Kaggle kernel completed."; break ;;
+              *error*) kaggle kernels logs "$KERNEL" || true; exit 1 ;;
             esac
             sleep 45
           done
