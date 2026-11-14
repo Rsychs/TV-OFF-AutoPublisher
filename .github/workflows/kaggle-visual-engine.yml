@@ -43,6 +43,26 @@ jobs:
           echo 'Push response captured.'
           grep -Eo '([A-Za-z0-9_-]+)/([A-Za-z0-9_-]+)' /tmp/kaggle-push.log | tail -1 > /tmp/kernel-ref || true
           echo "Kernel ref from push: $(cat /tmp/kernel-ref 2>/dev/null || true)"
+      - name: Verify Kaggle persisted accelerator settings
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          KERNEL="$(cat /tmp/kernel-ref)"
+          mkdir -p /tmp/kaggle-remote-metadata
+          kaggle kernels pull "$KERNEL" -p /tmp/kaggle-remote-metadata -m
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("/tmp/kaggle-remote-metadata/kernel-metadata.json")
+          if not p.exists():
+              raise SystemExit("Kaggle did not return persisted kernel-metadata.json")
+          data = json.loads(p.read_text())
+          print("Persisted Kaggle machine_shape:", data.get("machine_shape"))
+          print("Persisted Kaggle enable_gpu:", data.get("enable_gpu"))
+          if data.get("machine_shape") != "NvidiaTeslaT4":
+              raise SystemExit("Kaggle did not persist the requested NvidiaTeslaT4 accelerator")
+          PY
       - name: Wait for Kaggle execution and collect logs
         env:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
