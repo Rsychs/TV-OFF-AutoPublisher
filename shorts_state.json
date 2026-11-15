@@ -181,14 +181,7 @@
     "Brown Noise for Work Without the Distractions #Shorts",
     "Low, Deep Brown Noise for a Peaceful Evening #Shorts",
     "White Noise for a Quieter Night #Shorts",
-    "Soft Ambient Music to Slow Down To #Shorts",
-    "Deep Brown Noise for Quiet Focus — Relax and Unwind #Shorts",
-    "Deep Brown Noise for Reading and Relaxing — Relax and Unwind #Shorts",
-    "Steady White Noise for Reading and Relaxing — Relax and Unwind #Shorts",
-    "Original Ambient Music for a Peaceful Night — Relax and Unwind #Shorts",
-    "Deep Brown Noise for a Peaceful Night — Relax and Unwind #Shorts",
-    "Steady White Noise for Deep Focus — Relax and Unwind #Shorts",
-    "Deep Brown Noise for Restful Sleep — Relax and Unwind #Shorts"
+    "Soft Ambient Music to Slow Down To #Shorts"
   ],
   "_generated_titles_by_category": {
     "brown_noise": [
@@ -648,6 +641,14 @@
       ],
       "unique_title_strings_backfilled": 26,
       "note": "Backfilled exact historical YouTube titles into _published_titles to prevent future reuse. Historical duplicate uploads were recorded, not edited or deleted."
+    },
+    {
+      "audited_at": "2026-11-15T03:48:14+02:00",
+      "snapshot": "youtube_analytics_2026-11-14.json",
+      "unicode_title_corrections": 9,
+      "duplicate_ledger_entries_removed": 7,
+      "unique_titles_after_normalization": 85,
+      "note": "Normalized mojibake sequences for the em dash and two emoji titles, then collapsed duplicate ledger entries while preserving every unique used-title key. No published video or YouTube title was edited."
     }
   ]
 }
