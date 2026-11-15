@@ -6,6 +6,8 @@ import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import numpy as np
+
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -21,6 +23,40 @@ CTA_TEXT = "MORE SOUNDS ON OUR CHANNEL"
 
 def run(args):
     subprocess.run(args, check=True, timeout=900)
+
+def verify_static_camera(video_path):
+    # This central crop excludes the animated waveform and all text/CTA overlays.
+    # A locked-off scene should remain effectively identical across sampled frames.
+    width, height, x, y = 900, 700, 90, 600
+    frame_bytes = width * height * 3
+    result = subprocess.run(
+        [
+            "ffmpeg", "-hide_banner", "-loglevel", "error", "-i", str(video_path),
+            "-vf", f"crop={width}:{height}:{x}:{y},select='not(mod(n,90))'",
+            "-vsync", "0", "-an", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"
+        ],
+        capture_output=True, check=True, timeout=90
+    )
+    if len(result.stdout) < frame_bytes * 2 or len(result.stdout) % frame_bytes:
+        raise RuntimeError("Static-camera preflight could not extract enough background frames.")
+    frames = np.frombuffer(result.stdout, dtype=np.uint8).reshape(-1, height, width, 3)
+    reference = frames[0].astype(np.int16)
+    differences = np.abs(frames[1:].astype(np.int16) - reference)
+    mean_difference = float(differences.mean())
+    max_difference = int(differences.max())
+    changed_pixel_ratio = float(np.any(differences > 2, axis=3).mean())
+    if mean_difference > 1.0 or max_difference > 40 or changed_pixel_ratio > 0.15:
+        raise RuntimeError(
+            "Static-camera preflight failed: background crop moved "
+            f"(mean_abs_diff={mean_difference:.3f}, max_diff={max_difference}, "
+            f"changed_pixels={changed_pixel_ratio:.1%})."
+        )
+    print(
+        "STATIC CAMERA PREFLIGHT PASSED: "
+        f"mean_abs_diff={mean_difference:.3f}, max_diff={max_difference}, "
+        f"changed_pixels={changed_pixel_ratio:.1%}; only overlays may animate."
+    )
+
 
 def main():
     now = datetime.now(timezone.utc)
@@ -281,6 +317,7 @@ def main():
         raise RuntimeError(
             f"Rendered Short duration is {actual_video_duration:.2f}s, expected exactly {DURATION}s."
         )
+    verify_static_camera(target)
     print(
         f"SHORT RENDER PREFLIGHT PASSED: duration={actual_video_duration:.2f}s; "
         f"CTA active from {CTA_START_SECONDS}s through {DURATION}s."
