@@ -3,6 +3,7 @@ import json
 import os
 import re
 import subprocess
+import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -29,17 +30,31 @@ def verify_static_camera(video_path):
     # A locked-off scene should remain effectively identical across sampled frames.
     width, height, x, y = 900, 700, 90, 600
     frame_bytes = width * height * 3
-    result = subprocess.run(
-        [
+    with tempfile.TemporaryDirectory(prefix="tv-off-static-camera-") as temp_dir:
+        frame_file = Path(temp_dir) / "sampled-background.rgb"
+        command = [
             "ffmpeg", "-hide_banner", "-loglevel", "error", "-i", str(video_path),
+            "-map", "0:v:0",
             "-vf", f"crop={width}:{height}:{x}:{y},select='not(mod(n,90))'",
-            "-vsync", "0", "-an", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"
-        ],
-        capture_output=True, check=True, timeout=90
-    )
-    if len(result.stdout) < frame_bytes * 2 or len(result.stdout) % frame_bytes:
+            "-fps_mode", "passthrough", "-an", "-f", "rawvideo",
+            "-pix_fmt", "rgb24", "-y", str(frame_file)
+        ]
+        result = subprocess.run(
+            command, capture_output=True, text=True, check=False, timeout=90
+        )
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout or "").strip()[-1200:]
+            raise RuntimeError(
+                "Static-camera preflight could not extract sampled background frames "
+                f"(ffmpeg exit={result.returncode}): {detail}"
+            )
+        if not frame_file.is_file():
+            raise RuntimeError("Static-camera preflight did not create its sampled-frame file.")
+        frame_data = frame_file.read_bytes()
+
+    if len(frame_data) < frame_bytes * 2 or len(frame_data) % frame_bytes:
         raise RuntimeError("Static-camera preflight could not extract enough background frames.")
-    frames = np.frombuffer(result.stdout, dtype=np.uint8).reshape(-1, height, width, 3)
+    frames = np.frombuffer(frame_data, dtype=np.uint8).reshape(-1, height, width, 3)
     reference = frames[0].astype(np.int16)
     differences = np.abs(frames[1:].astype(np.int16) - reference)
     mean_difference = float(differences.mean())
