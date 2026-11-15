@@ -215,9 +215,8 @@ def main():
         raise RuntimeError("The cinematic 3D scene render is missing or unexpectedly small.")
 
     graph = (
-        "[0:v]zoompan=z='min(1.085,1+0.000095*on)':"
-        "x='iw/2-(iw/zoom/2)+2*sin(on/115)':"
-        "y='ih/2-(ih/zoom/2)+3*cos(on/145)':d=1:s=1080x1920:fps=30,"
+        # Locked-off camera: scale/crop once; no pan, zoom, orbit or shake.
+        "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,"
         "eq=contrast=1.035:saturation=1.06,format=yuv420p[bg];"
         f"[1:a]showwaves=s=900x150:mode=cline:scale=sqrt:rate=30:colors={accent},"
         "format=rgba,colorchannelmixer=aa=0.78[w];"
@@ -240,6 +239,8 @@ def main():
         f"text='{CTA_TEXT}':fontcolor=white:fontsize=27:"
         f"x=(w-text_w)/2:y=1775:alpha='if(lt(t,{CTA_START_SECONDS}),0, min(1,(t-{CTA_START_SECONDS})))':enable='gte(t,{CTA_START_SECONDS})'[v]"
     )
+    if "zoompan=" in graph.lower():
+        raise RuntimeError("Static-camera policy violation: zoompan is not allowed.")
     run([
         "ffmpeg", "-y", "-hide_banner", "-loop", "1", "-framerate", "30",
         "-i", str(scene_png), "-i", str(source),
