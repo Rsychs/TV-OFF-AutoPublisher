@@ -115,7 +115,7 @@ for i in range(3):
  bpy.ops.mesh.primitive_torus_add(major_radius=1.0+i*.23,minor_radius=.018,major_segments=96,minor_segments=8,location=(0,2.5,3.8-i*.24),rotation=(math.radians(65),0,math.radians(i*25+seed*9)))
  o=bpy.context.object; o.name="TV OFF luminous sound ring"; o.data.materials.append(glow)
 
-# Seeded art direction changes small props and camera framing for every slot.
+# Seeded art direction changes small props and static camera framing for every slot.
 rng=random.Random(seed)
 for i in range(7):
  x=rng.uniform(-3.4,3.4); y=rng.uniform(2.1,3.25); z=rng.uniform(1.35,4.7)
@@ -131,7 +131,7 @@ light_obj("Large soft key",(0,-3.5,5.0),1250,(1,.78,.62),5,(0,1,1))
 light_obj("Category rim",(3.6,3.0,4.2),950,area_color,3,(0,0,1))
 light_obj("Cool fill",(-3,-1,3.0),450,(.45,.58,1),4,(0,1,1))
 light_obj("Warm practical",(3.2,0,2.8),300,(1,.52,.24),1.5,(0,0,0))
-# Camera portrait composition with a subtle animated orbit/zoom baked into the final FFmpeg motion pass.
+# Locked-off portrait camera: render one still PNG; only the audio waveform and text overlays animate.
 bpy.ops.object.camera_add(location=(rng.uniform(-.38,.38),-8.7,rng.uniform(2.82,3.18))); cam=bpy.context.object
 cam.rotation_euler=(Vector((0,1.0,2.15))-cam.location).to_track_quat("-Z","Y").to_euler()
 cam.data.lens=rng.uniform(32,37); cam.data.sensor_width=36; cam.data.sensor_fit="VERTICAL"; bpy.context.scene.camera=cam
