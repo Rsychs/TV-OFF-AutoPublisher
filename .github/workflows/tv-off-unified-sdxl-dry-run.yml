@@ -1,0 +1,106 @@
+name: TV OFF — Unified ACE-Step + SDXL Turbo (Dry Run)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: tv-off-single-video
+  cancel-in-progress: false
+
+jobs:
+  unified-generation-dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - name: Check out isolated feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/tv-off-sdxl-automation
+
+      - name: Configure Kaggle API credentials
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.kaggle
+          if [ -n "${KAGGLE_API_TOKEN:-}" ]; then
+            printf '%s' "$KAGGLE_API_TOKEN" > ~/.kaggle/access_token
+            chmod 600 ~/.kaggle/access_token
+          elif [ -n "${KAGGLE_USERNAME:-}" ] && [ -n "${KAGGLE_KEY:-}" ]; then
+            printf '{"username":"%s","key":"%s"}' "$KAGGLE_USERNAME" "$KAGGLE_KEY" > ~/.kaggle/kaggle.json
+            chmod 600 ~/.kaggle/kaggle.json
+          else
+            echo "Missing Kaggle credentials: configure KAGGLE_API_TOKEN or KAGGLE_USERNAME + KAGGLE_KEY."
+            exit 1
+          fi
+          python -m pip install --disable-pip-version-check --quiet kaggle
+
+      - name: Push unified Kaggle notebook
+        working-directory: kaggle/tv-off-unified
+        run: kaggle kernels push -p .
+
+      - name: Wait for Kaggle generation to finish
+        env:
+          KERNEL_ID: TVOffset/tv-off-unified-ace-step-sdxl-turbo
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            set +e
+            STATUS="$(kaggle kernels status "$KERNEL_ID" 2>&1)"
+            RC=$?
+            set -e
+            echo "$STATUS"
+            if [ "$RC" -eq 0 ]; then
+              if echo "$STATUS" | grep -Eiq 'complete|success'; then
+                echo "Kaggle generation completed."
+                exit 0
+              fi
+              if echo "$STATUS" | grep -Eiq 'error|fail|cancel'; then
+                echo "Kaggle kernel failed."
+                exit 1
+              fi
+            fi
+            sleep 30
+          done
+          echo "Timed out waiting for Kaggle kernel; inspect Kaggle logs."
+          exit 1
+
+      - name: Download exact unified Kaggle output
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          kaggle kernels output TVOffset/tv-off-unified-ace-step-sdxl-turbo -p artifacts
+          test -n "$(find artifacts -type f -name 'ace_step_smoke_result.json' -print -quit)"
+
+      - name: Install FFmpeg and Python dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          python -m pip install --disable-pip-version-check -r requirements.txt
+          python -m py_compile build_and_upload_music_short.py
+
+      - name: Render and validate — publication disabled
+        env:
+          SOURCE_AUDIO_DIR: ${{ github.workspace }}/artifacts
+          PUBLISH_MODE: dry_run
+        run: python build_and_upload_music_short.py
+
+      - name: Upload dry-run MP4 and validation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: tv-off-unified-sdxl-dry-run
+          path: |
+            music-shorts/*.mp4
+            music-shorts/dry_run_report.json
+            artifacts/**/ace_step_smoke_result.json
+            artifacts/**/*.jpg
+            artifacts/**/*.png
+          if-no-files-found: error
+          retention-days: 14
