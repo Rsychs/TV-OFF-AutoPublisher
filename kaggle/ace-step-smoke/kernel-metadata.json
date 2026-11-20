@@ -1,0 +1,14 @@
+{
+  "id": "TVOffset/tv-off-ace-step-1-5-t4-smoke-test-v2",
+  "title": "TV OFF ACE Step 1.5 T4 Smoke Test v2",
+  "code_file": "ace_step_smoke.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "machine_shape": "NvidiaTeslaT4",
+  "dataset_sources": [],
+  "competition_sources": [],
+  "kernel_sources": []
+}

@@ -184,15 +184,28 @@ bpy.ops.object.camera_add(location=(rng.uniform(-.38,.38),-8.7,rng.uniform(2.82,
 cam.rotation_euler=(Vector((0,1.0,2.15))-cam.location).to_track_quat("-Z","Y").to_euler()
 cam.data.lens=rng.uniform(32,37); cam.data.sensor_width=36; cam.data.sensor_fit="VERTICAL"; bpy.context.scene.camera=cam
 scene=bpy.context.scene
-scene.render.engine="BLENDER_EEVEE_NEXT"
+available_engines = {item.identifier for item in bpy.types.RenderSettings.bl_rna.properties["engine"].enum_items}
+scene.render.engine = "BLENDER_EEVEE_NEXT" if "BLENDER_EEVEE_NEXT" in available_engines else "BLENDER_EEVEE"
+print("Selected render engine:", scene.render.engine)
 scene.eevee.taa_render_samples=64
 scene.render.resolution_x=720; scene.render.resolution_y=1280; scene.render.resolution_percentage=100
 scene.render.image_settings.file_format="PNG"; scene.render.image_settings.color_mode="RGBA"
 scene.render.film_transparent=False; scene.view_settings.view_transform="AgX"; scene.view_settings.look="AgX - Medium High Contrast"
 scene.world.color=(.018,.025,.045)
-scene.use_nodes=True; nt=scene.node_tree; nt.nodes.clear()
-rl=nt.nodes.new("CompositorNodeRLayers"); glare=nt.nodes.new("CompositorNodeGlare"); glare.glare_type="FOG_GLOW"; glare.threshold=1.0; glare.quality="HIGH"
-comp=nt.nodes.new("CompositorNodeComposite"); nt.links.new(rl.outputs["Image"],glare.inputs["Image"]); nt.links.new(glare.outputs["Image"],comp.inputs["Image"])
+# Blender 5.x removed the legacy Scene.node_tree compositor API; keep the render path portable.
+if hasattr(scene, "use_nodes") and hasattr(scene, "node_tree"):
+    scene.use_nodes=True
+    nt=scene.node_tree
+    if nt is not None:
+        nt.nodes.clear()
+        rl=nt.nodes.new("CompositorNodeRLayers")
+        glare=nt.nodes.new("CompositorNodeGlare")
+        glare.glare_type="FOG_GLOW"
+        glare.threshold=1.0
+        glare.quality="HIGH"
+        comp=nt.nodes.new("CompositorNodeComposite")
+        nt.links.new(rl.outputs["Image"],glare.inputs["Image"])
+        nt.links.new(glare.outputs["Image"],comp.inputs["Image"])
 scene.camera.data.dof.use_dof=True; scene.camera.data.dof.focus_distance=10; scene.camera.data.dof.aperture_fstop=5.6
 scene.render.filepath=a.out
 bpy.ops.render.render(write_still=True)

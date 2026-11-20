@@ -1,0 +1,197 @@
+name: TV OFF ACE-Step Kaggle GPU smoke test
+# Blender 5 compositor compatibility retry
+
+on:
+  push:
+    branches: [feature/kaggle-ace-step-provider]
+    paths:
+      - ".github/workflows/kaggle-ace-step-smoke.yml"
+      - "kaggle/ace-step-smoke/**"
+      - "scripts/render_tv_off_short_scene.py"
+
+permissions:
+  contents: read
+  issues: read
+
+# v2 runs independently from the stale v1 poller and uses its own Kaggle kernel.
+concurrency:
+  group: tv-off-ace-step-kaggle-smoke-v2
+  cancel-in-progress: false
+
+jobs:
+  ace-step-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/kaggle-ace-step-provider
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Kaggle CLI
+        run: python -m pip install --upgrade kaggle six
+
+      - name: Verify Kaggle credential is available
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          if not os.environ.get("KAGGLE_API_TOKEN"):
+              raise SystemExit("KAGGLE_API_TOKEN secret is missing or empty")
+          print("Kaggle token is present; value is masked.")
+          PY
+
+      - name: Push isolated ACE-Step v2 notebook to Kaggle T4
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/ace-step-kaggle-output
+          kaggle kernels push -p kaggle/ace-step-smoke --timeout 10800 --accelerator NvidiaTeslaT4 2>&1 | tee /tmp/ace-step-push.log
+          cp /tmp/ace-step-push.log artifacts/ace-step-kaggle-output/
+
+      - name: Verify Kaggle v2 kernel configuration
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          KERNEL="TVOffset/tv-off-ace-step-1-5-t4-smoke-test-v2"
+          mkdir -p /tmp/ace-step-metadata
+          kaggle kernels pull "$KERNEL" -p /tmp/ace-step-metadata -m
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path("/tmp/ace-step-metadata/kernel-metadata.json").read_text())
+          print("id:", data.get("id"))
+          print("machine_shape:", data.get("machine_shape"))
+          print("enable_gpu:", data.get("enable_gpu"))
+          print("enable_internet:", data.get("enable_internet"))
+          if (data.get("id") or "").lower() != "tvoffset/tv-off-ace-step-1-5-t4-smoke-test-v2":
+              raise SystemExit("Unexpected Kaggle kernel ID")
+          if data.get("machine_shape") != "NvidiaTeslaT4" or not data.get("enable_gpu"):
+              raise SystemExit("Kaggle did not persist the requested Tesla T4 GPU")
+          if not data.get("enable_internet"):
+              raise SystemExit("Kaggle internet access is required to download ACE-Step")
+          PY
+
+      - name: Monitor Kaggle status with bounded retries and live logs
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          KERNEL="TVOffset/tv-off-ace-step-1-5-t4-smoke-test-v2"
+          COMPLETE=0
+          CONSECUTIVE_ERRORS=0
+          UNKNOWN_STATES=0
+          for i in $(seq 1 60); do
+            echo "ACE-Step Kaggle status check $i/60 at $(date -u +%FT%TZ)"
+            if STATUS="$(timeout 90s kaggle kernels status "$KERNEL" 2>&1)"; then
+              CONSECUTIVE_ERRORS=0
+              echo "$STATUS"
+              STATUS_LC="$(printf '%s' "$STATUS" | tr '[:upper:]' '[:lower:]')"
+              case "$STATUS_LC" in
+                *complete*)
+                  COMPLETE=1
+                  break
+                  ;;
+                *error*|*failed*|*cancel*)
+                  echo "Kaggle reported a terminal failure; collecting logs."
+                  timeout 90s kaggle kernels logs "$KERNEL" || true
+                  exit 1
+                  ;;
+                *running*|*queued*|*pending*|*busy*)
+                  UNKNOWN_STATES=0
+                  ;;
+                *)
+                  UNKNOWN_STATES=$((UNKNOWN_STATES + 1))
+                  echo "Unrecognized Kaggle status ($UNKNOWN_STATES/3): $STATUS"
+                  if [ "$UNKNOWN_STATES" -ge 3 ]; then
+                    echo "Kaggle returned an unrecognized state three times; stopping instead of polling blindly."
+                    exit 1
+                  fi
+                  ;;
+              esac
+            else
+              CONSECUTIVE_ERRORS=$((CONSECUTIVE_ERRORS + 1))
+              echo "Kaggle status request failed ($CONSECUTIVE_ERRORS/3): $STATUS"
+              if [ "$CONSECUTIVE_ERRORS" -ge 3 ]; then
+                echo "Kaggle API/status unavailable three times consecutively; stopping with diagnostics."
+                timeout 90s kaggle kernels logs "$KERNEL" || true
+                exit 1
+              fi
+            fi
+
+            if [ $((i % 5)) -eq 0 ]; then
+              echo "Collecting intermediate Kaggle logs at check $i."
+              timeout 90s kaggle kernels logs "$KERNEL" || true
+            fi
+            sleep 60
+          done
+
+          echo "Final Kaggle logs:"
+          timeout 90s kaggle kernels logs "$KERNEL" | tee /tmp/ace-step-kaggle.log || true
+          if [ "$COMPLETE" -ne 1 ]; then
+            echo "Kaggle did not reach COMPLETE within 60 minutes."
+            exit 1
+          fi
+
+          mkdir -p artifacts/ace-step-kaggle-output
+          timeout 180s kaggle kernels output "$KERNEL" -p artifacts/ace-step-kaggle-output --force
+          cp /tmp/ace-step-kaggle.log artifacts/ace-step-kaggle-output/ 2>/dev/null || true
+          find artifacts/ace-step-kaggle-output -maxdepth 3 -type f -printf '%p (%s bytes)\n'
+          if ! find artifacts/ace-step-kaggle-output -type f \( -name '*.wav' -o -name '*.flac' \) | grep -q .; then
+            echo "No generated audio file was returned by Kaggle."
+            exit 1
+          fi
+          if ! find artifacts/ace-step-kaggle-output -type f -name 'ace_step_smoke_result.json' | grep -q .; then
+            echo "ACE-Step result manifest is missing."
+            exit 1
+          fi
+
+      - name: Create a unique genre-matched visual during music production
+        run: |
+          set -euo pipefail
+          sudo apt-get update -o Acquire::Retries=4 -o Acquire::http::Timeout=30
+          sudo apt-get install -y --no-install-recommends blender libegl1
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = next(Path("artifacts/ace-step-kaggle-output").rglob("ace_step_smoke_result.json"))
+          m = json.loads(p.read_text(encoding="utf-8"))
+          required = ("title", "style", "seed", "audio_file", "sha256")
+          missing = [k for k in required if not m.get(k)]
+          if missing:
+              raise SystemExit(f"Visual generation needs music metadata; missing: {missing}")
+          m["visual_file"] = f"TV_OFF_Visual_{int(m.get('track_number', 0)):03d}.png"
+          m["visual_style"] = m["style"]
+          m["visual_seed"] = int(m["seed"])
+          m["visual_generation"] = "Blender genre-matched scene rendered in the same ACE-Step production run"
+          p.write_text(json.dumps(m, indent=2), encoding="utf-8")
+          print(f"Visual brief locked to track: {m['title']} | {m['style']} | seed={m['visual_seed']}")
+          PY
+          MANIFEST="$(find artifacts/ace-step-kaggle-output -name ace_step_smoke_result.json -print -quit)"
+          VISUAL="$(dirname "$MANIFEST")/$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["visual_file"])' "$MANIFEST")"
+          STYLE="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["style"])' "$MANIFEST")"
+          SEED="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["seed"])' "$MANIFEST")"
+          blender --background --threads 4 --python scripts/render_tv_off_short_scene.py -- --out "$VISUAL" --kind original_music --slot "$SEED" --style "$STYLE"
+          test -s "$VISUAL"
+          test "$(stat -c%s "$VISUAL")" -gt 100000
+          echo "Music and its matching vertical visual are now packaged together."
+
+      - name: Upload ACE-Step test audio and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tv-off-ace-step-t4-smoke-v2
+          path: artifacts/ace-step-kaggle-output/
+          if-no-files-found: warn
+          retention-days: 7
+
+# Trigger v2 smoke run after bounded polling and isolated-kernel update.
+
+# Retry trigger after Kaggle returns lowercase canonical kernel IDs.
