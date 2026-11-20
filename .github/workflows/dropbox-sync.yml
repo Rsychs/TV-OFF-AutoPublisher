@@ -122,7 +122,7 @@ jobs:
 
           api = "https://api.dropboxapi.com/2"
           path_root = json.dumps({".tag": "namespace_id", "namespace_id": "13932121425"}, separators=(",", ":"))
-headers = {"Authorization": f"Bearer {access}", "Content-Type": "application/json", "Dropbox-API-Path-Root": path_root}
+          headers = {"Authorization": f"Bearer {access}", "Content-Type": "application/json", "Dropbox-API-Path-Root": path_root}
           folder = "/TV OFF/Music Library/Original Tracks/Experimental"
           meta = requests.post(api + "/files/get_metadata", headers=headers, json={"path": folder}, timeout=30)
           if not meta.ok:
