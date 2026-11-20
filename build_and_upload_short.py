@@ -150,10 +150,14 @@ def main():
     expected_platforms = {
         "white_noise": "TV OFF / FFmpeg",
         "brown_noise": "TV OFF / FFmpeg",
-        "original_music": "TV OFF / local synthesis",
+        "original_music": {
+            "TV OFF / local synthesis",
+            "TV OFF / Stability AI Stable Audio API",
+        },
     }
-    if info.get("audio_type") != "synthetic" or info.get("platform") != expected_platforms[kind]:
-        raise RuntimeError(f"{kind}: only the approved local synthetic generator is allowed.")
+    allowed_platforms = expected_platforms[kind] if isinstance(expected_platforms[kind], set) else {expected_platforms[kind]}
+    if info.get("audio_type") != "synthetic" or info.get("platform") not in allowed_platforms:
+        raise RuntimeError(f"{kind}: audio source is not an approved TV OFF music/noise provider.")
     source = (AUDIO_DIR / info["file"]).resolve()
     if not source.is_relative_to(AUDIO_DIR.resolve()) or not source.is_file():
         raise RuntimeError(f"Selected {kind} audio is missing or outside the local audio directory.")
