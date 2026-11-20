@@ -1,9 +1,11 @@
 {
   "_published_audio_sha256": [
-    "6e86f786636647c3c6d9f3f23acc207064ac5af543e154386b22679f6525b216"
+    "6e86f786636647c3c6d9f3f23acc207064ac5af543e154386b22679f6525b216",
+    "0b7a40ade6dec08b9eca5ae06b5ae2fb20cab4727641ea2e913d8c306acd5e01"
   ],
   "_published_video_sha256": [
-    "92fd8404132e90878de22dd452d6659aaffc014dd70437e107f48336d5d83a1c"
+    "92fd8404132e90878de22dd452d6659aaffc014dd70437e107f48336d5d83a1c",
+    "6ed1c8ccd0920c3412db8dbd2db80f6c6873d112f77d5147f3ca1cb868c472b5"
   ],
   "published_tracks": [
     {
@@ -16,7 +18,18 @@
       "published_at": "2026-11-20T14:11:34.882831+00:00",
       "clip_start_seconds": 32.4,
       "duration_seconds": 30
+    },
+    {
+      "video_id": "UM7dh4L75og",
+      "youtube_url": "https://youtu.be/UM7dh4L75og",
+      "track_title": "The Jade Courtyard at First Light \u2014 Korean Gugak",
+      "style": "Instrumental Korean gugak chamber / courtly jeongak ensemble with pentatonic ujo melody and heterophonic acoustic instrumentation",
+      "audio_sha256": "0b7a40ade6dec08b9eca5ae06b5ae2fb20cab4727641ea2e913d8c306acd5e01",
+      "video_sha256": "6ed1c8ccd0920c3412db8dbd2db80f6c6873d112f77d5147f3ca1cb868c472b5",
+      "published_at": "2026-11-20T17:39:40.105894+00:00",
+      "clip_start_seconds": 32.4,
+      "duration_seconds": 30
     }
   ],
-  "_last_published_at": "2026-11-20T14:11:34.882831+00:00"
+  "_last_published_at": "2026-11-20T17:39:40.105894+00:00"
 }
