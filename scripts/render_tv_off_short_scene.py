@@ -56,8 +56,8 @@ glass=mat("Night glass",(.012,.035,.075),.12,.25,accent,.45)
 glow=mat("Luminous accent",accent,.22,.15,accent,3.0); ceramic=mat("Matte ceramic",(.28,.25,.22),.25)
 green=mat("Indoor foliage",(.025,.13,.07),.8)
 
-# Five genuinely different modeled spaces, rotated deterministically by publishing slot.
-scene_id=seed%5
+# Eight distinct modeled environments, with genre-specific lighting and deterministic variation.
+scene_id=seed%8
 cube("Continuous floor",(0,0,-.12),(9,11,.24),floor,.02)
 cube("Rear wall",(0,4.5,2.7),(9,.18,5.4),wall,.02)
 cube("Left wall",(-4.5,0,2.7),(.18,9,5.4),wall,.02)
@@ -113,6 +113,44 @@ elif scene_id==4: # music room with grand piano silhouette
  cyl("Piano stool",(0,-2,.55),.5,.18,wood)
  cube("Piano stool stem",(0,-2,.28),(.12,.12,.45),metal,.02)
 
+elif scene_id==5: # vibrant Balkan courtyard with arches and festival lanterns
+ cube("Courtyard rear wall",(0,4.5,2.7),(9,.18,5.4),wall,.02)
+ for x in [-3.2,-1.1,1.1,3.2]:
+  cube("Courtyard arch pillar",(x,4.0,2.3),(.28,.5,4.6),wood,.04)
+  cube("Arch crown",(x,4.0,4.55),(1.35,.5,.28),wood,.12)
+ for x in [-2.1,0,2.1]:
+  cube("Festival banner",(x,4.22,3.3),(.65,.035,1.7),glow,.02)
+  sphere("Lantern",(x,2.9,4.35),(.22,.22,.34),glow)
+ cube("Courtyard stone fountain",(0,1.1,.35),(2.1,1.5,.5),metal,.16)
+ for x in [-2.8,2.8]:
+  cyl("Terracotta planter",(x,1.7,.45),.48,.8,ceramic)
+  for i in range(7):
+   ang=i*math.tau/7
+   sphere("Courtyard flowers",(x+math.cos(ang)*.35,1.7+math.sin(ang)*.35,1.25),(.16,.16,.28),glow)
+elif scene_id==6: # baroque concert salon with gilded architectural details
+ cube("Baroque stage wall",(0,4.35,2.7),(8.8,.2,5.4),wood,.03)
+ for x in [-3.2,-1.6,0,1.6,3.2]:
+  cube("Gilded pilaster",(x,4.18,2.75),(.13,.12,4.9),metal,.025)
+  sphere("Ornamental capital",(x,4.12,4.95),(.32,.15,.18),glow)
+ for z in [1.1,4.25]:
+  cube("Ornamental gold frieze",(0,4.12,z),(8.0,.12,.11),glow,.035)
+ cube("Concert dais",(0,1.25,.22),(6.5,2.1,.35),wood,.08)
+ for x in [-2.3,0,2.3]:
+  cyl("Classical column",(x,3.8,2.25),.19,4.1,metal)
+  cyl("Column base",(x,3.8,.25),.42,.3,glow)
+  cyl("Column crown",(x,3.8,4.25),.4,.3,glow)
+elif scene_id==7: # futuristic electronic performance stage
+ cube("Infinite LED wall",(0,4.35,2.8),(8.8,.12,5.5),darkfabric,.02)
+ for i in range(13):
+  x=-3.9+i*.65
+  cube("Vertical LED blade",(x,4.18,2.8),(.045,.06,4.8),glow,.015)
+ for i in range(5):
+  z=.8+i*.85
+  cube("Holographic horizon",(0,2.7,z),(7.5,.035,.025),glow,.01)
+ for x in [-2.6,0,2.6]:
+  cyl("Stage plinth",(x,1.1,.28),.72,.5,metal)
+  sphere("Floating light orb",(x,1.1,1.2),(.34,.34,.34),glow)
+
 # Shared crafted accents: sculptural lamp, plant, floating luminous rings and brand plaque.
 cyl("Sculptural lamp stem",(3.45,-.1,1.45),.045,2.7,metal)
 sphere("Sculptural lamp globe",(3.45,-.1,2.85),(.32,.32,.38),glow)
@@ -158,4 +196,4 @@ comp=nt.nodes.new("CompositorNodeComposite"); nt.links.new(rl.outputs["Image"],g
 scene.camera.data.dof.use_dof=True; scene.camera.data.dof.focus_distance=10; scene.camera.data.dof.aperture_fstop=5.6
 scene.render.filepath=a.out
 bpy.ops.render.render(write_still=True)
-print("TV_OFF_3D_SCENE_RENDERED",a.out,"scene_id",scene_id,"category",kind)
+print("TV_OFF_3D_SCENE_RENDERED",a.out,"scene_id",scene_id,"category",kind,"style",style)
