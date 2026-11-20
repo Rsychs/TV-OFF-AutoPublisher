@@ -1,0 +1,70 @@
+name: TV OFF — Original Music to Shorts
+on:
+  workflow_run:
+    workflows: ["TV OFF Music Library — Dropbox Sync"]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  build-and-publish-music-short:
+    if: github.event.workflow_run.conclusion == 'success'
+    concurrency:
+      group: tv-off-single-video
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Download the exact verified track from the triggering sync run
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          name: tv-off-verified-original-track
+          path: artifacts
+
+      - name: Install FFmpeg, Blender runtime, fonts and Python dependencies
+        timeout-minutes: 30
+        run: |
+          set -euo pipefail
+          sudo apt-get update -o Acquire::Retries=5 -o Acquire::http::Timeout=30
+          sudo apt-get install -y --no-install-recommends ffmpeg libegl1 libegl-mesa0 libgl1 libglx-mesa0 libgbm1 libx11-6 libxi6 libxrender1 libxfixes3 libsm6 libxxf86vm1 libxkbcommon0 libxkbcommon-x11-0 libfontconfig1
+          sudo ldconfig
+          python -m pip install --disable-pip-version-check --retries 3 --timeout 60 -r requirements.txt
+          python -m pip install --disable-pip-version-check --retries 3 --timeout 60 "bpy==4.2.0"
+          FONT_DIR="$(python -c 'import matplotlib; print(matplotlib.get_data_path() + "/fonts/ttf")')"
+          sudo mkdir -p /usr/share/fonts/truetype/dejavu
+          sudo install -m 0644 "$FONT_DIR/DejaVuSans-Bold.ttf" /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
+          sudo install -m 0644 "$FONT_DIR/DejaVuSans.ttf" /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+          echo "EGL_PLATFORM=surfaceless" >> "$GITHUB_ENV"
+          echo "LIBGL_ALWAYS_SOFTWARE=1" >> "$GITHUB_ENV"
+          echo "GALLIUM_DRIVER=llvmpipe" >> "$GITHUB_ENV"
+          python -m py_compile build_and_upload_music_short.py scripts/render_tv_off_short_scene.py
+
+      - name: Render, validate and publish one 30-second Short from this exact track
+        env:
+          SOURCE_AUDIO_DIR: ${{ github.workspace }}/artifacts
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+        run: python build_and_upload_music_short.py
+
+      - name: Persist music Shorts state
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f music_shorts_state.json || true
+          if ! git diff --cached --quiet; then
+            git commit -m "Record original music Short publication state"
+          fi
+          git pull --rebase origin main
+          git push
