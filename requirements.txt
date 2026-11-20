@@ -5,3 +5,4 @@ numpy>=1.26
 scipy>=1.11
 imageio-ffmpeg>=0.5.1
 matplotlib>=3.8
+requests>=2.31.0

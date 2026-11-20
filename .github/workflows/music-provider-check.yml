@@ -1,0 +1,58 @@
+name: TV OFF — Music Provider Smoke Test
+
+on:
+  pull_request:
+    paths:
+      - "generate_music.py"
+      - "generate_stable_audio.py"
+      - "generate_original_music.py"
+      - "build_real_ambience.py"
+      - "build_and_upload_short.py"
+      - "requirements.txt"
+      - ".github/workflows/music-provider-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  music-provider-smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install FFmpeg and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install -r requirements.txt
+      - name: Compile music pipeline
+        run: |
+          python -m py_compile generate_music.py generate_stable_audio.py generate_original_music.py build_real_ambience.py build_and_upload_short.py
+      - name: Generate a local 36-second fallback test (no API key, no credits)
+        env:
+          TARGET_SLOT: "smoke-test"
+          STABILITY_AUDIO_ENABLED: "false"
+          SOURCE_AUDIO_DIR: "${{ runner.temp }}/tv-off-music-smoke"
+        run: |
+          python generate_music.py
+          python - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+          root = Path(os.environ["SOURCE_AUDIO_DIR"])
+          manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+          music = manifest["original_music"]
+          assert music["duration_seconds"] == 36, music
+          assert music["composition_mode"] == "short_form_fast_harmonic_movement", music
+          assert music["platform"] == "TV OFF / local synthesis", music
+          audio = root / music["file"]
+          assert audio.is_file() and audio.stat().st_size > 4096
+          subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                          "-of", "default=noprint_wrappers=1:nokey=1", str(audio)], check=True)
+          lines = (root / "manifest.sha256").read_text(encoding="utf-8").splitlines()
+          assert len(lines) == 2, lines
+          print("MUSIC_PROVIDER_SMOKE_TEST_PASSED")
+          PY

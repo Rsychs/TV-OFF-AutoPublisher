@@ -289,11 +289,14 @@ jobs:
           echo "soundscape=$KIND" >> "$GITHUB_OUTPUT"
           echo "Selected soundscape for pinned slot $TARGET_SLOT: $KIND"
 
-      - name: Generate original ambient music locally
+      - name: Generate original music (Stable Audio opt-in, local fallback)
         if: steps.cooldown.outputs.skip != 'true' && steps.select_soundscape.outputs.soundscape == 'original_music'
         env:
           SOURCE_AUDIO_DIR: ${{ github.workspace }}/generated-audio
-        run: python generate_original_music.py
+          STABILITY_API_KEY: ${{ secrets.STABILITY_API_KEY }}
+          STABILITY_AUDIO_ENABLED: ${{ vars.STABILITY_AUDIO_ENABLED }}
+          STABILITY_AUDIO_MODEL: stable-audio-3
+        run: python generate_music.py
 
       - name: Generate original white or brown noise locally
         if: steps.cooldown.outputs.skip != 'true' && steps.select_soundscape.outputs.soundscape != 'original_music'
