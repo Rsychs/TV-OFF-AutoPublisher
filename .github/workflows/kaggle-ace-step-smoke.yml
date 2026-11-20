@@ -6,6 +6,7 @@ on:
     paths:
       - ".github/workflows/kaggle-ace-step-smoke.yml"
       - "kaggle/ace-step-smoke/**"
+      - "scripts/render_tv_off_short_scene.py"
 
 permissions:
   contents: read
