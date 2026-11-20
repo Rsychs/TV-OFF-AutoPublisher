@@ -1,4 +1,5 @@
 name: TV OFF ACE-Step Kaggle GPU smoke test
+# Blender 5 compositor compatibility retry
 
 on:
   push:
