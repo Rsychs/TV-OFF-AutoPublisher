@@ -20,7 +20,7 @@ jobs:
        github.event.issue.number == 27 &&
        github.event.issue.pull_request != null &&
        github.event.comment.user.login == 'Rsychs' &&
-       github.event.comment.body == '/tv-off-dropbox-sync-003')
+       github.event.comment.body == '/tv-off-dropbox-sync-003-stage')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -118,19 +118,10 @@ jobs:
               access = token_response.json()["access_token"]
 
           api = "https://api.dropboxapi.com/2"
-          path_root = json.dumps({".tag": "namespace_id", "namespace_id": "13932121425"}, separators=(",", ":"))
-          headers = {
-              "Authorization": f"Bearer {access}",
-              "Content-Type": "application/json",
-              "Dropbox-API-Path-Root": path_root,
-          }
-          folder = "/TV OFF/Music Library/Original Tracks/Experimental"
-          meta = requests.post(api + "/files/get_metadata", headers=headers, json={"path": folder}, timeout=30)
-          if not meta.ok:
-              raise SystemExit(f"Dropbox destination lookup failed ({meta.status_code}): {meta.text}")
-          if meta.json().get(".tag") != "folder":
-              raise SystemExit("Dropbox destination is not a folder")
-
+          headers = {"Authorization": f"Bearer {access}", "Content-Type": "application/json"}
+          # Dropbox app-folder tokens are sandboxed to the app folder. Stage files here;
+          # the ChatGPT Dropbox connector then moves them into the user's requested library folder.
+          folder = ""
           base = Path(os.environ["MANIFEST_DIR"])
           names = [os.environ["WAV_NAME"], os.environ["MANIFEST_NAME"]]
           if os.environ.get("MP3_NAME"):
@@ -140,13 +131,12 @@ jobs:
               local = base / name
               if not local.is_file():
                   raise SystemExit(f"Local file missing: {name}")
-              target = folder + "/" + name
+              target = "/" + name
               arg = {"path": target, "mode": "add", "autorename": False, "mute": True, "strict_conflict": True}
               upload_headers = {
                   "Authorization": f"Bearer {access}",
                   "Content-Type": "application/octet-stream",
                   "Dropbox-API-Arg": json.dumps(arg, separators=(",", ":")),
-                  "Dropbox-API-Path-Root": path_root,
               }
               with local.open("rb") as f:
                   response = requests.post("https://content.dropboxapi.com/2/files/upload", headers=upload_headers, data=f, timeout=600)
