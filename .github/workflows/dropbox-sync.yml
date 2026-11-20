@@ -1,0 +1,145 @@
+name: TV OFF Music Library — Dropbox Sync
+
+on:
+  workflow_run:
+    workflows: ["TV OFF ACE-Step Kaggle GPU smoke test"]
+    types: [completed]
+    branches: [feature/kaggle-ace-step-provider]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  sync-original-track:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Download the exact ACE-Step run artifact
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          name: tv-off-ace-step-t4-smoke-v2
+          path: artifacts
+
+      - name: Verify manifest and audio before any upload
+        id: validate
+        run: |
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path("artifacts")
+          manifests = list(root.rglob("ace_step_smoke_result.json"))
+          if len(manifests) != 1:
+              raise SystemExit(f"Expected exactly one manifest, found {len(manifests)}")
+          manifest_path = manifests[0]
+          m = json.loads(manifest_path.read_text(encoding="utf-8"))
+          if m.get("status") != "ok" or m.get("publishing_enabled") is not False:
+              raise SystemExit("Manifest status or publishing guard is invalid")
+          if not 179.0 <= float(m.get("duration_seconds", 0)) <= 181.0:
+              raise SystemExit("Audio duration is not approximately 180 seconds")
+          if (m.get("sample_rate"), m.get("channels"), m.get("subtype")) != (48000, 2, "PCM_16"):
+              raise SystemExit("WAV format is not stereo 48 kHz PCM_16")
+          wav = manifest_path.parent / m["audio_file"]
+          if not wav.is_file():
+              raise SystemExit(f"Manifest WAV is missing: {wav.name}")
+          digest = hashlib.sha256(wav.read_bytes()).hexdigest()
+          if digest != m.get("sha256"):
+              raise SystemExit("WAV SHA-256 does not match manifest")
+          if not m.get("title") or not m.get("style") or not m.get("prompt") or not m.get("bpm") or not m.get("seed") or not m.get("model"):
+              raise SystemExit("Manifest is missing required composition metadata")
+          mp3_name = m.get("mp3_file")
+          if mp3_name and not (manifest_path.parent / mp3_name).is_file():
+              raise SystemExit("Manifest MP3 is missing")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"manifest_dir={manifest_path.parent}\n")
+              out.write(f"wav_name={wav.name}\n")
+              out.write(f"manifest_name={manifest_path.name}\n")
+              out.write(f"mp3_name={mp3_name or ''}\n")
+          print(f"Verified: {m['title']} | {m['duration_seconds']} sec | SHA-256 {digest}")
+          PY
+
+      - name: Check Dropbox credentials without exposing values
+        id: credentials
+        env:
+          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
+          DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
+          DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
+        run: |
+          if [ -n "$DROPBOX_ACCESS_TOKEN" ] || { [ -n "$DROPBOX_APP_KEY" ] && [ -n "$DROPBOX_APP_SECRET" ] && [ -n "$DROPBOX_REFRESH_TOKEN" ]; }; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Dropbox upload not configured. Add DROPBOX_ACCESS_TOKEN, or add DROPBOX_APP_KEY, DROPBOX_APP_SECRET and DROPBOX_REFRESH_TOKEN as repository Actions secrets."
+          fi
+
+      - name: Upload verified WAV, MP3 and manifest directly to Dropbox
+        if: steps.credentials.outputs.ready == 'true'
+        env:
+          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
+          DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
+          DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
+          MANIFEST_DIR: ${{ steps.validate.outputs.manifest_dir }}
+          WAV_NAME: ${{ steps.validate.outputs.wav_name }}
+          MP3_NAME: ${{ steps.validate.outputs.mp3_name }}
+          MANIFEST_NAME: ${{ steps.validate.outputs.manifest_name }}
+        run: |
+          python - <<'PY'
+          import json, os, time
+          from pathlib import Path
+          import requests
+
+          app_key = os.environ.get("DROPBOX_APP_KEY", "")
+          app_secret = os.environ.get("DROPBOX_APP_SECRET", "")
+          refresh = os.environ.get("DROPBOX_REFRESH_TOKEN", "")
+          access = os.environ.get("DROPBOX_ACCESS_TOKEN", "")
+          if not access:
+              r = requests.post(
+                  "https://api.dropboxapi.com/oauth2/token",
+                  data={"grant_type": "refresh_token", "refresh_token": refresh},
+                  auth=(app_key, app_secret),
+                  timeout=30,
+              )
+              r.raise_for_status()
+              access = r.json()["access_token"]
+
+          api = "https://api.dropboxapi.com/2"
+          headers = {"Authorization": f"Bearer {access}", "Content-Type": "application/json"}
+          folder = "/TV OFF/Music Library/Original Tracks/Experimental"
+          meta = requests.post(api + "/files/get_metadata", headers=headers, json={"path": folder}, timeout=30)
+          meta.raise_for_status()
+          if meta.json().get(".tag") != "folder":
+              raise SystemExit("Dropbox destination is not a folder")
+
+          base = Path(os.environ["MANIFEST_DIR"])
+          names = [os.environ["WAV_NAME"], os.environ["MANIFEST_NAME"]]
+          if os.environ.get("MP3_NAME"):
+              names.insert(1, os.environ["MP3_NAME"])
+          saved = []
+          for name in names:
+              local = base / name
+              if not local.is_file():
+                  raise SystemExit(f"Local file missing: {name}")
+              target = folder + "/" + name
+              arg = {"path": target, "mode": "add", "autorename": False, "mute": True, "strict_conflict": True}
+              upload_headers = {
+                  "Authorization": f"Bearer {access}",
+                  "Content-Type": "application/octet-stream",
+                  "Dropbox-API-Arg": json.dumps(arg, separators=(",", ":")),
+              }
+              with local.open("rb") as f:
+                  response = requests.post("https://content.dropboxapi.com/2/files/upload", headers=upload_headers, data=f, timeout=600)
+              response.raise_for_status()
+              result = response.json()
+              if result.get("path_display") != target or result.get("size") != local.stat().st_size:
+                  raise SystemExit(f"Dropbox metadata mismatch for {name}")
+              saved.append(result["path_display"])
+          print("Dropbox upload verified:")
+          for path in saved:
+              print(path)
+          PY
