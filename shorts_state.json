@@ -94,8 +94,8 @@
   "2026111419": "wdZTSoYg5y0",
   "2026111421": "Gdat4_yPC_M",
   "2026111422": "SmFhEK9BWps",
-  "_last_published_at": "2026-11-20T07:23:01.925058+00:00",
-  "_last_production_duration_seconds": 115,
+  "_last_published_at": "2026-11-20T20:17:29.980558+00:00",
+  "_last_production_duration_seconds": 96,
   "_published_titles": [
     "A Little White Noise for a Quieter Moment #Shorts",
     "Brown Noise for Reading and Deep Focus #Shorts",
@@ -182,7 +182,8 @@
     "Low, Deep Brown Noise for a Peaceful Evening #Shorts",
     "White Noise for a Quieter Night #Shorts",
     "Soft Ambient Music to Slow Down To #Shorts",
-    "Deep Brown Noise for Restful Sleep to Help You Switch Off #Shorts"
+    "Deep Brown Noise for Restful Sleep to Help You Switch Off #Shorts",
+    "Original Ambient Music for Reading and Relaxing \u2014 Relax and Unwind #Shorts"
   ],
   "_generated_titles_by_category": {
     "brown_noise": [
@@ -334,7 +335,8 @@
     "fda84ce85b5d917f8c84ba697d47bde14d08b47415ced8919297677b9a3312bc",
     "77de9f5ec07d13dd4d46c17aba8613fb0a76307ef5802e5c637c37f683ffe2bf",
     "4d03b0a4f491eb5f76355fe4c726eb171862b10346a8071bb91434afb1a5d82f",
-    "03b55de5dc54c98c79c1c170b553caffe4c0d857e659f87883d091c3980fd965"
+    "03b55de5dc54c98c79c1c170b553caffe4c0d857e659f87883d091c3980fd965",
+    "975ee43bb3200ab988d7b6089f9718f0c3627bb4c840385f9058d459f2905979"
   ],
   "_published_video_sha256": [
     "e218556701641d41aa762d5693fe977f9faa7aa25c69e4f5ee6b769175c7aa98",
@@ -406,7 +408,8 @@
     "ec8d1d9014265508ef3dc5a84f26acfc4046ab9e9742f4445e79b51635422c10",
     "20bc16992972cb11edff460a7d6f1e642ca5fdd05b7c46b91391037897ed8494",
     "a21ec67b8ee610460439983eea4db5575ff4b246a8246b31d3d5bf63b5b73e2c",
-    "76603bdff7647adb157813408d1f881de5eade0010542028a0c1789ae9f6573b"
+    "76603bdff7647adb157813408d1f881de5eade0010542028a0c1789ae9f6573b",
+    "80316510cdb8774928a166a9caa616f4320b1cf85ac058e76a427c83e64bf100"
   ],
   "_published_music_metadata": [
     {
@@ -468,6 +471,18 @@
       "duration_seconds": 36,
       "bar_seconds": 4.5,
       "audio_sha256": "125971fa21fd6acc6d0fd4601337c7c9bb5f10dee4e57fb45745bd8f5e2674c9"
+    },
+    {
+      "video_id": "69l2_9LhVCE",
+      "published_at": "2026-11-20T20:17:29.980558+00:00",
+      "title": "Original Ambient Music for Reading and Relaxing \u2014 Relax and Unwind #Shorts",
+      "music_style": "cinematic_ambient",
+      "sound_profile": "cinematic_halo",
+      "musical_mode": "mixolydian",
+      "composition_mode": "short_form_fast_harmonic_movement",
+      "duration_seconds": 36.0,
+      "bar_seconds": 4.5,
+      "audio_sha256": "975ee43bb3200ab988d7b6089f9718f0c3627bb4c840385f9058d459f2905979"
     }
   ],
   "_published_hook_metadata": [
@@ -503,6 +518,18 @@
       "hook_experiment_id": "opening-hook-v1",
       "hook_sequence_number": 3,
       "hook_variant_index": 2,
+      "hook_duration_seconds": 2.0,
+      "audio_starts_at_seconds": 0,
+      "audio_fade_in_seconds": 0.25
+    },
+    {
+      "video_id": "69l2_9LhVCE",
+      "published_at": "2026-11-20T20:17:29.980558+00:00",
+      "category": "original_music",
+      "hook": "A MOMENT JUST FOR YOU",
+      "hook_experiment_id": "opening-hook-v1",
+      "hook_sequence_number": 4,
+      "hook_variant_index": 3,
       "hook_duration_seconds": 2.0,
       "audio_starts_at_seconds": 0,
       "audio_fade_in_seconds": 0.25
@@ -666,5 +693,6 @@
       "note": "Normalized mojibake sequences for the em dash and two emoji titles, then collapsed duplicate ledger entries while preserving every unique used-title key. No published video or YouTube title was edited."
     }
   ],
-  "2026112007": "FBcn1AlMKU0"
+  "2026112007": "FBcn1AlMKU0",
+  "2026112020": "69l2_9LhVCE"
 }
