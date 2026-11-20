@@ -1,8 +1,14 @@
 name: TV OFF — Original Music to Shorts
 on:
   workflow_run:
-    workflows: ["TV OFF Music Library — Dropbox Sync"]
+    workflows: ["TV OFF Music Library — Dropbox Stage Only"]
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Exact successful Dropbox Stage Only run ID containing the verified track artifact"
+        required: true
+        type: string
 
 permissions:
   actions: read
@@ -10,7 +16,9 @@ permissions:
 
 jobs:
   build-and-publish-music-short:
-    if: github.event.workflow_run.conclusion == 'success'
+    if: >-
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'workflow_dispatch' && inputs.source_run_id != '')
     concurrency:
       group: tv-off-single-video
       cancel-in-progress: false
@@ -22,12 +30,32 @@ jobs:
         with:
           ref: main
 
-      - name: Download the exact verified track from the triggering sync run
+      - name: Resolve the exact source Dropbox Stage Only run
+        id: source
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          INPUT_RUN_ID: ${{ inputs.source_run_id }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_run" ]; then
+            RUN_ID="$WORKFLOW_RUN_ID"
+          else
+            RUN_ID="$INPUT_RUN_ID"
+          fi
+          if ! [[ "$RUN_ID" =~ ^[0-9]+$ ]]; then
+            echo "Invalid source run ID; refusing to guess."
+            exit 1
+          fi
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "Using exact Dropbox Stage Only run: $RUN_ID"
+
+      - name: Download the exact verified track from the source run
         uses: actions/download-artifact@v4
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ steps.source.outputs.run_id }}
           name: tv-off-verified-original-track
           path: artifacts
 
