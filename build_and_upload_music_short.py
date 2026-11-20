@@ -74,7 +74,7 @@ def main():
     scene = OUT / f"scene_{slot}.png"
     video = OUT / f"TV-OFF_Original-Music_Short_{slot}.mp4"
     title = re.sub(r"\s+", " ", str(m["title"])).strip()
-    safe_title = title.replace("'", "").replace(":", " —")
+    safe_title = title.replace("\\", "").replace("'", "").replace(":", " —").replace("%", " ").replace(",", " ").replace("[", "(").replace("]", ")")
     subprocess.run([
         os.sys.executable, str(ROOT / "scripts" / "render_tv_off_short_scene.py"),
         "--out", str(scene), "--kind", "original_music", "--slot", slot[:10], "--style", str(m["style"])
@@ -82,13 +82,14 @@ def main():
     if not scene.is_file() or scene.stat().st_size < 100000:
         raise RuntimeError("Music-specific 3D scene render failed")
 
-    # Fixed still background = locked camera. Only waveform and typography animate.
+    # Locked camera; the animated waveform and progress marker provide restrained motion.
     graph = (
         "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,"
         "eq=contrast=1.04:saturation=1.08,format=yuv420p[bg];"
-        "[1:a]showwaves=s=920x150:mode=cline:scale=sqrt:rate=30:colors=0xC5A6FF,"
+        "[1:a]showwaves=s=980x170:mode=cline:scale=sqrt:rate=30:colors=0xE8C98A,"
         "format=rgba,colorchannelmixer=aa=0.82[w];"
-        "[bg][w]overlay=(W-w)/2:1430:shortest=1,"
+        "[bg][w]overlay=(W-w)/2:1410:shortest=1,"
+        "drawbox=x=0:y=1908:w=iw*t/30:h=7:color=0xE8C98A@0.95:t=fill,"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
         "text='ORIGINAL MUSIC':fontcolor=white:fontsize=54:x=(w-text_w)/2:y=250:"
         "shadowcolor=black@0.55:shadowx=2:shadowy=3,"
@@ -96,7 +97,8 @@ def main():
         f"text='{safe_title[:52]}':fontcolor=0xE7DFFF:fontsize=32:x=(w-text_w)/2:y=340:"
         "shadowcolor=black@0.55:shadowx=2:shadowy=3,"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
-        "text='TV OFF':fontcolor=white:fontsize=42:x=(w-text_w)/2:y=1660,"
+        "text='TV OFF':fontcolor=white:fontsize=46:x=(w-text_w)/2:y=1650:"
+        "shadowcolor=black@0.65:shadowx=2:shadowy=3,"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:"
         "text='FULL TRACK ON OUR CHANNEL':fontcolor=white:fontsize=27:"
         "x=(w-text_w)/2:y=1775:alpha='if(lt(t,22),0,min(1,(t-22)))':enable='gte(t,22)'[v]"
