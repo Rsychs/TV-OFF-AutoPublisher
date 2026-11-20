@@ -89,7 +89,7 @@ def main():
         "[1:a]showwaves=s=980x170:mode=cline:scale=sqrt:rate=30:colors=0xE8C98A,"
         "format=rgba,colorchannelmixer=aa=0.82[w];"
         "[bg][w]overlay=(W-w)/2:1410:shortest=1,"
-        "drawbox=x=0:y=1908:w=iw*t/30:h=7:color=0xE8C98A@0.95:t=fill,"
+        "drawbox=x=0:y=1908:w=iw:h=7:color=0xE8C98A@0.95:t=fill,"
         "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
         "text='ORIGINAL MUSIC':fontcolor=white:fontsize=54:x=(w-text_w)/2:y=250:"
         "shadowcolor=black@0.55:shadowx=2:shadowy=3,"
