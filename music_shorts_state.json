@@ -1,0 +1,22 @@
+{
+  "_published_audio_sha256": [
+    "6e86f786636647c3c6d9f3f23acc207064ac5af543e154386b22679f6525b216"
+  ],
+  "_published_video_sha256": [
+    "92fd8404132e90878de22dd452d6659aaffc014dd70437e107f48336d5d83a1c"
+  ],
+  "published_tracks": [
+    {
+      "video_id": "5JN6UYU8LDk",
+      "youtube_url": "https://youtu.be/5JN6UYU8LDk",
+      "track_title": "Calle de Sal \u2014 Afro-Cuban Son Montuno",
+      "style": "Afro-Cuban son montuno / rumba guaguanco instrumental, 3-2 clave",
+      "audio_sha256": "6e86f786636647c3c6d9f3f23acc207064ac5af543e154386b22679f6525b216",
+      "video_sha256": "92fd8404132e90878de22dd452d6659aaffc014dd70437e107f48336d5d83a1c",
+      "published_at": "2026-11-20T14:11:34.882831+00:00",
+      "clip_start_seconds": 32.4,
+      "duration_seconds": 30
+    }
+  ],
+  "_last_published_at": "2026-11-20T14:11:34.882831+00:00"
+}
