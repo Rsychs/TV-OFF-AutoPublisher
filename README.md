@@ -88,3 +88,31 @@ Open the repository's **Actions** tab, select **YouTube AutoPublisher**, and cho
 - OAuth apps left in Testing can issue refresh tokens that expire after 7 days for non-basic scopes. For ongoing unattended uploads, configure the OAuth consent screen for Production and complete any verification Google requires.
 - YouTube API projects that have not passed the required audit may have uploads restricted to private visibility.
 - The workflow tracks uploaded video IDs in `state.json` to avoid duplicate uploads. It does not upload files that are missing from `videos/`.
+
+## Optional AI-composed music provider (Stable Audio)
+
+TV OFF can use the official Stability AI Stable Audio 3 text-to-audio API for Original Music in both Shorts and long-form videos. The provider is deliberately opt-in; the existing local TV OFF composer remains the default and zero-API-cost fallback.
+
+### Enable it
+
+1. Create a Stability AI Platform API key at https://platform.stability.ai/.
+2. In the GitHub repository, add an Actions secret named `STABILITY_API_KEY`.
+3. Add a repository Actions variable named `STABILITY_AUDIO_ENABLED` with the exact value `true`.
+4. Leave the variable unset or set it to anything other than `true` to keep using the local composer.
+
+The workflows pass the key only to the music-generation step. The key is never written to source files, manifests, logs, or Git history. If the feature is enabled but the secret is missing, generation fails closed rather than silently switching providers.
+
+### Generation and safeguards
+
+- Shorts request a 36-second original instrumental arrangement; long-form requests a 380-second master that the existing renderer loops with crossfades to the selected video duration.
+- The provider submits once and polls the returned job ID. It does not automatically resubmit a timed-out generation, avoiding accidental duplicate charges.
+- Audio is checked with FFprobe for the requested duration, and SHA-256 is recorded in the existing manifest and checksum sidecar.
+- Existing upload deduplication, shared concurrency lock, slot guards, cooldowns, and YouTube upload confirmation remain unchanged.
+- White Noise and Brown Noise continue using their separate local generators; only Original Music is routed through this provider.
+
+### Cost and commercial use
+
+Stable Audio API usage is not a permanently free service. The platform currently advertises 25 starter credits, while its pricing page lists Stable Audio 3.0 at 26 credits per successful generation (pricing can change). Therefore the starter allowance may not cover even one Stable Audio 3.0 generation. Do not enable the provider unless you accept the possible credit charge. See https://platform.stability.ai/pricing and https://stability.ai/license.
+
+Stable Audio outputs may be used commercially subject to the current Stability AI Platform Terms, Acceptable Use Policy, and applicable law. Re-check those terms before monetization or any change in business scale.
+
