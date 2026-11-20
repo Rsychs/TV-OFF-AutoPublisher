@@ -75,12 +75,23 @@ def main():
     video = OUT / f"TV-OFF_Original-Music_Short_{slot}.mp4"
     title = re.sub(r"\s+", " ", str(m["title"])).strip()
     safe_title = title.replace("\\", "").replace("'", "").replace(":", " —").replace("%", " ").replace(",", " ").replace("[", "(").replace("]", ")")
-    subprocess.run([
-        os.sys.executable, str(ROOT / "scripts" / "render_tv_off_short_scene.py"),
-        "--out", str(scene), "--kind", "original_music", "--slot", slot[:10], "--style", str(m["style"])
-    ], check=True, timeout=1800)
+    # Prefer the exact visual rendered and packaged during the matching music-generation run.
+    # Legacy tracks without a bundled visual retain a compatibility fallback.
+    bundled_visual = m.get("visual_file")
+    if bundled_visual:
+        scene = (manifest_path.parent / bundled_visual).resolve()
+        if not scene.is_relative_to(AUDIO_DIR.resolve()):
+            raise RuntimeError("Manifest visual file is outside the downloaded track artifact")
+        if m.get("visual_style") != m.get("style") or m.get("visual_seed") != m.get("seed"):
+            raise RuntimeError("Bundled visual metadata does not match this music track")
+        print(f"Using music-generation visual: {scene.name} | style={m['visual_style']}")
+    else:
+        subprocess.run([
+            os.sys.executable, str(ROOT / "scripts" / "render_tv_off_short_scene.py"),
+            "--out", str(scene), "--kind", "original_music", "--slot", slot[:10], "--style", str(m["style"])
+        ], check=True, timeout=1800)
     if not scene.is_file() or scene.stat().st_size < 100000:
-        raise RuntimeError("Music-specific 3D scene render failed")
+        raise RuntimeError("Music-specific visual asset is missing or too small")
 
     # Locked camera; the animated waveform and progress marker provide restrained motion.
     graph = (
