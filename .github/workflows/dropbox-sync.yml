@@ -1,4 +1,4 @@
-name: TV OFF Music Library — Dropbox Sync (isolated Full Dropbox)
+name: TV OFF Music Library — Dropbox Sync
 
 on:
   workflow_run:
@@ -76,25 +76,25 @@ jobs:
       - name: Check Dropbox credentials without exposing values
         id: credentials
         env:
-          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_MUSIC_APP_KEY }}
-          DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_MUSIC_APP_SECRET }}
-          DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_MUSIC_REFRESH_TOKEN }}
-          DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_MUSIC_ACCESS_TOKEN }}
+          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
+          DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
+          DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
         run: |
           if [ -n "$DROPBOX_ACCESS_TOKEN" ] || { [ -n "$DROPBOX_APP_KEY" ] && [ -n "$DROPBOX_APP_SECRET" ] && [ -n "$DROPBOX_REFRESH_TOKEN" ]; }; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Dropbox upload not configured. Add DROPBOX_MUSIC_ACCESS_TOKEN, or add DROPBOX_MUSIC_APP_KEY, DROPBOX_MUSIC_APP_SECRET and DROPBOX_MUSIC_REFRESH_TOKEN as repository Actions secrets."
+            echo "::warning::Dropbox upload not configured. Add DROPBOX_ACCESS_TOKEN, or add DROPBOX_APP_KEY, DROPBOX_APP_SECRET and DROPBOX_REFRESH_TOKEN as repository Actions secrets."
           fi
 
       - name: Upload verified WAV, MP3 and manifest directly to Dropbox
         if: steps.credentials.outputs.ready == 'true'
         env:
-          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_MUSIC_APP_KEY }}
-          DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_MUSIC_APP_SECRET }}
-          DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_MUSIC_REFRESH_TOKEN }}
-          DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_MUSIC_ACCESS_TOKEN }}
+          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
+          DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
+          DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
           MANIFEST_DIR: ${{ steps.validate.outputs.manifest_dir }}
           WAV_NAME: ${{ steps.validate.outputs.wav_name }}
           MP3_NAME: ${{ steps.validate.outputs.mp3_name }}
@@ -122,8 +122,9 @@ jobs:
 
           api = "https://api.dropboxapi.com/2"
           headers = {"Authorization": f"Bearer {access}", "Content-Type": "application/json"}
-          # Full Dropbox app: upload directly into the TV OFF music library folder.
-          folder = "/TV OFF/Music Library/Original Tracks/Experimental"
+          # Dropbox app-folder tokens are sandboxed to the app folder. Stage files here;
+          # the ChatGPT Dropbox connector then moves them into the user's requested library folder.
+          folder = ""
           base = Path(os.environ["MANIFEST_DIR"])
           names = [os.environ["WAV_NAME"], os.environ["MANIFEST_NAME"]]
           if os.environ.get("MP3_NAME"):
@@ -133,7 +134,7 @@ jobs:
               local = base / name
               if not local.is_file():
                   raise SystemExit(f"Local file missing: {name}")
-              target = folder + "/" + name
+              target = "/" + name
               arg = {"path": target, "mode": "add", "autorename": False, "mute": True, "strict_conflict": True}
               upload_headers = {
                   "Authorization": f"Bearer {access}",
