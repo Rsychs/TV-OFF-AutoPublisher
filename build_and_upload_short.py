@@ -129,19 +129,24 @@ def main():
     if kind == "original_music":
         try:
             music_duration = int(info.get("duration_seconds", -1))
-            music_bar_seconds = float(info.get("bar_seconds", -1))
+            music_bar_seconds = float(info.get("bar_seconds", -1)) if info.get("bar_seconds") is not None else None
         except (TypeError, ValueError) as exc:
             raise RuntimeError("Original Music Shorts manifest has invalid duration/bar_seconds.") from exc
+        is_stability_audio = info.get("provider") == "stability"
+        expected_mode = "stable_audio_short_form" if is_stability_audio else "short_form_fast_harmonic_movement"
+        valid_bar = is_stability_audio or (
+            music_bar_seconds is not None and abs(music_bar_seconds - 4.5) <= 1e-9
+        )
         if (
-            info.get("composition_mode") != "short_form_fast_harmonic_movement"
+            info.get("composition_mode") != expected_mode
             or music_duration != 36
-            or abs(music_bar_seconds - 4.5) > 1e-9
+            or not valid_bar
             or not str(info.get("music_style", "")).strip()
             or not str(info.get("sound_profile", "")).strip()
         ):
             raise RuntimeError(
-                "Original Music Short requires manifest composition_mode=short_form_fast_harmonic_movement, "
-                "duration_seconds=36, bar_seconds=4.5, music_style and sound_profile."
+                "Original Music Short manifest does not match the selected provider's "
+                "required 36-second format and composition metadata."
             )
         if not isinstance(state.get("_published_music_metadata", []), list):
             raise RuntimeError("Invalid _published_music_metadata ledger; refusing Original Music Short upload.")
