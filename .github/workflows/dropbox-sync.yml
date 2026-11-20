@@ -76,25 +76,25 @@ jobs:
       - name: Check Dropbox credentials without exposing values
         id: credentials
         env:
-          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
-          DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
-          DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
-          DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
+          DROPBOX_MUSIC_APP_KEY: ${{ secrets.DROPBOX_MUSIC_APP_KEY }}
+          DROPBOX_MUSIC_APP_SECRET: ${{ secrets.DROPBOX_MUSIC_APP_SECRET }}
+          DROPBOX_MUSIC_REFRESH_TOKEN: ${{ secrets.DROPBOX_MUSIC_REFRESH_TOKEN }}
+          DROPBOX_MUSIC_ACCESS_TOKEN: ${{ secrets.DROPBOX_MUSIC_ACCESS_TOKEN }}
         run: |
-          if [ -n "$DROPBOX_ACCESS_TOKEN" ] || { [ -n "$DROPBOX_APP_KEY" ] && [ -n "$DROPBOX_APP_SECRET" ] && [ -n "$DROPBOX_REFRESH_TOKEN" ]; }; then
+          if [ -n "$DROPBOX_MUSIC_ACCESS_TOKEN" ] || { [ -n "$DROPBOX_MUSIC_APP_KEY" ] && [ -n "$DROPBOX_MUSIC_APP_SECRET" ] && [ -n "$DROPBOX_MUSIC_REFRESH_TOKEN" ]; }; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Dropbox upload not configured. Add DROPBOX_ACCESS_TOKEN, or add DROPBOX_APP_KEY, DROPBOX_APP_SECRET and DROPBOX_REFRESH_TOKEN as repository Actions secrets."
+            echo "::warning::Dropbox upload not configured. Add DROPBOX_MUSIC_ACCESS_TOKEN, or add DROPBOX_MUSIC_APP_KEY, DROPBOX_MUSIC_APP_SECRET and DROPBOX_MUSIC_REFRESH_TOKEN as repository Actions secrets."
           fi
 
       - name: Upload verified WAV, MP3 and manifest directly to Dropbox
         if: steps.credentials.outputs.ready == 'true'
         env:
-          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
-          DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
-          DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
-          DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
+          DROPBOX_MUSIC_APP_KEY: ${{ secrets.DROPBOX_MUSIC_APP_KEY }}
+          DROPBOX_MUSIC_APP_SECRET: ${{ secrets.DROPBOX_MUSIC_APP_SECRET }}
+          DROPBOX_MUSIC_REFRESH_TOKEN: ${{ secrets.DROPBOX_MUSIC_REFRESH_TOKEN }}
+          DROPBOX_MUSIC_ACCESS_TOKEN: ${{ secrets.DROPBOX_MUSIC_ACCESS_TOKEN }}
           MANIFEST_DIR: ${{ steps.validate.outputs.manifest_dir }}
           WAV_NAME: ${{ steps.validate.outputs.wav_name }}
           MP3_NAME: ${{ steps.validate.outputs.mp3_name }}
@@ -105,10 +105,10 @@ jobs:
           from pathlib import Path
           import requests
 
-          app_key = os.environ.get("DROPBOX_APP_KEY", "")
-          app_secret = os.environ.get("DROPBOX_APP_SECRET", "")
-          refresh = os.environ.get("DROPBOX_REFRESH_TOKEN", "")
-          access = os.environ.get("DROPBOX_ACCESS_TOKEN", "")
+          app_key = os.environ.get("DROPBOX_MUSIC_APP_KEY", "")
+          app_secret = os.environ.get("DROPBOX_MUSIC_APP_SECRET", "")
+          refresh = os.environ.get("DROPBOX_MUSIC_REFRESH_TOKEN", "")
+          access = os.environ.get("DROPBOX_MUSIC_ACCESS_TOKEN", "")
           if not access:
               token_response = requests.post(
                   "https://api.dropboxapi.com/oauth2/token",
