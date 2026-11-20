@@ -21,11 +21,7 @@ This integration is intentionally separate from the production music generator a
 
 ## Run
 
-1. Open the repository issue titled **TV OFF ACE-Step GPU smoke test**.
-2. Comment exactly: `/run-ace-step-smoke`.
-3. Open the GitHub Actions run and inspect the `tv-off-ace-step-t4-smoke` artifact.
-
-The workflow only accepts that exact command from repository owner `Rsychs`.
+Push a change to this feature branch affecting this workflow or the `kaggle/ace-step-smoke/` folder. GitHub Actions automatically pushes the notebook to Kaggle and returns the audio artifact.
 
 ## First-test configuration
 
