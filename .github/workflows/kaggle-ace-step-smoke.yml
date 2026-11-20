@@ -69,7 +69,7 @@ jobs:
           print("machine_shape:", data.get("machine_shape"))
           print("enable_gpu:", data.get("enable_gpu"))
           print("enable_internet:", data.get("enable_internet"))
-          if data.get("id") != "TVOffset/tv-off-ace-step-1-5-t4-smoke-test-v2":
+          if (data.get("id") or "").lower() != "tvoffset/tv-off-ace-step-1-5-t4-smoke-test-v2":
               raise SystemExit("Unexpected Kaggle kernel ID")
           if data.get("machine_shape") != "NvidiaTeslaT4" or not data.get("enable_gpu"):
               raise SystemExit("Kaggle did not persist the requested Tesla T4 GPU")
