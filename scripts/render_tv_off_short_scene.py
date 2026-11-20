@@ -1,199 +1,169 @@
-"""Create one distinct cinematic 3D TV OFF scene for a vertical Short.
-Run with: blender --background --python scripts/render_tv_off_short_scene.py -- --out FILE --kind white_noise --slot YYYYMMDDHH
+"""Render a premium architectural TV OFF interior still.
+The camera is locked. Each UTC slot selects a distinct interior art direction.
 """
 import bpy, math, os, sys, argparse, random
 from mathutils import Vector
 
 argv=sys.argv[sys.argv.index("--")+1:] if "--" in sys.argv else sys.argv[1:]
-ap=argparse.ArgumentParser()
-ap.add_argument("--out",required=True); ap.add_argument("--kind",required=True); ap.add_argument("--slot",required=True); ap.add_argument("--style",default="")
-a=ap.parse_args(argv)
-kind=a.kind; style=a.style.lower(); seed=int(a.slot[-2:]) + int(a.slot[-4:-2])*3 + sum(ord(ch) for ch in style)%997
+p=argparse.ArgumentParser()
+p.add_argument("--out",required=True); p.add_argument("--kind",required=True)
+p.add_argument("--slot",required=True); p.add_argument("--style",default="")
+a=p.parse_args(argv)
+seed=sum(ord(x) for x in a.slot+a.kind+a.style)
+rng=random.Random(seed)
+scene_id=(int(a.slot[-2:]) + int(a.slot[-4:-2])*3) % 5
+
 bpy.ops.object.select_all(action="SELECT"); bpy.ops.object.delete(use_global=False)
 for datablocks in (bpy.data.materials,bpy.data.curves,bpy.data.cameras,bpy.data.lights):
     pass
 
-palettes={
- "white_noise": ((.48,.70,1.0),(.035,.075,.15),(.72,.82,.95)),
- "brown_noise": ((1.0,.48,.17),(.12,.055,.025),(.82,.58,.34)),
- "original_music": ((.63,.42,1.0),(.055,.035,.13),(.92,.68,.42)),
-}
-accent,deep,light=palettes[kind]
-# Genre-aware art direction: distinct lighting/material mood for each musical family.
-if kind == "original_music":
-    if any(k in style for k in ("bluegrass", "country", "folk", "acoustic")):
-        accent,deep,light=((1.0,.55,.20),(.13,.065,.025),(.92,.72,.43))
-    elif any(k in style for k in ("balkan", "brass", "folk dance", "gypsy")):
-        accent,deep,light=((1.0,.34,.10),(.16,.025,.018),(1.0,.72,.32))
-    elif any(k in style for k in ("baroque", "classical", "chamber", "orchestral")):
-        accent,deep,light=((.88,.63,.27),(.10,.025,.045),(.96,.82,.60))
-    elif any(k in style for k in ("ambient", "cinematic", "celestial", "electronic")):
-        accent,deep,light=((.56,.42,1.0),(.035,.025,.12),(.82,.75,1.0))
-def mat(name,color,rough=.55,metal=0,emission=None,strength=0):
- m=bpy.data.materials.new(name); m.diffuse_color=(*color,1); m.use_nodes=True
- p=m.node_tree.nodes.get("Principled BSDF"); p.inputs["Base Color"].default_value=(*color,1); p.inputs["Roughness"].default_value=rough; p.inputs["Metallic"].default_value=metal
- if emission:
-  p.inputs["Emission Color"].default_value=(*emission,1); p.inputs["Emission Strength"].default_value=strength
- return m
-def cube(name,loc,scale,ma,bev=.04):
- bpy.ops.mesh.primitive_cube_add(size=1,location=loc); o=bpy.context.object; o.name=name; o.dimensions=scale; bpy.ops.object.transform_apply(location=False,rotation=False,scale=True); o.data.materials.append(ma)
- if bev:
-  b=o.modifiers.new("Soft rounded craftsmanship","BEVEL"); b.width=bev; b.segments=4; o.modifiers.new("Weighted normals","WEIGHTED_NORMAL")
- return o
-def sphere(name,loc,scale,ma):
- bpy.ops.mesh.primitive_uv_sphere_add(segments=24,ring_count=16,radius=1,location=loc); o=bpy.context.object; o.name=name; o.scale=scale; o.data.materials.append(ma); bpy.ops.object.shade_smooth(); return o
-def cyl(name,loc,r,depth,ma):
- bpy.ops.mesh.primitive_cylinder_add(vertices=48,radius=r,depth=depth,location=loc); o=bpy.context.object; o.name=name; o.data.materials.append(ma); b=o.modifiers.new("Rounded edge","BEVEL"); b.width=.025; b.segments=3; return o
-def light_obj(name,loc,power,color,size,target):
- bpy.ops.object.light_add(type="AREA",location=loc); o=bpy.context.object; o.name=name; o.data.energy=power; o.data.color=color; o.data.shape="DISK"; o.data.size=size; o.rotation_euler=(Vector(target)-o.location).to_track_quat("-Z","Y").to_euler()
-def text_obj(body,loc,size,ma):
- cu=bpy.data.curves.new("TV OFF brand lettering","FONT"); cu.body=body; cu.size=size; cu.extrude=.002; ob=bpy.data.objects.new(body,cu); bpy.context.collection.objects.link(ob); ob.location=loc; ob.data.materials.append(ma); return ob
+def material(name,color,rough=.5,metal=0, emission=None, strength=0):
+    m=bpy.data.materials.new(name); m.diffuse_color=(*color,1); m.use_nodes=True
+    bs=m.node_tree.nodes.get("Principled BSDF")
+    bs.inputs["Base Color"].default_value=(*color,1)
+    bs.inputs["Roughness"].default_value=rough
+    bs.inputs["Metallic"].default_value=metal
+    if emission:
+        bs.inputs["Emission Color"].default_value=(*emission,1)
+        bs.inputs["Emission Strength"].default_value=strength
+    return m
 
-wall=mat("Deep architectural walls",deep,.9); floor=mat("Warm natural flooring",(.18,.13,.095),.42)
-wood=mat("Walnut and oak",(.20,.095,.045),.32); fabric=mat("Soft premium upholstery",(.55,.48,.38),.95)
-darkfabric=mat("Midnight velvet",(.045,.06,.09),.98); metal=mat("Brushed metal",(.38,.28,.18),.25,.78)
-glass=mat("Night glass",(.012,.035,.075),.12,.25,accent,.45)
-glow=mat("Luminous accent",accent,.22,.15,accent,3.0); ceramic=mat("Matte ceramic",(.28,.25,.22),.25)
-green=mat("Indoor foliage",(.025,.13,.07),.8)
+def cube(name,loc,scale,mat,bevel=.04):
+    bpy.ops.mesh.primitive_cube_add(size=1,location=loc)
+    o=bpy.context.object; o.name=name; o.dimensions=scale
+    bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
+    o.data.materials.append(mat)
+    if bevel:
+        b=o.modifiers.new("Soft architectural edges","BEVEL"); b.width=bevel; b.segments=4
+        o.modifiers.new("Weighted corner normals","WEIGHTED_NORMAL")
+    return o
 
-# Eight distinct modeled environments, with genre-specific lighting and deterministic variation.
-scene_id=seed%8
-cube("Continuous floor",(0,0,-.12),(9,11,.24),floor,.02)
-cube("Rear wall",(0,4.5,2.7),(9,.18,5.4),wall,.02)
-cube("Left wall",(-4.5,0,2.7),(.18,9,5.4),wall,.02)
-cube("Ceiling",(0,0,5.4),(9,9,.12),wall,.02)
+def area(name,loc,power,color,size,target):
+    bpy.ops.object.light_add(type="AREA",location=loc)
+    o=bpy.context.object; o.name=name; o.data.energy=power; o.data.color=color
+    o.data.shape="DISK"; o.data.size=size
+    o.rotation_euler=(Vector(target)-o.location).to_track_quat("-Z","Y").to_euler()
 
-if scene_id==0: # cinematic lounge with fireplace and window
- cube("Panoramic night window",(2.3,4.38,2.8),(3.5,.04,3.8),glass,.02)
- for x in [.55,2.3,4.05]: cube("Window mullion",(x,4.32,2.8),(.045,.1,3.85),metal,.01)
- cube("Stone fireplace surround",(-2.7,3.95,1.45),(2.2,.55,2.8),wood,.08)
- cube("Fireplace dark opening",(-2.7,3.64,1.25),(1.55,.05,1.05),darkfabric,.02)
- for i in range(8): sphere("Firelight",(-3.35+i*.18,3.55,1.0+(i%3)*.13),(.07,.04,.18),glow)
- cube("Lounge sofa",(0,-.6,.65),(4.3,1.3,1.1),fabric,.22)
- cube("Sofa back",(0,.05,1.25),(4.2,.38,1.5),darkfabric,.2)
- cube("Stone coffee table",(0,-2,.45),(2.5,1.1,.15),metal,.08)
-elif scene_id==1: # calm bedroom, layered bedding and arched window
- cube("Tall arched window",(0,4.36,3.0),(3.0,.04,3.9),glass,.02)
- bpy.ops.mesh.primitive_uv_sphere_add(segments=48,ring_count=24,radius=1,location=(0,4.35,4.55)); arch=bpy.context.object; arch.scale=(1.5,.035,.8); arch.data.materials.append(glass)
- cube("Low upholstered bed",(0,-.25,.65),(4.4,3.1,.65),darkfabric,.18)
- cube("Tall padded headboard",(0,1.25,1.35),(4.5,.25,1.5),fabric,.15)
- for x in [-1.25,1.25]: cube("Plump linen pillow",(x,.55,1.15),(1.4,.75,.3),fabric,.16)
- cube("Folded knit blanket",(0,-1.05,1.02),(4.1,1.1,.12),wood,.12)
- for x in [-2.7,2.7]: cyl("Bedside table",(x,.65,.48),.48,.85,wood)
-elif scene_id==2: # design studio with desk, shelving and task light
- cube("Desk top",(0,1.2,1.35),(5.3,1.25,.16),wood,.07)
- for x in [-2.2,2.2]: cube("Desk leg",(x,1.2,.68),(.12,.12,1.3),metal,.025)
- for z in [2.2,3.1,4.0]:
-  cube("Floating wall shelf",(0,4.25,z),(5.2,.35,.12),wood,.035)
-  for i in range(5):
-   x=-2.0+i*.9
-   cube("Design book",(x,4.0,z+.23),(.22,.22,.36+(i%2)*.1),fabric if i%2 else metal,.015)
- cube("Studio chair seat",(0,-.25,.8),(1.4,1.2,.25),darkfabric,.14)
- cube("Studio chair back",(0,.25,1.45),(1.35,.22,1.1),fabric,.14)
- cyl("Task lamp base",(1.65,.9,1.5),.22,.08,metal)
- cube("Task lamp arm",(1.65,.9,2.0),(.07,.07,1.0),metal,.025)
- sphere("Task lamp shade",(1.65,.9,2.55),(.32,.32,.18),glow)
-elif scene_id==3: # reading nook with window, lounge chair and bookcase
- cube("Tall moonlit window",(-2.6,4.35,2.8),(2.3,.04,4.0),glass,.02)
- for x in [-3.75,-2.6,-1.45]: cube("Window frame",(x,4.28,2.8),(.05,.12,4.1),metal,.01)
- cube("Bookcase",(2.6,3.95,2.35),(2.0,.55,4.5),wood,.04)
- for z in [.7,1.65,2.6,3.55]:
-  cube("Bookshelf shelf",(2.6,3.62,z),(1.9,.12,.09),metal,.015)
-  for i in range(5): cube("Book spine",(1.9+i*.3,3.5,z+.22),(.19,.16,.35+(i%3)*.12),fabric if i%2 else darkfabric,.012)
- cube("Reading chair",(0,-.3,.8),(2.0,1.8,1.1),fabric,.24)
- cube("Reading chair back",(0,.45,1.55),(1.95,.35,1.5),darkfabric,.2)
- cyl("Round side table",(-1.55,-.2,.55),.42,.12,wood)
-elif scene_id==4: # music room with grand piano silhouette
- cube("Acoustic feature wall",(0,4.3,2.6),(8.7,.12,5.0),darkfabric,.025)
- # grand piano body, lid, keyboard, legs
- bpy.ops.mesh.primitive_uv_sphere_add(segments=48,ring_count=24,radius=1,location=(0,.4,1.0)); piano=bpy.context.object; piano.name="Grand piano body"; piano.scale=(2.0,1.35,.48); piano.data.materials.append(black:=mat("Piano lacquer",(.012,.016,.025),.16,.72))
- cube("Piano keyboard",(0,-.85,1.12),(2.35,.22,.12),fabric,.02)
- for i in range(25): cube("Piano key",( -1.1+i*.092,-.98,1.19),(.075,.05,.035),metal if i%7 in [1,3,6] else fabric,.004)
- lid=cube("Grand piano raised lid",(.65,.35,1.65),(2.7,1.7,.08),black,.035); lid.rotation_euler[1]=-.12
- cyl("Piano stool",(0,-2,.55),.5,.18,wood)
- cube("Piano stool stem",(0,-2,.28),(.12,.12,.45),metal,.02)
+def cylinder(name,loc,radius,depth,mat):
+    bpy.ops.mesh.primitive_cylinder_add(vertices=64,radius=radius,depth=depth,location=loc)
+    o=bpy.context.object; o.name=name; o.data.materials.append(mat)
+    b=o.modifiers.new("Rounded edge","BEVEL"); b.width=.025; b.segments=3
+    return o
 
-elif scene_id==5: # vibrant Balkan courtyard with arches and festival lanterns
- cube("Courtyard rear wall",(0,4.5,2.7),(9,.18,5.4),wall,.02)
- for x in [-3.2,-1.1,1.1,3.2]:
-  cube("Courtyard arch pillar",(x,4.0,2.3),(.28,.5,4.6),wood,.04)
-  cube("Arch crown",(x,4.0,4.55),(1.35,.5,.28),wood,.12)
- for x in [-2.1,0,2.1]:
-  cube("Festival banner",(x,4.22,3.3),(.65,.035,1.7),glow,.02)
-  sphere("Lantern",(x,2.9,4.35),(.22,.22,.34),glow)
- cube("Courtyard stone fountain",(0,1.1,.35),(2.1,1.5,.5),metal,.16)
- for x in [-2.8,2.8]:
-  cyl("Terracotta planter",(x,1.7,.45),.48,.8,ceramic)
-  for i in range(7):
-   ang=i*math.tau/7
-   sphere("Courtyard flowers",(x+math.cos(ang)*.35,1.7+math.sin(ang)*.35,1.25),(.16,.16,.28),glow)
-elif scene_id==6: # baroque concert salon with gilded architectural details
- cube("Baroque stage wall",(0,4.35,2.7),(8.8,.2,5.4),wood,.03)
- for x in [-3.2,-1.6,0,1.6,3.2]:
-  cube("Gilded pilaster",(x,4.18,2.75),(.13,.12,4.9),metal,.025)
-  sphere("Ornamental capital",(x,4.12,4.95),(.32,.15,.18),glow)
- for z in [1.1,4.25]:
-  cube("Ornamental gold frieze",(0,4.12,z),(8.0,.12,.11),glow,.035)
- cube("Concert dais",(0,1.25,.22),(6.5,2.1,.35),wood,.08)
- for x in [-2.3,0,2.3]:
-  cyl("Classical column",(x,3.8,2.25),.19,4.1,metal)
-  cyl("Column base",(x,3.8,.25),.42,.3,glow)
-  cyl("Column crown",(x,3.8,4.25),.4,.3,glow)
-elif scene_id==7: # futuristic electronic performance stage
- cube("Infinite LED wall",(0,4.35,2.8),(8.8,.12,5.5),darkfabric,.02)
- for i in range(13):
-  x=-3.9+i*.65
-  cube("Vertical LED blade",(x,4.18,2.8),(.045,.06,4.8),glow,.015)
- for i in range(5):
-  z=.8+i*.85
-  cube("Holographic horizon",(0,2.7,z),(7.5,.035,.025),glow,.01)
- for x in [-2.6,0,2.6]:
-  cyl("Stage plinth",(x,1.1,.28),.72,.5,metal)
-  sphere("Floating light orb",(x,1.1,1.2),(.34,.34,.34),glow)
+# Art direction: five genuinely different rooms, not a filter applied to one room.
+styles=[
+ ("MIDNIGHT BLUE",(.025,.055,.12),(.12,.16,.23),(.08,.22,.42),(.7,.78,1.0)),
+ ("NEON DREAMS",(.045,.025,.10),(.16,.10,.23),(.34,.10,.72),(.72,.52,1.0)),
+ ("COZY EVENING",(.12,.065,.035),(.24,.15,.09),(.78,.34,.10),(1.0,.68,.36)),
+ ("CITY NIGHTS",(.018,.035,.065),(.09,.13,.19),(.12,.30,.55),(.50,.72,1.0)),
+ ("FOREST RETREAT",(.035,.075,.055),(.12,.17,.12),(.13,.34,.22),(.68,.82,.60)),
+]
+label,wall_color,sofa_color,accent,light_color=styles[scene_id]
+if a.kind=="brown_noise":
+    accent=(.62,.32,.12); light_color=(1.0,.62,.32)
+elif a.kind=="original_music" and scene_id in (0,1,3):
+    accent=(.32,.22,.72); light_color=(.70,.60,1.0)
 
-# Shared crafted accents: sculptural lamp, plant, floating luminous rings and brand plaque.
-cyl("Sculptural lamp stem",(3.45,-.1,1.45),.045,2.7,metal)
-sphere("Sculptural lamp globe",(3.45,-.1,2.85),(.32,.32,.38),glow)
-cyl("Planter",( -3.4,1.7,.38),.34,.7,ceramic)
-cyl("Plant trunk",(-3.4,1.7,1.35),.045,1.4,wood)
-for i in range(14):
- ang=i*2.399; sphere("Distinct leaf cluster",(-3.4+math.cos(ang)*(.25+(i%3)*.09),1.7+math.sin(ang)*(.25+(i%3)*.09),1.45+(i%5)*.24),(.14,.09,.24),green)
-# floating light sculpture - distinctive signature in each room
-for i in range(3):
- bpy.ops.mesh.primitive_torus_add(major_radius=1.0+i*.23,minor_radius=.018,major_segments=96,minor_segments=8,location=(0,2.5,3.8-i*.24),rotation=(math.radians(65),0,math.radians(i*25+seed*9)))
- o=bpy.context.object; o.name="TV OFF luminous sound ring"; o.data.materials.append(glow)
+wall=material("Matte architectural plaster",wall_color,.88)
+floor=material("Natural smoked oak floor",(.12,.085,.06),.38)
+wood=material("Walnut joinery",(.16,.075,.035),.3)
+sofa=material("Premium textured upholstery",sofa_color,.94)
+black=material("TV bezel",(.006,.008,.012),.22,.45)
+screen=material("TV glass",(.003,.008,.018),.12,.25,(.015,.035,.075),.18)
+metal=material("Brushed dark metal",(.16,.18,.21),.28,.8)
+glass=material("Night window glass",(.008,.025,.055),.12,.35,accent,.16)
+glow=material("Architectural accent light",accent,.25,.15,accent,2.0)
+cream=material("Linen cushions",(.58,.52,.43),.96)
+rug=material("Woven rug",(.11,.095,.085),.98)
 
-# Seeded art direction changes small props and static camera framing for every slot.
-rng=random.Random(seed)
-for i in range(7):
- x=rng.uniform(-3.4,3.4); y=rng.uniform(2.1,3.25); z=rng.uniform(1.35,4.7)
- r=rng.uniform(.035,.095)
- sphere("Unique suspended ambient light "+str(i),(x,y,z),(r,r,r*1.35),glow)
-for i in range(4):
- x=rng.uniform(-3.6,3.6); z=rng.uniform(1.0,4.7)
- cube("Unique slim light detail "+str(i),(x,4.36,z),(rng.uniform(.025,.06),.025,rng.uniform(.22,.75)),glow,.01)
+# Enclosed architectural shell and floor.
+cube("Oak floor",(0,0,-.12),(10,12,.24),floor,.02)
+cube("Rear feature wall",(0,4.8,2.8),(10,.22,5.6),wall,.02)
+cube("Left return wall",(-5,0,2.8),(.22,9.6,5.6),wall,.02)
+cube("Right return wall",(5,0,2.8),(.22,9.6,5.6),wall,.02)
+cube("Ceiling",(0,0,5.6),(10,9.6,.16),wall,.02)
 
-# Category-dependent lighting and accent
-area_color=(accent[0],accent[1],accent[2])
-light_obj("Large soft key",(0,-3.5,5.0),1250,(1,.78,.62),5,(0,1,1))
-light_obj("Category rim",(3.6,3.0,4.2),950,area_color,3,(0,0,1))
-light_obj("Cool fill",(-3,-1,3.0),450,(.45,.58,1),4,(0,1,1))
-light_obj("Warm practical",(3.2,0,2.8),300,(1,.52,.24),1.5,(0,0,0))
-# Locked-off portrait camera: render one still PNG; only the audio waveform and text overlays animate.
-bpy.ops.object.camera_add(location=(rng.uniform(-.38,.38),-8.7,rng.uniform(2.82,3.18))); cam=bpy.context.object
-cam.rotation_euler=(Vector((0,1.0,2.15))-cam.location).to_track_quat("-Z","Y").to_euler()
-cam.data.lens=rng.uniform(32,37); cam.data.sensor_width=36; cam.data.sensor_fit="VERTICAL"; bpy.context.scene.camera=cam
-scene=bpy.context.scene
-scene.render.engine="BLENDER_EEVEE_NEXT"
-scene.eevee.taa_render_samples=64
-scene.render.resolution_x=720; scene.render.resolution_y=1280; scene.render.resolution_percentage=100
+# Large window composition changes by room type.
+if scene_id in (0,3,4):
+    wx=-2.65 if scene_id!=3 else 2.55
+    cube("Panoramic window",(wx,4.66,2.95),(3.65,.035,3.95),glass,.015)
+    for dx in [-1.8,0,1.8]:
+        cube("Slim black window mullion",(wx+dx,4.59,2.95),(.045,.09,4.0),metal,.01)
+    cube("Window sill",(wx,4.48,.98),(3.8,.32,.12),wood,.025)
+    if scene_id==4:
+        # Forest silhouette beyond the glass.
+        for i in range(11):
+            x=wx-1.65+i*.33
+            h= rng.uniform(1.2,3.0)
+            bpy.ops.mesh.primitive_cone_add(vertices=12,radius1=.38,radius2=0,depth=h,location=(x,4.9,1.0+h/2))
+            bpy.context.object.data.materials.append(material("Pine silhouette "+str(i),(.018,.07,.035),.95))
+else:
+    cube("Arched feature window",(0,4.66,3.0),(3.3,.035,4.0),glass,.02)
+    for x in [-1.65,0,1.65]:
+        cube("Window frame",(x,4.58,3.0),(.055,.09,4.05),metal,.01)
+
+# TV wall and screen are the visual anchor in every room.
+cube("Floating walnut media wall",(0,4.48,2.25),(4.6,.18,2.8),wood,.08)
+cube("Large flat screen television",(0,4.30,2.45),(3.65,.12,2.12),black,.06)
+cube("Dark television display",(0,4.225,2.45),(3.48,.018,1.95),screen,.025)
+cube("Floating media console",(0,4.05,.72),(4.9,.65,.38),wood,.06)
+for x in [-1.8,1.8]:
+    cube("Console shadow gap",(x,3.70,.70),(.025,.02,.22),metal,.005)
+
+# Distinct living-room furniture, grounded proportions and layered textiles.
+cube("Large sectional sofa",(0,-1.05,.72),(4.45,1.35,.85),sofa,.24)
+cube("Sectional back",(0,-.28,1.22),(4.35,.42,1.18),sofa,.2)
+for x in [-1.45,-.55,.55,1.45]:
+    pillow= cube("Linen sofa cushion",(x,-.04,1.55),(.72,.24,.66),cream,.15)
+    pillow.rotation_euler[1]=rng.uniform(-.08,.08)
+cube("Layered area rug",(0,-1.35,.015),(6.0,3.5,.035),rug,.015)
+cube("Low coffee table",(0,-2.55,.42),(2.5,1.05,.14),wood,.07)
+for x in [-.92,.92]:
+    cube("Coffee table leg",(x,-2.55,.22),(.08,.08,.38),metal,.02)
+
+# Scene-specific architectural signature: fireplace, neon coves, skyline, or biophilic details.
+if scene_id==2:
+    cube("Stone fireplace surround",(-3.65,3.9,1.35),(1.65,.58,2.55),material("Warm limestone",(.42,.31,.22),.82),.08)
+    cube("Firebox recess",(-3.65,3.58,1.15),(1.22,.035,1.05),black,.02)
+    fire=material("Fire glow",(1.0,.22,.025),.25,0,(1.0,.12,.015),4.0)
+    for i in range(9):
+        bpy.ops.mesh.primitive_uv_sphere_add(segments=16,ring_count=12,radius=1,location=(-4.12+i*.12,3.53,.88+(i%3)*.12))
+        o=bpy.context.object; o.name="Fireplace ember form"; o.scale=(.055,.045,.18+(i%2)*.06); o.data.materials.append(fire)
+elif scene_id==1:
+    for z in [1.0,1.35,1.7,2.05,2.4,2.75,3.1,3.45,3.8]:
+        cube("Purple recessed LED reveal",(0,4.34,z),(4.1,.025,.018),glow,.005)
+elif scene_id==3:
+    # Distant city lights visible through the glass.
+    for i in range(36):
+        x=2.55+rng.uniform(-1.65,1.65); z=rng.uniform(1.25,4.55)
+        dot=material("Distant skyline light "+str(i),(.5,.62,.9),.25,0,(.35,.52,1.0),1.4)
+        cube("Distant skyline light",(x,4.88,z),(.035,.018,.035),dot,.005)
+elif scene_id==4:
+    for x in [-3.8,3.8]:
+        cylinder("Indoor planter",(x,1.3,.42),.38,.78,material("Stone planter",(.22,.24,.19),.75))
+        for i in range(7):
+            bpy.ops.mesh.primitive_uv_sphere_add(segments=16,ring_count=12,radius=1,location=(x+rng.uniform(-.3,.3),1.3+rng.uniform(-.3,.3),1.0+rng.uniform(.2,.8)))
+            o=bpy.context.object; o.name="Broad-leaf indoor plant"; o.scale=(.16,.09,.32); o.data.materials.append(material("Deep green foliage",(.025,.16,.07),.9))
+
+# Minimal practical lighting, no floating rings, no decorative HUD, no random clutter.
+area("Soft warm ceiling bounce",(0,1.0,5.0),1050,(1.0,.78,.58),5,(0,0,0))
+area("Cool window fill",(-3.5,3.2,3.8),850,light_color,3,(0,0,1))
+area("Soft sofa key",(0,-4.0,3.8),520,(.72,.80,1.0),4,(0,1,1))
+area("TV wall accent",(3.6,3.5,3.0),260,light_color,2,(0,2,1))
+
+# One immutable camera transform for the entire 30-second video.
+bpy.ops.object.camera_add(location=(0,-9.6,2.55))
+cam=bpy.context.object
+cam.rotation_euler=(Vector((0,1.55,2.05))-cam.location).to_track_quat("-Z","Y").to_euler()
+cam.data.lens=42; cam.data.sensor_width=36; cam.data.sensor_fit="VERTICAL"
+scene=bpy.context.scene; scene.camera=cam
+scene.render.engine="BLENDER_EEVEE_NEXT"; scene.eevee.taa_render_samples=96
+scene.render.resolution_x=1080; scene.render.resolution_y=1920; scene.render.resolution_percentage=100
 scene.render.image_settings.file_format="PNG"; scene.render.image_settings.color_mode="RGBA"
-scene.render.film_transparent=False; scene.view_settings.view_transform="AgX"; scene.view_settings.look="AgX - Medium High Contrast"
-scene.world.color=(.018,.025,.045)
-scene.use_nodes=True; nt=scene.node_tree; nt.nodes.clear()
-rl=nt.nodes.new("CompositorNodeRLayers"); glare=nt.nodes.new("CompositorNodeGlare"); glare.glare_type="FOG_GLOW"; glare.threshold=1.0; glare.quality="HIGH"
-comp=nt.nodes.new("CompositorNodeComposite"); nt.links.new(rl.outputs["Image"],glare.inputs["Image"]); nt.links.new(glare.outputs["Image"],comp.inputs["Image"])
-scene.camera.data.dof.use_dof=True; scene.camera.data.dof.focus_distance=10; scene.camera.data.dof.aperture_fstop=5.6
+scene.render.film_transparent=False
+scene.view_settings.view_transform="AgX"; scene.view_settings.look="AgX - Medium High Contrast"
+scene.world.color=(.012,.016,.026)
+scene.camera.data.dof.use_dof=True; scene.camera.data.dof.focus_distance=11; scene.camera.data.dof.aperture_fstop=8.0
 scene.render.filepath=a.out
 bpy.ops.render.render(write_still=True)
-print("TV_OFF_3D_SCENE_RENDERED",a.out,"scene_id",scene_id,"category",kind,"style",style)
+print("TV_OFF_PREMIUM_INTERIOR_RENDERED",a.out,"scene_id",scene_id,"room",label,"kind",a.kind)
