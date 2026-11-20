@@ -1,6 +1,9 @@
 name: TV OFF Music Library — Dropbox Sync
 
 on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/dropbox-sync.yml]
   workflow_run:
     workflows: ["TV OFF ACE-Step Kaggle GPU smoke test"]
     types: [completed]
@@ -12,7 +15,7 @@ permissions:
 
 jobs:
   sync-original-track:
-    if: github.event.workflow_run.conclusion == 'success'
+    if: (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') || (github.event_name == 'push' && github.event.head_commit.message == 'Retry Dropbox sync for track 003')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -21,7 +24,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ github.event.workflow_run.id || '44733325583' }}
           name: tv-off-ace-step-t4-smoke-v2
           path: artifacts
 
@@ -109,7 +112,8 @@ jobs:
               access = r.json()["access_token"]
 
           api = "https://api.dropboxapi.com/2"
-          headers = {"Authorization": f"Bearer {access}", "Content-Type": "application/json"}
+          path_root = json.dumps({".tag": "namespace_id", "namespace_id": "13932121425"}, separators=(",", ":"))
+headers = {"Authorization": f"Bearer {access}", "Content-Type": "application/json", "Dropbox-API-Path-Root": path_root}
           folder = "/TV OFF/Music Library/Original Tracks/Experimental"
           meta = requests.post(api + "/files/get_metadata", headers=headers, json={"path": folder}, timeout=30)
           meta.raise_for_status()
@@ -131,6 +135,7 @@ jobs:
                   "Authorization": f"Bearer {access}",
                   "Content-Type": "application/octet-stream",
                   "Dropbox-API-Arg": json.dumps(arg, separators=(",", ":")),
+                  "Dropbox-API-Path-Root": path_root,
               }
               with local.open("rb") as f:
                   response = requests.post("https://content.dropboxapi.com/2/files/upload", headers=upload_headers, data=f, timeout=600)
