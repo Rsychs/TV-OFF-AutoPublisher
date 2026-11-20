@@ -31,6 +31,11 @@ jobs:
           name: tv-off-verified-original-track
           path: artifacts
 
+      - name: Set up supported Python for Blender bpy
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: Install FFmpeg, Blender runtime, fonts and Python dependencies
         timeout-minutes: 30
         run: |
