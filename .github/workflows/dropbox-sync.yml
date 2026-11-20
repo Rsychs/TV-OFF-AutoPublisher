@@ -20,7 +20,7 @@ jobs:
        github.event.issue.number == 27 &&
        github.event.issue.pull_request != null &&
        github.event.comment.user.login == 'Rsychs' &&
-       github.event.comment.body == '/tv-off-dropbox-sync-003-stage')
+       github.event.comment.body == '/tv-off-dropbox-sync-003-stage-v2')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
