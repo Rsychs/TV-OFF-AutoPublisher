@@ -1,4 +1,4 @@
-name: TV OFF Music Library — Dropbox Sync
+name: TV OFF Music Library — Dropbox Stage Only
 
 on:
   workflow_run:
