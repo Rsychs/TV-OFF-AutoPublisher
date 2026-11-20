@@ -1,10 +1,13 @@
 name: TV OFF Music Library — Dropbox Sync
 
 on:
-  push:
-    branches: [main]
-    paths: [.github/workflows/dropbox-sync.yml]
   workflow_run:
+    workflows: ["TV OFF ACE-Step Kaggle GPU smoke test"]
+    types: [completed]
+    branches: [feature/kaggle-ace-step-provider]
+  issue_comment:
+    types: [created]
+
     workflows: ["TV OFF ACE-Step Kaggle GPU smoke test"]
     types: [completed]
     branches: [feature/kaggle-ace-step-provider]
@@ -15,7 +18,13 @@ permissions:
 
 jobs:
   sync-original-track:
-    if: (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') || (github.event_name == 'push' && github.event.head_commit.message == 'Retry Dropbox sync for track 003')
+    if: |
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.number == 27 &&
+       github.event.issue.pull_request != null &&
+       github.event.comment.user.login == 'Rsychs' &&
+       github.event.comment.body == '/tv-off-dropbox-sync-003')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -116,7 +125,8 @@ jobs:
 headers = {"Authorization": f"Bearer {access}", "Content-Type": "application/json", "Dropbox-API-Path-Root": path_root}
           folder = "/TV OFF/Music Library/Original Tracks/Experimental"
           meta = requests.post(api + "/files/get_metadata", headers=headers, json={"path": folder}, timeout=30)
-          meta.raise_for_status()
+          if not meta.ok:
+              raise SystemExit(f"Dropbox destination lookup failed ({meta.status_code}): {meta.text}")
           if meta.json().get(".tag") != "folder":
               raise SystemExit("Dropbox destination is not a folder")
 
@@ -139,7 +149,8 @@ headers = {"Authorization": f"Bearer {access}", "Content-Type": "application/jso
               }
               with local.open("rb") as f:
                   response = requests.post("https://content.dropboxapi.com/2/files/upload", headers=upload_headers, data=f, timeout=600)
-              response.raise_for_status()
+              if not response.ok:
+                  raise SystemExit(f"Dropbox upload failed for {name} ({response.status_code}): {response.text}")
               result = response.json()
               if result.get("path_display") != target or result.get("size") != local.stat().st_size:
                   raise SystemExit(f"Dropbox metadata mismatch for {name}")
