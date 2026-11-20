@@ -57,7 +57,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/ace-step-metadata
-          kaggle kernels pull TVOffset/tv-off-ace-step-smoke -p /tmp/ace-step-metadata -m
+          kaggle kernels pull TVOffset/tv-off-ace-step-1-5-t4-smoke-test -p /tmp/ace-step-metadata -m
           python - <<'PY'
           import json
           from pathlib import Path
@@ -77,7 +77,7 @@ jobs:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
         run: |
           set -euo pipefail
-          KERNEL="TVOffset/tv-off-ace-step-smoke"
+          KERNEL="TVOffset/tv-off-ace-step-1-5-t4-smoke-test"
           COMPLETE=0
           for i in $(seq 1 150); do
             echo "ACE-Step Kaggle status check $i/150"
