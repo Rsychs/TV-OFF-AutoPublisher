@@ -85,6 +85,11 @@ jobs:
           mp3_name = m.get("mp3_file")
           if mp3_name and not (manifest_path.parent / mp3_name).is_file():
               raise SystemExit("Manifest MP3 is missing")
+          visual_name = m.get("visual_file")
+          if not visual_name or not (manifest_path.parent / visual_name).is_file():
+              raise SystemExit("Genre-matched visual generated during music production is missing")
+          if m.get("visual_style") != m.get("style") or m.get("visual_seed") != m.get("seed"):
+              raise SystemExit("Visual metadata does not match this exact music track")
           manifest_name = f"{Path(m['audio_file']).stem}.manifest.json"
           staged_manifest = manifest_path.parent / manifest_name
           staged_manifest.write_text(json.dumps(m, indent=2), encoding="utf-8")
@@ -93,6 +98,7 @@ jobs:
               out.write(f"wav_name={wav.name}\n")
               out.write(f"manifest_name={manifest_name}\n")
               out.write(f"mp3_name={mp3_name or ''}\n")
+              out.write(f"visual_name={visual_name}\n")
           print(f"Verified: {m['title']} | {m['duration_seconds']} sec | SHA-256 {digest}")
           PY
 
@@ -103,6 +109,7 @@ jobs:
           path: |
             artifacts/**/*.wav
             artifacts/**/*.mp3
+            artifacts/**/*.png
             artifacts/**/*.manifest.json
             artifacts/**/ace_step_smoke_result.json
           if-no-files-found: error
@@ -134,6 +141,7 @@ jobs:
           WAV_NAME: ${{ steps.validate.outputs.wav_name }}
           MP3_NAME: ${{ steps.validate.outputs.mp3_name }}
           MANIFEST_NAME: ${{ steps.validate.outputs.manifest_name }}
+          VISUAL_NAME: ${{ steps.validate.outputs.visual_name }}
         run: |
           python - <<'PY'
           import json, os
@@ -161,7 +169,7 @@ jobs:
           # the ChatGPT Dropbox connector then moves them into the user's requested library folder.
           folder = ""
           base = Path(os.environ["MANIFEST_DIR"])
-          names = [os.environ["WAV_NAME"], os.environ["MANIFEST_NAME"]]
+          names = [os.environ["WAV_NAME"], os.environ["VISUAL_NAME"], os.environ["MANIFEST_NAME"]]
           if os.environ.get("MP3_NAME"):
               names.insert(1, os.environ["MP3_NAME"])
           saved = []
