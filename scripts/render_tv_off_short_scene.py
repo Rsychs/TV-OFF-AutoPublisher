@@ -6,9 +6,9 @@ from mathutils import Vector
 
 argv=sys.argv[sys.argv.index("--")+1:] if "--" in sys.argv else sys.argv[1:]
 ap=argparse.ArgumentParser()
-ap.add_argument("--out",required=True); ap.add_argument("--kind",required=True); ap.add_argument("--slot",required=True)
+ap.add_argument("--out",required=True); ap.add_argument("--kind",required=True); ap.add_argument("--slot",required=True); ap.add_argument("--style",default="")
 a=ap.parse_args(argv)
-kind=a.kind; seed=int(a.slot[-2:]) + int(a.slot[-4:-2])*3
+kind=a.kind; style=a.style.lower(); seed=int(a.slot[-2:]) + int(a.slot[-4:-2])*3 + sum(ord(ch) for ch in style)%997
 bpy.ops.object.select_all(action="SELECT"); bpy.ops.object.delete(use_global=False)
 for datablocks in (bpy.data.materials,bpy.data.curves,bpy.data.cameras,bpy.data.lights):
     pass
@@ -19,6 +19,16 @@ palettes={
  "original_music": ((.63,.42,1.0),(.055,.035,.13),(.92,.68,.42)),
 }
 accent,deep,light=palettes[kind]
+# Genre-aware art direction: distinct lighting/material mood for each musical family.
+if kind == "original_music":
+    if any(k in style for k in ("bluegrass", "country", "folk", "acoustic")):
+        accent,deep,light=((1.0,.55,.20),(.13,.065,.025),(.92,.72,.43))
+    elif any(k in style for k in ("balkan", "brass", "folk dance", "gypsy")):
+        accent,deep,light=((1.0,.34,.10),(.16,.025,.018),(1.0,.72,.32))
+    elif any(k in style for k in ("baroque", "classical", "chamber", "orchestral")):
+        accent,deep,light=((.88,.63,.27),(.10,.025,.045),(.96,.82,.60))
+    elif any(k in style for k in ("ambient", "cinematic", "celestial", "electronic")):
+        accent,deep,light=((.56,.42,1.0),(.035,.025,.12),(.82,.75,1.0))
 def mat(name,color,rough=.55,metal=0,emission=None,strength=0):
  m=bpy.data.materials.new(name); m.diffuse_color=(*color,1); m.use_nodes=True
  p=m.node_tree.nodes.get("Principled BSDF"); p.inputs["Base Color"].default_value=(*color,1); p.inputs["Roughness"].default_value=rough; p.inputs["Metallic"].default_value=metal
