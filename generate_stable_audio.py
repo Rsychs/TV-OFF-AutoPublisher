@@ -185,9 +185,9 @@ def main():
         ),
         "duration_seconds": int(round(actual_duration)),
         "composition_mode": (
-            "short_form_fast_harmonic_movement" if SHORT_MODE else "long_form_ai_composed_master"
+            "stable_audio_short_form" if SHORT_MODE else "long_form_ai_composed_master"
         ),
-        "bar_seconds": 4.5 if SHORT_MODE else 60,
+        "bar_seconds": None if SHORT_MODE else 60,
         "sample_rate": 44100,
         "random_seed": seed,
         "musical_mode": "ai_composed",
