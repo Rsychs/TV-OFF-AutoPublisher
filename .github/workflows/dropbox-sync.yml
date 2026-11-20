@@ -73,6 +73,18 @@ jobs:
           print(f"Verified: {m['title']} | {m['duration_seconds']} sec | SHA-256 {digest}")
           PY
 
+      - name: Preserve verified track artifact for its matching Short
+        uses: actions/upload-artifact@v4
+        with:
+          name: tv-off-verified-original-track
+          path: |
+            artifacts/**/*.wav
+            artifacts/**/*.mp3
+            artifacts/**/*.manifest.json
+            artifacts/**/ace_step_smoke_result.json
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Check Dropbox credentials without exposing values
         id: credentials
         env:
