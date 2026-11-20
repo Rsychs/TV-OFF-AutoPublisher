@@ -151,6 +151,36 @@ jobs:
             exit 1
           fi
 
+      - name: Create a unique genre-matched visual during music production
+        run: |
+          set -euo pipefail
+          sudo apt-get update -o Acquire::Retries=4 -o Acquire::http::Timeout=30
+          sudo apt-get install -y --no-install-recommends blender
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = next(Path("artifacts/ace-step-kaggle-output").rglob("ace_step_smoke_result.json"))
+          m = json.loads(p.read_text(encoding="utf-8"))
+          required = ("title", "style", "seed", "audio_file", "sha256")
+          missing = [k for k in required if not m.get(k)]
+          if missing:
+              raise SystemExit(f"Visual generation needs music metadata; missing: {missing}")
+          m["visual_file"] = f"TV_OFF_Visual_{int(m.get('track_number', 0)):03d}.png"
+          m["visual_style"] = m["style"]
+          m["visual_seed"] = int(m["seed"])
+          m["visual_generation"] = "Blender genre-matched scene rendered in the same ACE-Step production run"
+          p.write_text(json.dumps(m, indent=2), encoding="utf-8")
+          print(f"Visual brief locked to track: {m['title']} | {m['style']} | seed={m['visual_seed']}")
+          PY
+          MANIFEST="$(find artifacts/ace-step-kaggle-output -name ace_step_smoke_result.json -print -quit)"
+          VISUAL="$(dirname "$MANIFEST")/$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["visual_file"])' "$MANIFEST")"
+          STYLE="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["style"])' "$MANIFEST")"
+          SEED="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["seed"])' "$MANIFEST")"
+          blender --background --threads 4 --python scripts/render_tv_off_short_scene.py -- --out "$VISUAL" --kind original_music --slot "$SEED" --style "$STYLE"
+          test -s "$VISUAL"
+          test "$(stat -c%s "$VISUAL")" -gt 100000
+          echo "Music and its matching vertical visual are now packaged together."
+
       - name: Upload ACE-Step test audio and logs
         if: always()
         uses: actions/upload-artifact@v4
