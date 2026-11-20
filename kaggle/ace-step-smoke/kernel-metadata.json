@@ -1,6 +1,6 @@
 {
   "id": "TVOffset/tv-off-ace-step-smoke",
-  "title": "TV OFF ACE-Step 1.5 T4 Smoke Test",
+  "title": "TV OFF ACE Step Smoke",
   "code_file": "ace_step_smoke.ipynb",
   "language": "python",
   "kernel_type": "notebook",
