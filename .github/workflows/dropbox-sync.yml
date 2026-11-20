@@ -8,17 +8,13 @@ on:
   issue_comment:
     types: [created]
 
-    workflows: ["TV OFF ACE-Step Kaggle GPU smoke test"]
-    types: [completed]
-    branches: [feature/kaggle-ace-step-provider]
-
 permissions:
   actions: read
   contents: read
 
 jobs:
   sync-original-track:
-    if: |
+    if: >-
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
       (github.event_name == 'issue_comment' &&
        github.event.issue.number == 27 &&
@@ -102,7 +98,7 @@ jobs:
           MANIFEST_NAME: ${{ steps.validate.outputs.manifest_name }}
         run: |
           python - <<'PY'
-          import json, os, time
+          import json, os
           from pathlib import Path
           import requests
 
@@ -111,18 +107,23 @@ jobs:
           refresh = os.environ.get("DROPBOX_REFRESH_TOKEN", "")
           access = os.environ.get("DROPBOX_ACCESS_TOKEN", "")
           if not access:
-              r = requests.post(
+              token_response = requests.post(
                   "https://api.dropboxapi.com/oauth2/token",
                   data={"grant_type": "refresh_token", "refresh_token": refresh},
                   auth=(app_key, app_secret),
                   timeout=30,
               )
-              r.raise_for_status()
-              access = r.json()["access_token"]
+              if not token_response.ok:
+                  raise SystemExit(f"Dropbox token refresh failed ({token_response.status_code}): {token_response.text}")
+              access = token_response.json()["access_token"]
 
           api = "https://api.dropboxapi.com/2"
           path_root = json.dumps({".tag": "namespace_id", "namespace_id": "13932121425"}, separators=(",", ":"))
-          headers = {"Authorization": f"Bearer {access}", "Content-Type": "application/json", "Dropbox-API-Path-Root": path_root}
+          headers = {
+              "Authorization": f"Bearer {access}",
+              "Content-Type": "application/json",
+              "Dropbox-API-Path-Root": path_root,
+          }
           folder = "/TV OFF/Music Library/Original Tracks/Experimental"
           meta = requests.post(api + "/files/get_metadata", headers=headers, json={"path": folder}, timeout=30)
           if not meta.ok:
@@ -153,7 +154,10 @@ jobs:
                   raise SystemExit(f"Dropbox upload failed for {name} ({response.status_code}): {response.text}")
               result = response.json()
               if result.get("path_display") != target or result.get("size") != local.stat().st_size:
-                  raise SystemExit(f"Dropbox metadata mismatch for {name}")
+                  raise SystemExit(f"Dropbox metadata mismatch for {name}: {result}")
+              verify = requests.post(api + "/files/get_metadata", headers=headers, json={"path": target}, timeout=30)
+              if not verify.ok or verify.json().get("size") != local.stat().st_size:
+                  raise SystemExit(f"Dropbox post-upload verification failed for {name}: {verify.status_code} {verify.text}")
               saved.append(result["path_display"])
           print("Dropbox upload verified:")
           for path in saved:
