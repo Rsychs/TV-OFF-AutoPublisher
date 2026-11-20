@@ -1,0 +1,119 @@
+name: TV OFF ACE-Step Kaggle GPU smoke test
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: read
+
+concurrency:
+  group: tv-off-ace-step-kaggle-smoke
+  cancel-in-progress: false
+
+jobs:
+  ace-step-smoke:
+    if: >-
+      github.event.issue.pull_request == null &&
+      github.event.issue.title == 'TV OFF ACE-Step GPU smoke test' &&
+      github.event.comment.body == '/run-ace-step-smoke' &&
+      github.event.comment.user.login == 'Rsychs'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/kaggle-ace-step-provider
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Kaggle CLI
+        run: python -m pip install --upgrade kaggle
+
+      - name: Verify Kaggle credential is available
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os
+          if not os.environ.get("KAGGLE_API_TOKEN"):
+              raise SystemExit("KAGGLE_API_TOKEN secret is missing or empty")
+          print("Kaggle token is present; value is masked.")
+          PY
+
+      - name: Push ACE-Step smoke notebook to Kaggle T4
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          kaggle kernels push -p kaggle/ace-step-smoke --timeout 10800 --accelerator NvidiaTeslaT4 2>&1 | tee /tmp/ace-step-push.log
+
+      - name: Verify Kaggle kernel configuration
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/ace-step-metadata
+          kaggle kernels pull TVOffset/tv-off-ace-step-smoke -p /tmp/ace-step-metadata -m
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("/tmp/ace-step-metadata/kernel-metadata.json")
+          data = json.loads(p.read_text())
+          print("machine_shape:", data.get("machine_shape"))
+          print("enable_gpu:", data.get("enable_gpu"))
+          print("enable_internet:", data.get("enable_internet"))
+          if data.get("machine_shape") != "NvidiaTeslaT4" or not data.get("enable_gpu"):
+              raise SystemExit("Kaggle did not persist the requested Tesla T4 GPU")
+          if not data.get("enable_internet"):
+              raise SystemExit("Kaggle internet access is required to download ACE-Step")
+          PY
+
+      - name: Wait for ACE-Step generation and collect logs
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          KERNEL="TVOffset/tv-off-ace-step-smoke"
+          COMPLETE=0
+          for i in $(seq 1 150); do
+            echo "ACE-Step Kaggle status check $i/150"
+            STATUS="$(kaggle kernels status "$KERNEL" 2>&1)" || { echo "$STATUS"; sleep 60; continue; }
+            echo "$STATUS"
+            STATUS_LC="$(printf '%s' "$STATUS" | tr '[:upper:]' '[:lower:]')"
+            case "$STATUS_LC" in
+              *complete*) COMPLETE=1; break ;;
+              *error*) kaggle kernels logs "$KERNEL" || true; exit 1 ;;
+            esac
+            sleep 60
+          done
+          kaggle kernels logs "$KERNEL" | tee /tmp/ace-step-kaggle.log || true
+          if [ "$COMPLETE" -ne 1 ]; then
+            echo "Kaggle job did not reach COMPLETE within the polling window."
+            exit 1
+          fi
+          mkdir -p artifacts/ace-step-kaggle-output
+          kaggle kernels output "$KERNEL" -p artifacts/ace-step-kaggle-output --force
+          find artifacts/ace-step-kaggle-output -maxdepth 3 -type f -printf '%p (%s bytes)\\n'
+          if ! find artifacts/ace-step-kaggle-output -type f \\( -name '*.wav' -o -name '*.flac' \\) | grep -q .; then
+            echo "No generated audio file was returned by Kaggle."
+            exit 1
+          fi
+          if ! find artifacts/ace-step-kaggle-output -type f -name 'ace_step_smoke_result.json' | grep -q .; then
+            echo "ACE-Step result manifest is missing."
+            exit 1
+          fi
+
+      - name: Upload ACE-Step test audio and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tv-off-ace-step-t4-smoke
+          path: |
+            artifacts/ace-step-kaggle-output/
+            /tmp/ace-step-kaggle.log
+          if-no-files-found: warn
+          retention-days: 7
