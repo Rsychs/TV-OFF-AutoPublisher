@@ -184,7 +184,9 @@ bpy.ops.object.camera_add(location=(rng.uniform(-.38,.38),-8.7,rng.uniform(2.82,
 cam.rotation_euler=(Vector((0,1.0,2.15))-cam.location).to_track_quat("-Z","Y").to_euler()
 cam.data.lens=rng.uniform(32,37); cam.data.sensor_width=36; cam.data.sensor_fit="VERTICAL"; bpy.context.scene.camera=cam
 scene=bpy.context.scene
-scene.render.engine="BLENDER_EEVEE_NEXT"
+available_engines = {item.identifier for item in bpy.types.RenderSettings.bl_rna.properties["engine"].enum_items}
+scene.render.engine = "BLENDER_EEVEE_NEXT" if "BLENDER_EEVEE_NEXT" in available_engines else "BLENDER_EEVEE"
+print("Selected render engine:", scene.render.engine)
 scene.eevee.taa_render_samples=64
 scene.render.resolution_x=720; scene.render.resolution_y=1280; scene.render.resolution_percentage=100
 scene.render.image_settings.file_format="PNG"; scene.render.image_settings.color_mode="RGBA"
