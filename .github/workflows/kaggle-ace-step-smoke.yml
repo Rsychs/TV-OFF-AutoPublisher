@@ -159,3 +159,5 @@ jobs:
           path: artifacts/ace-step-kaggle-output/
           if-no-files-found: warn
           retention-days: 7
+
+# Trigger v2 smoke run after bounded polling and isolated-kernel update.
