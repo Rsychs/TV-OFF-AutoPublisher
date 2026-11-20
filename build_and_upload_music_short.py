@@ -77,7 +77,7 @@ def main():
     safe_title = title.replace("'", "").replace(":", " —")
     subprocess.run([
         os.sys.executable, str(ROOT / "scripts" / "render_tv_off_short_scene.py"),
-        "--out", str(scene), "--kind", "original_music", "--slot", slot[:10]
+        "--out", str(scene), "--kind", "original_music", "--slot", slot[:10], "--style", str(m["style"])
     ], check=True, timeout=1800)
     if not scene.is_file() or scene.stat().st_size < 100000:
         raise RuntimeError("Music-specific 3D scene render failed")
