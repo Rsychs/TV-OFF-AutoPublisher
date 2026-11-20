@@ -62,10 +62,13 @@ jobs:
           mp3_name = m.get("mp3_file")
           if mp3_name and not (manifest_path.parent / mp3_name).is_file():
               raise SystemExit("Manifest MP3 is missing")
+          manifest_name = f"{Path(m['audio_file']).stem}.manifest.json"
+          staged_manifest = manifest_path.parent / manifest_name
+          staged_manifest.write_text(json.dumps(m, indent=2), encoding="utf-8")
           with open(os.environ["GITHUB_OUTPUT"], "a") as out:
               out.write(f"manifest_dir={manifest_path.parent}\n")
               out.write(f"wav_name={wav.name}\n")
-              out.write(f"manifest_name={manifest_path.name}\n")
+              out.write(f"manifest_name={manifest_name}\n")
               out.write(f"mp3_name={mp3_name or ''}\n")
           print(f"Verified: {m['title']} | {m['duration_seconds']} sec | SHA-256 {digest}")
           PY
