@@ -18,8 +18,8 @@ ROOT = Path(__file__).resolve().parent
 STATE = ROOT / "shorts_state.json"
 AUDIO_DIR = Path(os.environ.get("SOURCE_AUDIO_DIR", ROOT / "generated-audio"))
 OUT = ROOT / "shorts"
-DURATION = 18
-CTA_START_SECONDS = 11
+DURATION = 30
+CTA_START_SECONDS = 22
 CTA_TEXT = "MORE SOUNDS ON OUR CHANNEL"
 
 def run(args):
@@ -304,8 +304,8 @@ def main():
     ])
     if not target.is_file() or target.stat().st_size < 100000:
         raise RuntimeError("Short video output is missing or unexpectedly small.")
-    if DURATION != 18 or CTA_START_SECONDS != 11 or DURATION - CTA_START_SECONDS != 7:
-        raise RuntimeError("Short render configuration must be exactly 18 seconds with a 7-second CTA from second 11.")
+    if DURATION != 30 or CTA_START_SECONDS != 22 or DURATION - CTA_START_SECONDS != 8:
+        raise RuntimeError("Short render configuration must be exactly 30 seconds with an 8-second CTA from second 22.")
     if (
         f"text='{CTA_TEXT}'" not in graph
         or f"enable='gte(t,{CTA_START_SECONDS})'" not in graph
@@ -314,7 +314,7 @@ def main():
         or f"enable='lt(t,{hook_end_seconds})'" not in graph
         or "alpha='if(lt(t,1.5),1,max(0,2*(2.0-t)))'" not in graph
     ):
-        raise RuntimeError("Rendered Short hook or CTA timing does not match the approved opening/11–18 second layout.")
+        raise RuntimeError("Rendered Short hook or CTA timing does not match the approved opening/22–30 second layout.")
     probe = subprocess.run(
         ["ffmpeg", "-hide_banner", "-i", str(target)],
         capture_output=True, text=True, check=False, timeout=60
