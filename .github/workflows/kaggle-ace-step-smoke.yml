@@ -11,14 +11,15 @@ permissions:
   contents: read
   issues: read
 
+# v2 runs independently from the stale v1 poller and uses its own Kaggle kernel.
 concurrency:
-  group: tv-off-ace-step-kaggle-smoke
+  group: tv-off-ace-step-kaggle-smoke-v2
   cancel-in-progress: false
 
 jobs:
   ace-step-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,6 +36,7 @@ jobs:
         env:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
         run: |
+          set -euo pipefail
           python - <<'PY'
           import os
           if not os.environ.get("KAGGLE_API_TOKEN"):
@@ -42,7 +44,7 @@ jobs:
           print("Kaggle token is present; value is masked.")
           PY
 
-      - name: Push ACE-Step smoke notebook to Kaggle T4
+      - name: Push isolated ACE-Step v2 notebook to Kaggle T4
         env:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
         run: |
@@ -51,55 +53,96 @@ jobs:
           kaggle kernels push -p kaggle/ace-step-smoke --timeout 10800 --accelerator NvidiaTeslaT4 2>&1 | tee /tmp/ace-step-push.log
           cp /tmp/ace-step-push.log artifacts/ace-step-kaggle-output/
 
-      - name: Verify Kaggle kernel configuration
+      - name: Verify Kaggle v2 kernel configuration
         env:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
         run: |
           set -euo pipefail
+          KERNEL="TVOffset/tv-off-ace-step-1-5-t4-smoke-test-v2"
           mkdir -p /tmp/ace-step-metadata
-          kaggle kernels pull TVOffset/tv-off-ace-step-1-5-t4-smoke-test -p /tmp/ace-step-metadata -m
+          kaggle kernels pull "$KERNEL" -p /tmp/ace-step-metadata -m
           python - <<'PY'
           import json
           from pathlib import Path
-          p = Path("/tmp/ace-step-metadata/kernel-metadata.json")
-          data = json.loads(p.read_text())
+          data = json.loads(Path("/tmp/ace-step-metadata/kernel-metadata.json").read_text())
+          print("id:", data.get("id"))
           print("machine_shape:", data.get("machine_shape"))
           print("enable_gpu:", data.get("enable_gpu"))
           print("enable_internet:", data.get("enable_internet"))
+          if data.get("id") != "TVOffset/tv-off-ace-step-1-5-t4-smoke-test-v2":
+              raise SystemExit("Unexpected Kaggle kernel ID")
           if data.get("machine_shape") != "NvidiaTeslaT4" or not data.get("enable_gpu"):
               raise SystemExit("Kaggle did not persist the requested Tesla T4 GPU")
           if not data.get("enable_internet"):
               raise SystemExit("Kaggle internet access is required to download ACE-Step")
           PY
 
-      - name: Wait for ACE-Step generation and collect logs
+      - name: Monitor Kaggle status with bounded retries and live logs
         env:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
         run: |
           set -euo pipefail
-          KERNEL="TVOffset/tv-off-ace-step-1-5-t4-smoke-test"
+          KERNEL="TVOffset/tv-off-ace-step-1-5-t4-smoke-test-v2"
           COMPLETE=0
-          for i in $(seq 1 150); do
-            echo "ACE-Step Kaggle status check $i/150"
-            STATUS="$(kaggle kernels status "$KERNEL" 2>&1)" || { echo "$STATUS"; sleep 60; continue; }
-            echo "$STATUS"
-            STATUS_LC="$(printf '%s' "$STATUS" | tr '[:upper:]' '[:lower:]')"
-            case "$STATUS_LC" in
-              *complete*) COMPLETE=1; break ;;
-              *error*) kaggle kernels logs "$KERNEL" || true; exit 1 ;;
-            esac
+          CONSECUTIVE_ERRORS=0
+          UNKNOWN_STATES=0
+          for i in $(seq 1 60); do
+            echo "ACE-Step Kaggle status check $i/60 at $(date -u +%FT%TZ)"
+            if STATUS="$(timeout 90s kaggle kernels status "$KERNEL" 2>&1)"; then
+              CONSECUTIVE_ERRORS=0
+              echo "$STATUS"
+              STATUS_LC="$(printf '%s' "$STATUS" | tr '[:upper:]' '[:lower:]')"
+              case "$STATUS_LC" in
+                *complete*)
+                  COMPLETE=1
+                  break
+                  ;;
+                *error*|*failed*|*cancel*)
+                  echo "Kaggle reported a terminal failure; collecting logs."
+                  timeout 90s kaggle kernels logs "$KERNEL" || true
+                  exit 1
+                  ;;
+                *running*|*queued*|*pending*|*busy*)
+                  UNKNOWN_STATES=0
+                  ;;
+                *)
+                  UNKNOWN_STATES=$((UNKNOWN_STATES + 1))
+                  echo "Unrecognized Kaggle status ($UNKNOWN_STATES/3): $STATUS"
+                  if [ "$UNKNOWN_STATES" -ge 3 ]; then
+                    echo "Kaggle returned an unrecognized state three times; stopping instead of polling blindly."
+                    exit 1
+                  fi
+                  ;;
+              esac
+            else
+              CONSECUTIVE_ERRORS=$((CONSECUTIVE_ERRORS + 1))
+              echo "Kaggle status request failed ($CONSECUTIVE_ERRORS/3): $STATUS"
+              if [ "$CONSECUTIVE_ERRORS" -ge 3 ]; then
+                echo "Kaggle API/status unavailable three times consecutively; stopping with diagnostics."
+                timeout 90s kaggle kernels logs "$KERNEL" || true
+                exit 1
+              fi
+            fi
+
+            if [ $((i % 5)) -eq 0 ]; then
+              echo "Collecting intermediate Kaggle logs at check $i."
+              timeout 90s kaggle kernels logs "$KERNEL" || true
+            fi
             sleep 60
           done
-          kaggle kernels logs "$KERNEL" | tee /tmp/ace-step-kaggle.log || true
+
+          echo "Final Kaggle logs:"
+          timeout 90s kaggle kernels logs "$KERNEL" | tee /tmp/ace-step-kaggle.log || true
           if [ "$COMPLETE" -ne 1 ]; then
-            echo "Kaggle job did not reach COMPLETE within the polling window."
+            echo "Kaggle did not reach COMPLETE within 60 minutes."
             exit 1
           fi
+
           mkdir -p artifacts/ace-step-kaggle-output
-          kaggle kernels output "$KERNEL" -p artifacts/ace-step-kaggle-output --force
+          timeout 180s kaggle kernels output "$KERNEL" -p artifacts/ace-step-kaggle-output --force
           cp /tmp/ace-step-kaggle.log artifacts/ace-step-kaggle-output/ 2>/dev/null || true
-          find artifacts/ace-step-kaggle-output -maxdepth 3 -type f -printf '%p (%s bytes)\\n'
-          if ! find artifacts/ace-step-kaggle-output -type f \\( -name '*.wav' -o -name '*.flac' \\) | grep -q .; then
+          find artifacts/ace-step-kaggle-output -maxdepth 3 -type f -printf '%p (%s bytes)\n'
+          if ! find artifacts/ace-step-kaggle-output -type f \( -name '*.wav' -o -name '*.flac' \) | grep -q .; then
             echo "No generated audio file was returned by Kaggle."
             exit 1
           fi
@@ -112,7 +155,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: tv-off-ace-step-t4-smoke
+          name: tv-off-ace-step-t4-smoke-v2
           path: artifacts/ace-step-kaggle-output/
           if-no-files-found: warn
           retention-days: 7
