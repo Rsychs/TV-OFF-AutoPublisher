@@ -56,11 +56,34 @@ def main():
     state = json.loads(STATE.read_text(encoding="utf-8")) if STATE.exists() else {}
     if not isinstance(state, dict):
         raise RuntimeError("music_shorts_state.json is invalid")
-    if audio_hash in state.get("_published_audio_sha256", []):
-        print(f"TRACK ALREADY PUBLISHED AS SHORT: {audio_hash}")
+    published_audio = state.get("_published_audio_sha256", [])
+    if not isinstance(published_audio, list):
+        raise RuntimeError("music_shorts_state.json has an invalid audio deduplication list")
+    tracks = state.get("published_tracks", [])
+    if not isinstance(tracks, list):
+        raise RuntimeError("music_shorts_state.json has an invalid published_tracks list")
+    existing_track = next(
+        (item for item in reversed(tracks)
+         if isinstance(item, dict) and item.get("audio_sha256") == audio_hash),
+        None,
+    )
+    # If the Short succeeded but its companion full upload failed, resume only the
+    # missing full upload. Never upload the Short a second time.
+    resume_full_only = (
+        PUBLISH_MODE == "publish"
+        and audio_hash in published_audio
+        and existing_track is not None
+        and bool(existing_track.get("short_video_id"))
+        and existing_track.get("full_upload_status") != "published"
+    )
+    if audio_hash in published_audio and not resume_full_only:
+        print(f"TRACK ALREADY PUBLISHED; refusing duplicate Short: {audio_hash}")
         return
-    # Cooldown is enforced only for a real publish attempt; dry-runs never wait or mutate state.
-    if PUBLISH_MODE == "publish":
+    if resume_full_only:
+        print(f"SHORT ALREADY PUBLISHED; resuming missing full-track upload: {existing_track['short_video_id']}")
+    # Cooldown applies to a new Short, not to completion of an already-published pair.
+    # Dry-runs never wait or mutate state.
+    if PUBLISH_MODE == "publish" and not resume_full_only:
         last = state.get("_last_published_at")
         if last:
             last_dt = datetime.fromisoformat(str(last).replace("Z", "+00:00"))
@@ -158,8 +181,10 @@ def main():
     full_video_hash = sha256(full_video)
 
     video_hash = sha256(video)
-    if video_hash in state.get("_published_video_sha256", []):
+    if video_hash in state.get("_published_video_sha256", []) and not resume_full_only:
         raise RuntimeError("Duplicate rendered video detected; refusing upload")
+    if full_video_hash in state.get("_published_full_video_sha256", []) and not resume_full_only:
+        raise RuntimeError("Duplicate full-track video detected; refusing upload")
 
     # Dry-run remains available only when explicitly requested; production is the default.
     if PUBLISH_MODE == "dry_run":
@@ -206,34 +231,56 @@ def main():
         f"Duration: {int(duration // 60)}:{int(duration % 60):02d}\\n\\n"
         "#OriginalMusic #InstrumentalMusic #TVOFF"
     )
-    short_response = youtube.videos().insert(
-        part="snippet,status",
-        body={"snippet": {"title": short_title[:100], "description": follow_description,
-                          "tags": ["Shorts", "Original Music", "Instrumental", str(m["style"]), "TV OFF"],
-                          "categoryId": "10"},
-              "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False}},
-        media_body=MediaFileUpload(str(video), mimetype="video/mp4", chunksize=-1, resumable=True)
-    ).execute()
-    short_id = short_response["id"]
-    short_url = f"https://youtu.be/{short_id}"
-    print(f"MUSIC SHORT PUBLISHED: {short_url} | duration=30s")
+    if resume_full_only:
+        short_id = str(existing_track["short_video_id"])
+        short_url = str(existing_track.get("short_url") or f"https://youtu.be/{short_id}")
+        # A previous attempt may have received a full-video ID but failed before
+        # persisting the final state. Verify that ID before attempting another insert.
+        existing_full_id = existing_track.get("full_video_id")
+        if existing_full_id:
+            check = youtube.videos().list(part="id,status", id=str(existing_full_id)).execute()
+            if check.get("items"):
+                existing_track["full_upload_status"] = "published"
+                existing_track.setdefault("full_url", f"https://youtu.be/{existing_full_id}")
+                existing_track.setdefault("full_published_at", datetime.now(timezone.utc).isoformat())
+                state.setdefault("_published_full_video_sha256", []).append(full_video_hash)
+                state["_published_full_video_sha256"] = list(dict.fromkeys(state["_published_full_video_sha256"]))[-500:]
+                STATE.write_text(json.dumps(state, indent=2), encoding="utf-8")
+                print(f"FULL TRACK ALREADY EXISTS: https://youtu.be/{existing_full_id}")
+                print(f"PAIR PUBLISHED: Short={short_url} | Full=https://youtu.be/{existing_full_id}")
+                return
+            existing_track.pop("full_video_id", None)
+            existing_track.pop("full_url", None)
+            existing_track["full_upload_status"] = "pending"
+    else:
+        short_response = youtube.videos().insert(
+            part="snippet,status",
+            body={"snippet": {"title": short_title[:100], "description": follow_description,
+                              "tags": ["Shorts", "Original Music", "Instrumental", str(m["style"]), "TV OFF"],
+                              "categoryId": "10"},
+                  "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False}},
+            media_body=MediaFileUpload(str(video), mimetype="video/mp4", chunksize=-1, resumable=True)
+        ).execute()
+        short_id = short_response["id"]
+        short_url = f"https://youtu.be/{short_id}"
+        print(f"MUSIC SHORT PUBLISHED: {short_url} | duration=30s")
 
-    # Persist the first successful upload before attempting the companion full track.
-    published = datetime.now(timezone.utc).isoformat()
-    state.setdefault("_published_audio_sha256", []).append(audio_hash)
-    state["_published_audio_sha256"] = state["_published_audio_sha256"][-500:]
-    state.setdefault("_published_video_sha256", []).append(video_hash)
-    state["_published_video_sha256"] = state["_published_video_sha256"][-500:]
-    state.setdefault("published_tracks", []).append({
-        "short_video_id": short_id, "short_url": short_url,
-        "track_title": title, "style": m["style"], "audio_sha256": audio_hash,
-        "short_video_sha256": video_hash, "full_video_sha256": full_video_hash,
-        "visual_sha256": visual_hash, "duration_seconds": duration,
-        "short_published_at": published, "full_upload_status": "pending"
-    })
-    state["published_tracks"] = state["published_tracks"][-500:]
-    state["_last_published_at"] = published
-    STATE.write_text(json.dumps(state, indent=2), encoding="utf-8")
+        # Persist the Short ID before attempting the companion full-track upload.
+        published = datetime.now(timezone.utc).isoformat()
+        state.setdefault("_published_audio_sha256", []).append(audio_hash)
+        state["_published_audio_sha256"] = list(dict.fromkeys(state["_published_audio_sha256"]))[-500:]
+        state.setdefault("_published_video_sha256", []).append(video_hash)
+        state["_published_video_sha256"] = list(dict.fromkeys(state["_published_video_sha256"]))[-500:]
+        state.setdefault("published_tracks", []).append({
+            "short_video_id": short_id, "short_url": short_url,
+            "track_title": title, "style": m["style"], "audio_sha256": audio_hash,
+            "short_video_sha256": video_hash, "full_video_sha256": full_video_hash,
+            "visual_sha256": visual_hash, "duration_seconds": duration,
+            "short_published_at": published, "full_upload_status": "pending"
+        })
+        state["published_tracks"] = state["published_tracks"][-500:]
+        state["_last_published_at"] = published
+        STATE.write_text(json.dumps(state, indent=2), encoding="utf-8")
 
     full_response = youtube.videos().insert(
         part="snippet,status",
@@ -245,11 +292,22 @@ def main():
     ).execute()
     full_id = full_response["id"]
     full_url = f"https://youtu.be/{full_id}"
-    state["published_tracks"][-1].update({
-        "full_video_id": full_id, "full_url": full_url,
-        "full_published_at": datetime.now(timezone.utc).isoformat(),
-        "full_upload_status": "published"
-    })
+    if resume_full_only:
+        existing_track.update({
+            "full_video_id": full_id, "full_url": full_url,
+            "full_video_sha256": full_video_hash,
+            "full_published_at": datetime.now(timezone.utc).isoformat(),
+            "full_upload_status": "published"
+        })
+    else:
+        state["published_tracks"][-1].update({
+            "full_video_id": full_id, "full_url": full_url,
+            "full_video_sha256": full_video_hash,
+            "full_published_at": datetime.now(timezone.utc).isoformat(),
+            "full_upload_status": "published"
+        })
+    state.setdefault("_published_full_video_sha256", []).append(full_video_hash)
+    state["_published_full_video_sha256"] = list(dict.fromkeys(state["_published_full_video_sha256"]))[-500:]
     STATE.write_text(json.dumps(state, indent=2), encoding="utf-8")
     print(f"FULL ORIGINAL AUDIO PUBLISHED: {full_url} | duration={duration:.1f}s")
     print(f"PAIR PUBLISHED: Short={short_url} | Full={full_url}")
