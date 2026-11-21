@@ -10,7 +10,7 @@ permissions:
   issues: read
 
 concurrency:
-  group: tv-off-colab-unified-dry-run
+  group: tv-off-single-video
   cancel-in-progress: false
 
 jobs:
@@ -50,7 +50,7 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          src = Path("kaggle/tv-off-unified/tv_off_unified.ipynb")
+          src = Path("colab/tv-off-unified/tv_off_unified.ipynb")
           nb = json.loads(src.read_text(encoding="utf-8"))
           for cell in nb.get("cells", []):
               if cell.get("cell_type") != "code":
@@ -60,7 +60,6 @@ jobs:
                   source = "".join(source)
               if not isinstance(source, str):
                   raise SystemExit("Notebook code cell source must be text.")
-              source = source.replace("/kaggle/working", "/content")
               cell["source"] = source
               cell["outputs"] = []
               cell["execution_count"] = None
@@ -69,7 +68,27 @@ jobs:
           print("Prepared", out, "cells=", len(nb.get("cells", [])))
           PY
 
+      - name: Refuse to overlap an active Colab session
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import re, subprocess
+          result = subprocess.run(
+              ["colab", "--auth", "oauth2", "sessions"],
+              capture_output=True, text=True, timeout=30,
+          )
+          output = result.stdout + "\n" + result.stderr
+          print(output)
+          if result.returncode != 0:
+              raise SystemExit("Unable to inspect active Colab sessions; refusing a second GPU allocation.")
+          names = ("tv-off-prod", "tv-off-unified")
+          active = [name for name in names if re.search(r"(?<![A-Za-z0-9_-])" + re.escape(name) + r"(?![A-Za-z0-9_-])", output)]
+          if active:
+              raise SystemExit("Existing TV OFF Colab session is still active: " + ", ".join(active))
+          print("No previous TV OFF Colab session is active.")
+          PY
       - name: Allocate Colab T4
+        id: allocate-colab
         run: colab --auth oauth2 new -s tv-off-unified --gpu T4
 
       - name: Execute unified ACE-Step + SDXL notebook
@@ -95,12 +114,29 @@ jobs:
               print("Downloaded verified archive; files:", len(names))
           PY
 
-      - name: Always release Colab T4
-        if: always()
+      - name: Always release and verify Colab T4
+        if: always() && steps.allocate-colab.outcome != 'skipped'
         run: |
           set +e
-          colab --auth oauth2 stop -s tv-off-unified
-          exit 0
+          STOP_OUTPUT="$(timeout 90s colab --auth oauth2 stop -s tv-off-unified 2>&1)"
+          STOP_RC=$?
+          set -e
+          echo "$STOP_OUTPUT"
+          echo "Colab stop exit code: $STOP_RC"
+          set +e
+          SESSIONS_OUTPUT="$(timeout 30s colab --auth oauth2 sessions 2>&1)"
+          SESSIONS_RC=$?
+          set -e
+          echo "$SESSIONS_OUTPUT"
+          if [ "$SESSIONS_RC" -ne 0 ]; then
+            echo "Cannot verify Colab session closure."
+            exit 1
+          fi
+          if printf '%s\n' "$SESSIONS_OUTPUT" | grep -Eq '(^|[^[:alnum:]_-])tv-off-unified([^[:alnum:]_-]|$)'; then
+            echo "Colab session tv-off-unified is still active."
+            exit 1
+          fi
+          echo "Colab dry-run session is absent from the active-session list."
 
       - name: Upload dry-run artifacts for review
         if: always()
