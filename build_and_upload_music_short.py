@@ -14,11 +14,14 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
 ROOT = Path(__file__).resolve().parent
-AUDIO_DIR = Path(os.environ.get("SOURCE_AUDIO_DIR", ROOT / "artifacts"))
+AUDIO_DIR = Path(os.environ.get("SOURCE_AUDIO_DIR", ROOT / "kaggle-output"))
 OUT = ROOT / "music-shorts"
 STATE = ROOT / "music_shorts_state.json"
 DURATION = 30
 COOLDOWN_SECONDS = 3600
+PUBLISH_MODE = os.environ.get("PUBLISH_MODE", "publish").strip().lower()
+if PUBLISH_MODE not in {"dry_run", "publish"}:
+    raise RuntimeError("PUBLISH_MODE must be dry_run or publish")
 
 def run(args):
     subprocess.run(args, check=True, timeout=1800)
@@ -36,8 +39,8 @@ def main():
         raise RuntimeError(f"Expected exactly one ACE-Step manifest, found {len(manifests)}")
     manifest_path = manifests[0]
     m = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if m.get("status") != "ok" or m.get("publishing_enabled") is not False:
-        raise RuntimeError("ACE-Step manifest is not a verified non-publishing generation result")
+    if m.get("status") != "ok" or m.get("publishing_enabled") is not True:
+        raise RuntimeError("ACE-Step manifest is not an explicitly approved production generation result")
     if not m.get("title") or not m.get("style") or not m.get("prompt"):
         raise RuntimeError("ACE-Step manifest is missing title/style/prompt")
     audio = (manifest_path.parent / m["audio_file"]).resolve()
@@ -56,16 +59,17 @@ def main():
     if audio_hash in state.get("_published_audio_sha256", []):
         print(f"TRACK ALREADY PUBLISHED AS SHORT: {audio_hash}")
         return
-    started = time.time()
-    last = state.get("_last_published_at")
-    if last:
-        last_dt = datetime.fromisoformat(str(last).replace("Z", "+00:00"))
-        if last_dt.tzinfo is None:
-            last_dt = last_dt.replace(tzinfo=timezone.utc)
-        wait = COOLDOWN_SECONDS - (datetime.now(timezone.utc) - last_dt.astimezone(timezone.utc)).total_seconds()
-        if wait > 0:
-            print(f"60-minute shared music Shorts cooldown active; waiting {int(wait)} seconds")
-            time.sleep(wait)
+    # Cooldown is enforced only for a real publish attempt; dry-runs never wait or mutate state.
+    if PUBLISH_MODE == "publish":
+        last = state.get("_last_published_at")
+        if last:
+            last_dt = datetime.fromisoformat(str(last).replace("Z", "+00:00"))
+            if last_dt.tzinfo is None:
+                last_dt = last_dt.replace(tzinfo=timezone.utc)
+            wait = COOLDOWN_SECONDS - (datetime.now(timezone.utc) - last_dt.astimezone(timezone.utc)).total_seconds()
+            if wait > 0:
+                print(f"60-minute shared music Shorts cooldown active; waiting {int(wait)} seconds")
+                time.sleep(wait)
 
     # Deterministic source segment, with a gentle in/out fade. Every Short uses this exact track.
     clip_start = max(0.0, min(duration - DURATION, duration * 0.18))
@@ -87,6 +91,11 @@ def main():
     print(f"Using music-generation visual: {scene.name} | style={m['visual_style']}")
     if not scene.is_file() or scene.stat().st_size < 100000:
         raise RuntimeError("Music-specific visual asset is missing or too small")
+    visual_hash = sha256(scene)
+    if m.get("visual_sha256") and visual_hash != m.get("visual_sha256"):
+        raise RuntimeError("Visual SHA-256 does not match unified-generation manifest")
+    if m.get("visual_width") not in (None, 1080) or m.get("visual_height") not in (None, 1920):
+        raise RuntimeError("Visual dimensions are not the required 1080x1920 vertical format")
 
     # Locked camera; the animated waveform and progress marker provide restrained motion.
     graph = (
@@ -128,6 +137,21 @@ def main():
     if video_hash in state.get("_published_video_sha256", []):
         raise RuntimeError("Duplicate rendered video detected; refusing upload")
 
+    # Dry-run remains available only when explicitly requested; production is the default.
+    if PUBLISH_MODE == "dry_run":
+        report = {
+            "status": "dry_run_passed", "published": False, "title": title,
+            "audio_sha256": audio_hash, "visual_sha256": visual_hash,
+            "video_sha256": video_hash, "video_file": str(video),
+            "duration_seconds": DURATION, "visual_model": m.get("visual_model"),
+            "visual_generation_seed": m.get("visual_generation_seed"),
+            "pipeline_version": m.get("pipeline_version")
+        }
+        (OUT / "dry_run_report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+        print("DRY RUN PASSED — no YouTube API call, no public upload, no state mutation.")
+        print(json.dumps(report, indent=2))
+        return
+
     required = ["YT_CLIENT_ID", "YT_CLIENT_SECRET", "YT_REFRESH_TOKEN"]
     missing = [key for key in required if not os.environ.get(key)]
     if missing:
@@ -163,7 +187,9 @@ def main():
     state.setdefault("published_tracks", []).append({
         "video_id": video_id, "youtube_url": f"https://youtu.be/{video_id}",
         "track_title": title, "style": m["style"], "audio_sha256": audio_hash,
-        "video_sha256": video_hash, "published_at": published,
+        "video_sha256": video_hash, "visual_sha256": visual_hash,
+        "visual_model": m.get("visual_model"), "visual_generation_seed": m.get("visual_generation_seed"),
+        "published_at": published,
         "clip_start_seconds": clip_start, "duration_seconds": DURATION
     })
     state["published_tracks"] = state["published_tracks"][-500:]
