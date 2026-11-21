@@ -203,12 +203,29 @@ jobs:
           set +e
           colab --auth oauth2 stop -s tv-off-prod
           exit 0
+      - name: Set up Python for Blender rendering
+        if: steps.reserve-slot.outputs.should_run == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
       - name: Install render dependencies
         if: steps.reserve-slot.outputs.should_run == 'true'
+        timeout-minutes: 30
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-          python -m pip install -r requirements.txt
+          set -euo pipefail
+          sudo apt-get update -o Acquire::Retries=5 -o Acquire::http::Timeout=30
+          sudo apt-get install -y --no-install-recommends ffmpeg libegl1 libegl-mesa0 libgl1 libglx-mesa0 libgbm1 libx11-6 libxi6 libxrender1 libxfixes3 libsm6 libxxf86vm1 libxkbcommon0 libxkbcommon-x11-0 libfontconfig1
+          sudo ldconfig
+          python -m pip install --disable-pip-version-check --retries 3 --timeout 60 -r requirements.txt
+          python -m pip install --disable-pip-version-check --retries 3 --timeout 60 "bpy==4.2.0"
+          FONT_DIR="$(python -c 'import matplotlib; print(matplotlib.get_data_path() + "/fonts/ttf")')"
+          sudo mkdir -p /usr/share/fonts/truetype/dejavu
+          sudo install -m 0644 "$FONT_DIR/DejaVuSans-Bold.ttf" /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
+          sudo install -m 0644 "$FONT_DIR/DejaVuSans.ttf" /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+          echo "EGL_PLATFORM=surfaceless" >> "$GITHUB_ENV"
+          echo "LIBGL_ALWAYS_SOFTWARE=1" >> "$GITHUB_ENV"
+          echo "GALLIUM_DRIVER=llvmpipe" >> "$GITHUB_ENV"
+          python -m py_compile build_and_upload_music_short.py scripts/render_tv_off_short_scene.py
       - name: Build and publish Short + complete original track
         if: steps.reserve-slot.outputs.should_run == 'true'
         env:
