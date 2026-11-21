@@ -17,7 +17,7 @@ jobs:
        github.event.comment.body == '/publish-unified-sdxl' &&
        github.event.comment.user.login == 'Rsychs')
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     concurrency:
       group: tv-off-single-video
       cancel-in-progress: false
@@ -149,6 +149,99 @@ jobs:
           )
           token_response.raise_for_status()
           access_token = token_response.json()["access_token"]
+
+          state_path = Path("music_shorts_state.json")
+          local_state = json.loads(state_path.read_text(encoding="utf-8")) if state_path.exists() else {}
+          if not isinstance(local_state, dict):
+              raise SystemExit("Checked-in music_shorts_state.json is invalid")
+          state_download = requests.post(
+              "https://content.dropboxapi.com/2/files/download",
+              headers={
+                  "Authorization": f"Bearer {access_token}",
+                  "Dropbox-API-Arg": json.dumps({"path": "/music_shorts_state.json"}),
+              },
+              timeout=30,
+          )
+          remote_state = {}
+          if state_download.status_code == 200:
+              remote_state = json.loads(state_download.content.decode("utf-8"))
+              if not isinstance(remote_state, dict):
+                  raise SystemExit("Persisted Dropbox publication state is not a JSON object")
+          elif state_download.status_code == 409 and "path/not_found" in state_download.text:
+              print("No persisted Dropbox publication state yet; using repository seed.")
+          else:
+              raise SystemExit(
+                  f"Could not restore Dropbox publication state: "
+                  f"{state_download.status_code} {state_download.text}"
+              )
+
+          merged_state = dict(remote_state)
+          for key in ("_published_audio_sha256", "_published_video_sha256"):
+              merged = []
+              for value in list(remote_state.get(key, [])) + list(local_state.get(key, [])):
+                  if value and value not in merged:
+                      merged.append(value)
+              merged_state[key] = merged[-500:]
+
+          tracks_by_key = {}
+          for track in list(remote_state.get("published_tracks", [])) + list(local_state.get("published_tracks", [])):
+              if not isinstance(track, dict):
+                  continue
+              track_key = track.get("audio_sha256") or track.get("short_video_id") or track.get("video_id")
+              if track_key:
+                  tracks_by_key[track_key] = track
+
+          # Backfill the last verified pair published before Dropbox state persistence existed.
+          historical = {
+              "short_video_id": "0DibjqE_k3Q",
+              "short_url": "https://youtu.be/0DibjqE_k3Q",
+              "full_video_id": "hTiUvLQxXZo",
+              "full_url": "https://youtu.be/hTiUvLQxXZo",
+              "track_title": "Neon Afterglow 83184",
+              "style": "Electro Instrumental",
+              "audio_sha256": "b0e94f4f9217d2470820897de9a92a4e7b086bc768c6017baa73fd94ded8d1d7",
+              "short_video_sha256": "0a26bda28d055c160f35d77cc21f844d9c5ff5bb9e7c127573b8420288db06f5",
+              "full_video_sha256": "6e823d6a8e6313aeec9d906870deec9bfc0587572c3fa7ea961eb5dfce2da1ae",
+              "visual_sha256": "610740b036682f934b9561a8e0529641f7bcad2f4165a95a7643b6be3fcd2af1",
+              "duration_seconds": 174.0,
+              "short_published_at": "2026-11-21T14:41:07.830759+00:00",
+              "full_published_at": "2026-11-21T14:41:07.831006+00:00",
+              "full_upload_status": "published",
+          }
+          tracks_by_key.setdefault(historical["audio_sha256"], historical)
+          merged_state["published_tracks"] = list(tracks_by_key.values())[-500:]
+          for key, value in (
+              ("_published_audio_sha256", historical["audio_sha256"]),
+              ("_published_video_sha256", historical["short_video_sha256"]),
+          ):
+              if value not in merged_state[key]:
+                  merged_state[key].append(value)
+                  merged_state[key] = merged_state[key][-500:]
+
+          from datetime import datetime, timezone
+          timestamps = [
+              merged_state.get("_last_published_at"),
+              local_state.get("_last_published_at"),
+              historical["short_published_at"],
+          ]
+          parsed = []
+          for value in timestamps:
+              if not value:
+                  continue
+              dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+              if dt.tzinfo is None:
+                  dt = dt.replace(tzinfo=timezone.utc)
+              parsed.append(dt.astimezone(timezone.utc))
+          if parsed:
+              merged_state["_last_published_at"] = max(parsed).isoformat()
+          state_path.write_text(json.dumps(merged_state, indent=2, ensure_ascii=False), encoding="utf-8")
+          Path(".tv_off_state_synced").write_text("ok", encoding="utf-8")
+          print(
+              "RESTORED AND MERGED PUBLICATION STATE:",
+              f"{len(merged_state.get('_published_audio_sha256', []))} audio hashes,",
+              f"{len(merged_state.get('published_tracks', []))} track records;",
+              "last publish", merged_state.get("_last_published_at"),
+          )
           saved = []
           for name in audio_files + [manifest_path.name]:
               local = (manifest_path.parent / name).resolve()
@@ -200,6 +293,79 @@ jobs:
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
         run: python build_and_upload_music_short.py
+
+      - name: Persist publication state to Dropbox
+        if: always()
+        env:
+          DROPBOX_MUSIC_APP_KEY: ${{ secrets.DROPBOX_MUSIC_APP_KEY }}
+          DROPBOX_MUSIC_APP_SECRET: ${{ secrets.DROPBOX_MUSIC_APP_SECRET }}
+          DROPBOX_MUSIC_REFRESH_TOKEN: ${{ secrets.DROPBOX_MUSIC_REFRESH_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ ! -f .tv_off_state_synced ]; then
+            echo "Dropbox state was not restored; refusing to overwrite remote state."
+            exit 0
+          fi
+          python -m pip install --quiet requests
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          import requests
+
+          required = ["DROPBOX_MUSIC_APP_KEY", "DROPBOX_MUSIC_APP_SECRET", "DROPBOX_MUSIC_REFRESH_TOKEN"]
+          missing = [key for key in required if not os.environ.get(key)]
+          if missing:
+              raise SystemExit("Missing Dropbox Music secrets: " + ", ".join(missing))
+          state_path = Path("music_shorts_state.json")
+          if not state_path.is_file():
+              raise SystemExit("Publication state file is missing; refusing to claim persistence")
+          data = state_path.read_bytes()
+          state = json.loads(data.decode("utf-8"))
+          if not isinstance(state, dict):
+              raise SystemExit("Publication state is not a JSON object")
+          token_response = requests.post(
+              "https://api.dropboxapi.com/oauth2/token",
+              data={"grant_type": "refresh_token", "refresh_token": os.environ["DROPBOX_MUSIC_REFRESH_TOKEN"]},
+              auth=(os.environ["DROPBOX_MUSIC_APP_KEY"], os.environ["DROPBOX_MUSIC_APP_SECRET"]),
+              timeout=30,
+          )
+          token_response.raise_for_status()
+          access_token = token_response.json()["access_token"]
+          upload = requests.post(
+              "https://content.dropboxapi.com/2/files/upload",
+              headers={
+                  "Authorization": f"Bearer {access_token}",
+                  "Content-Type": "application/octet-stream",
+                  "Dropbox-API-Arg": json.dumps({
+                      "path": "/music_shorts_state.json",
+                      "mode": "overwrite",
+                      "autorename": False,
+                      "mute": True,
+                  }, separators=(",", ":")),
+              },
+              data=data,
+              timeout=60,
+          )
+          upload.raise_for_status()
+          downloaded = requests.post(
+              "https://content.dropboxapi.com/2/files/download",
+              headers={
+                  "Authorization": f"Bearer {access_token}",
+                  "Dropbox-API-Arg": json.dumps({"path": "/music_shorts_state.json"}),
+              },
+              timeout=30,
+          )
+          downloaded.raise_for_status()
+          if hashlib.sha256(downloaded.content).hexdigest() != hashlib.sha256(data).hexdigest():
+              raise SystemExit("Dropbox publication state read-back SHA-256 mismatch")
+          print(
+              "DROPBOX PUBLICATION STATE PERSISTED AND VERIFIED:",
+              upload.json().get("path_display", "/music_shorts_state.json"),
+              "bytes=", len(data),
+              "sha256=", hashlib.sha256(data).hexdigest(),
+          )
+          PY
+
       - name: Upload production artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -208,5 +374,6 @@ jobs:
           path: |
             kaggle-output/
             music-shorts/
+            music_shorts_state.json
           if-no-files-found: warn
           retention-days: 7
