@@ -34,7 +34,7 @@ jobs:
           ref: feature/colab-cli-gpu-worker
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
       - name: Validate unified ACE-Step + SDXL notebook source and syntax
         run: |
           set -euo pipefail
