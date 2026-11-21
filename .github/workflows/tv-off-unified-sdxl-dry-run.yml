@@ -74,6 +74,17 @@ jobs:
           echo "Timed out waiting for Kaggle kernel; inspect Kaggle logs."
           exit 1
 
+      - name: Capture Kaggle execution logs on failure
+        if: failure()
+        env:
+          KERNEL_ID: TVOffset/tv-off-unified-ace-step-sdxl-turbo
+        run: |
+          set +e
+          echo '=== Kaggle kernel status ==='
+          kaggle kernels status "$KERNEL_ID" 2>&1
+          echo '=== Kaggle kernel execution logs ==='
+          kaggle kernels logs "$KERNEL_ID" 2>&1
+          echo '=== End Kaggle diagnostics ==='
       - name: Verify Kaggle process is fully closed
         if: always()
         env:
