@@ -70,6 +70,53 @@ jobs:
           printf '%s' "$COLAB_OAUTH_TOKEN_JSON" > "$HOME/.config/colab-cli/token.json"
           chmod 600 "$HOME/.config/colab-cli/token.json"
           python -m pip install --disable-pip-version-check --quiet google-colab-cli keyrings.alt
+      - name: Verify YouTube upload OAuth scope before Colab
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --quiet requests
+          python - <<'PY'
+          import os, requests
+          required = ("YT_CLIENT_ID", "YT_CLIENT_SECRET", "YT_REFRESH_TOKEN")
+          missing = [name for name in required if not os.environ.get(name)]
+          if missing:
+              raise SystemExit("Missing YouTube upload secrets: " + ", ".join(missing))
+          response = requests.post(
+              "https://oauth2.googleapis.com/token",
+              data={
+                  "client_id": os.environ["YT_CLIENT_ID"],
+                  "client_secret": os.environ["YT_CLIENT_SECRET"],
+                  "refresh_token": os.environ["YT_REFRESH_TOKEN"],
+                  "grant_type": "refresh_token",
+              },
+              timeout=30,
+          )
+          if not response.ok:
+              try:
+                  detail = response.json()
+              except ValueError:
+                  detail = {}
+              print("YouTube OAuth refresh rejected:", response.status_code, detail.get("error", "unknown"), detail.get("error_description", ""))
+              raise SystemExit("YouTube upload OAuth must be re-authorized before Colab allocation.")
+          access_token = response.json().get("access_token")
+          if not access_token:
+              raise SystemExit("YouTube OAuth refresh returned no access token.")
+          info = requests.get(
+              "https://oauth2.googleapis.com/tokeninfo",
+              params={"access_token": access_token},
+              timeout=30,
+          )
+          if not info.ok:
+              raise SystemExit(f"YouTube token scope inspection failed: HTTP {info.status_code}")
+          scopes = set(info.json().get("scope", "").split())
+          required_scope = "https://www.googleapis.com/auth/youtube.upload"
+          if required_scope not in scopes:
+              raise SystemExit("YouTube OAuth token lacks the youtube.upload scope.")
+          print("YouTube upload OAuth verified; required scope is present.")
+          PY
       - name: Reserve UTC slot and enforce shared cooldown
         id: reserve-slot
         env:
@@ -114,6 +161,67 @@ jobs:
               )
               raise SystemExit("Dropbox Music OAuth credentials must be re-authorized; production is blocked before Colab allocation.")
           token = token_response.json()["access_token"]
+          destination_dir = "/TV OFF/Music Library/Original Tracks/Approved"
+          folder_check = requests.post(
+              "https://api.dropboxapi.com/2/files/get_metadata",
+              headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+              json={"path": destination_dir},
+              timeout=30,
+          )
+          if not folder_check.ok:
+              raise SystemExit(
+                  f"Dropbox Approved folder is not accessible before Colab allocation: "
+                  f"{folder_check.status_code} {folder_check.text}"
+              )
+          if folder_check.json().get(".tag") != "folder":
+              raise SystemExit("Dropbox Approved destination is not a folder.")
+          probe_name = (
+              ".tv-off-colab-preflight-"
+              + os.environ.get("GITHUB_RUN_ID", "local")
+              + "-"
+              + os.environ.get("GITHUB_RUN_ATTEMPT", "1")
+              + ".json"
+          )
+          probe_path = destination_dir + "/" + probe_name
+          probe_data = json.dumps({
+              "purpose": "TV OFF Colab production write/read-back preflight",
+              "run_id": os.environ.get("GITHUB_RUN_ID", "local"),
+          }, sort_keys=True).encode("utf-8")
+          probe_digest = hashlib.sha256(probe_data).hexdigest()
+          probe_upload = requests.post(
+              "https://content.dropboxapi.com/2/files/upload",
+              headers={
+                  "Authorization": f"Bearer {token}",
+                  "Content-Type": "application/octet-stream",
+                  "Dropbox-API-Arg": json.dumps({
+                      "path": probe_path, "mode": "add", "autorename": False,
+                      "mute": True, "strict_conflict": True,
+                  }, separators=(",", ":")),
+              },
+              data=probe_data,
+              timeout=30,
+          )
+          if not probe_upload.ok:
+              raise SystemExit(f"Dropbox Approved-folder write probe failed: {probe_upload.status_code} {probe_upload.text}")
+          probe_readback = requests.post(
+              "https://content.dropboxapi.com/2/files/download",
+              headers={
+                  "Authorization": f"Bearer {token}",
+                  "Dropbox-API-Arg": json.dumps({"path": probe_path}),
+              },
+              timeout=30,
+          )
+          if not probe_readback.ok or hashlib.sha256(probe_readback.content).hexdigest() != probe_digest:
+              raise SystemExit("Dropbox Approved-folder read-back SHA-256 verification failed.")
+          probe_delete = requests.post(
+              "https://api.dropboxapi.com/2/files/delete_v2",
+              headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+              json={"path": probe_path},
+              timeout=30,
+          )
+          if not probe_delete.ok:
+              raise SystemExit(f"Dropbox preflight probe cleanup failed: {probe_delete.status_code} {probe_delete.text}")
+          print("Dropbox Approved-folder write/read-back SHA-256 verified before Colab allocation:", destination_dir, probe_digest)
           state_path = "/music_shorts_state.json"
           remote_response = requests.post(
               "https://content.dropboxapi.com/2/files/download",
