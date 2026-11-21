@@ -161,6 +161,18 @@ jobs:
           echo "Could not confirm Kaggle process closure within 10 minutes."
           exit 1
 
+      - name: Capture Kaggle logs after closure
+        if: always()
+        env:
+          KERNEL_ID: TVOffset/tv-off-unified-ace-step-sdxl-turbo
+        run: |
+          set +e
+          echo '=== Final Kaggle status after closure check ==='
+          timeout 15s kaggle kernels status "$KERNEL_ID" 2>&1 || true
+          echo '=== Final Kaggle execution logs ==='
+          timeout 90s kaggle kernels logs "$KERNEL_ID" 2>&1 || true
+          echo '=== End final Kaggle diagnostics ==='
+
       - name: Download exact unified Kaggle output
         run: |
           set -euo pipefail
