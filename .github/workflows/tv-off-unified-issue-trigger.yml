@@ -54,16 +54,22 @@ jobs:
           set -euo pipefail
           STATUS="$(timeout 15s kaggle kernels status "$KERNEL_ID" 2>&1 || true)"
           echo "Preflight Kaggle status: $STATUS"
-          if echo "$STATUS" | grep -Eiq 'running|queued|starting|initializing'; then
-            echo "An earlier Kaggle process is still active; refusing a second push."
-            exit 1
-          fi
-          if echo "$STATUS" | grep -Eiq 'complete|success|error|failed|cancel'; then
-            echo "Previous Kaggle process is in a terminal state; safe to submit this run."
-            exit 0
-          fi
-          echo "Kaggle status is unknown; failing closed to prevent overlapping generations."
-          exit 1
+          STATE="$(printf '%s\n' "$STATUS" | grep -Eo 'KernelWorkerStatus\.[A-Z_]+' | tail -n 1 | sed 's/.*\.//' || true)"
+          echo "Parsed Kaggle state: ${STATE:-UNKNOWN}"
+          case "$STATE" in
+            QUEUED|RUNNING|STARTING|INITIALIZING|CANCEL_REQUESTED)
+              echo "An earlier Kaggle process is active or cancellation is pending; refusing a second push."
+              exit 1
+              ;;
+            COMPLETE|ERROR|FAILED|CANCELLED)
+              echo "Previous Kaggle process is terminal; safe to submit this run."
+              exit 0
+              ;;
+            *)
+              echo "Kaggle status is unknown; failing closed to prevent overlapping generations."
+              exit 1
+              ;;
+          esac
 
       - name: Push unified Kaggle kernel
         id: push-kernel
@@ -80,13 +86,27 @@ jobs:
             RC=$?
             set -e
             echo "$STATUS"
-            if echo "$STATUS" | grep -Eiq 'error|failed|cancel'; then
-              echo "Kaggle kernel entered an error state; refusing to download stale output."
-              exit 1
-            fi
             if [ "$RC" -eq 124 ]; then echo "Kaggle status request timed out."; exit 1; fi
             if [ "$RC" -ne 0 ]; then echo "Kaggle status request failed: $RC"; exit 1; fi
-            if echo "$STATUS" | grep -Eiq 'complete|success'; then exit 0; fi
+            STATE="$(printf '%s\n' "$STATUS" | grep -Eo 'KernelWorkerStatus\.[A-Z_]+' | tail -n 1 | sed 's/.*\.//' || true)"
+            echo "Parsed Kaggle state: ${STATE:-UNKNOWN}"
+            case "$STATE" in
+              COMPLETE)
+                echo "Kaggle generation completed."
+                exit 0
+                ;;
+              ERROR|FAILED|CANCELLED)
+                echo "Kaggle kernel ended unsuccessfully; refusing to download stale output."
+                exit 1
+                ;;
+              QUEUED|RUNNING|STARTING|INITIALIZING|CANCEL_REQUESTED)
+                echo "Kaggle is not terminal yet; continue waiting."
+                ;;
+              *)
+                echo "Unknown Kaggle state; refusing to assume completion."
+                exit 1
+                ;;
+            esac
             sleep 30
           done
           echo 'Timed out waiting for Kaggle kernel'
@@ -108,24 +128,34 @@ jobs:
           KERNEL_ID: TVOffset/tv-off-unified-ace-step-sdxl-turbo
         run: |
           set -euo pipefail
-          for attempt in $(seq 1 10); do
-            STATUS="$(timeout 15s kaggle kernels status "$KERNEL_ID" 2>&1 || true)"
-            echo "Post-run Kaggle status ($attempt/10): $STATUS"
-            if echo "$STATUS" | grep -Eiq 'complete|success'; then
-              if echo "$STATUS" | grep -Eiq 'running|queued|starting|initializing'; then
-                echo "Kaggle still reports an active state; refusing to continue."
-                exit 1
-              fi
-              echo "Kaggle process is closed."
-              exit 0
+          for attempt in $(seq 1 40); do
+            set +e
+            STATUS="$(timeout 15s kaggle kernels status "$KERNEL_ID" 2>&1)"
+            RC=$?
+            set -e
+            echo "Post-run Kaggle status ($attempt/40): $STATUS"
+            if [ "$RC" -ne 0 ]; then
+              echo "Kaggle status unavailable (exit $RC); closure is not confirmed."
+              sleep 15
+              continue
             fi
-            if echo "$STATUS" | grep -Eiq 'error|fail|cancel'; then
-              echo "Kaggle process ended unsuccessfully."
-              exit 1
-            fi
+            STATE="$(printf '%s\n' "$STATUS" | grep -Eo 'KernelWorkerStatus\.[A-Z_]+' | tail -n 1 | sed 's/.*\.//' || true)"
+            echo "Post-run parsed Kaggle state: ${STATE:-UNKNOWN}"
+            case "$STATE" in
+              COMPLETE|ERROR|FAILED|CANCELLED)
+                echo "Kaggle process is confirmed terminal: $STATE"
+                exit 0
+                ;;
+              QUEUED|RUNNING|STARTING|INITIALIZING|CANCEL_REQUESTED)
+                echo "Kaggle is still active or cancellation is pending; waiting."
+                ;;
+              *)
+                echo "Unknown Kaggle state; refusing to assume process closure."
+                ;;
+            esac
             sleep 15
           done
-          echo "Could not confirm Kaggle process closure."
+          echo "Could not confirm Kaggle process closure within 10 minutes."
           exit 1
 
       - name: Download Kaggle output
