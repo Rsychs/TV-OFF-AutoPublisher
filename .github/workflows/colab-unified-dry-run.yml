@@ -70,10 +70,10 @@ jobs:
 
       - name: Execute unified ACE-Step + SDXL notebook
         timeout-minutes: 210
-        run: colab --auth oauth2 exec -s tv-off-unified -f /tmp/tv_off_colab_unified.ipynb
+        run: colab --auth oauth2 exec -s tv-off-unified --timeout 0 -f /tmp/tv_off_colab_unified.ipynb
 
       - name: Package and verify generated assets on Colab
-        run: colab --auth oauth2 exec -s tv-off-unified -f tools/colab_package_output.py
+        run: colab --auth oauth2 exec -s tv-off-unified --timeout 0 -f tools/colab_package_output.py
 
       - name: Download generated package
         run: |
