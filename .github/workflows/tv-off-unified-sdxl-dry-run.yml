@@ -64,7 +64,7 @@ jobs:
 
       - name: Push unified Kaggle notebook
         working-directory: kaggle/tv-off-unified
-        run: kaggle kernels push -p . --timeout 1800
+        run: timeout 120s kaggle kernels push -p . --timeout 1800
 
       - name: Wait for Kaggle generation to finish
         env:
@@ -116,7 +116,7 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in $(seq 1 10); do
-            STATUS="$(kaggle kernels status "$KERNEL_ID" 2>&1 || true)"
+            STATUS="$(timeout 15s kaggle kernels status "$KERNEL_ID" 2>&1 || true)"
             echo "Post-run Kaggle status ($attempt/10): $STATUS"
             if echo "$STATUS" | grep -Eiq 'complete|success'; then
               if echo "$STATUS" | grep -Eiq 'running|queued|starting|initializing'; then
