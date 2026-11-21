@@ -75,18 +75,20 @@ def main():
     video = OUT / f"TV-OFF_Original-Music_Short_{slot}.mp4"
     title = re.sub(r"\s+", " ", str(m["title"])).strip()
     safe_title = title.replace("\\", "").replace("'", "").replace(":", " —").replace("%", " ").replace(",", " ").replace("[", "(").replace("]", ")")
-    # Newly generated tracks must carry the exact visual rendered in the same ACE-Step run.
-    bundled_visual = m.get("visual_file")
-    if not bundled_visual:
-        raise RuntimeError("Verified track has no bundled genre-matched visual; refusing to generate a replacement later")
-    scene = (manifest_path.parent / bundled_visual).resolve()
-    if not scene.is_relative_to(AUDIO_DIR.resolve()) or not scene.is_file():
-        raise RuntimeError("Bundled visual is missing or outside the downloaded track artifact")
-    if m.get("visual_style") != m.get("style") or m.get("visual_seed") != m.get("seed"):
-        raise RuntimeError("Bundled visual metadata does not match this exact music track")
-    print(f"Using music-generation visual: {scene.name} | style={m['visual_style']}")
+    # Render the visual locally with Blender: ACE-Step remains the audio source,
+    # while the image is a deterministic, locked-camera 3D scene (no SDXL image).
+    scene = OUT / f"scene_{slot}.png"
+    visual_kind = str(m.get("kind") or m.get("category") or "original_music").strip().lower()
+    if visual_kind not in ("original_music", "brown_noise", "white_noise"):
+        visual_kind = "original_music"
+    run([
+        os.environ.get("PYTHON", "python"), "scripts/render_tv_off_short_scene.py",
+        "--out", str(scene), "--kind", visual_kind, "--slot", slot,
+        "--style", str(m.get("style", "Original Music"))
+    ])
     if not scene.is_file() or scene.stat().st_size < 100000:
-        raise RuntimeError("Music-specific visual asset is missing or too small")
+        raise RuntimeError("Blender scene render is missing or unexpectedly small")
+    print(f"Using Blender visual: {scene.name} | style={m.get('style', 'Original Music')}")
 
     # Locked camera; the animated waveform and progress marker provide restrained motion.
     graph = (
