@@ -1,0 +1,208 @@
+name: TV OFF — Unified ACE-Step + SDXL Turbo (Dry Run)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: tv-off-single-video
+  cancel-in-progress: false
+
+jobs:
+  unified-generation-dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Check out isolated feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/tv-off-sdxl-automation
+
+      - name: Configure Kaggle API credentials
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.kaggle
+          if [ -n "${KAGGLE_API_TOKEN:-}" ]; then
+            printf '%s' "$KAGGLE_API_TOKEN" > ~/.kaggle/access_token
+            chmod 600 ~/.kaggle/access_token
+          elif [ -n "${KAGGLE_USERNAME:-}" ] && [ -n "${KAGGLE_KEY:-}" ]; then
+            printf '{"username":"%s","key":"%s"}' "$KAGGLE_USERNAME" "$KAGGLE_KEY" > ~/.kaggle/kaggle.json
+            chmod 600 ~/.kaggle/kaggle.json
+          else
+            echo "Missing Kaggle credentials: configure KAGGLE_API_TOKEN or KAGGLE_USERNAME + KAGGLE_KEY."
+            exit 1
+          fi
+          python -m pip install --disable-pip-version-check --quiet kaggle
+
+      - name: Refuse to overwrite an active Kaggle kernel
+        env:
+          KERNEL_ID: TVOffset/tv-off-unified-ace-step-sdxl-turbo
+        run: |
+          set -euo pipefail
+          STATUS="$(timeout 15s kaggle kernels status "$KERNEL_ID" 2>&1 || true)"
+          echo "Preflight Kaggle status: $STATUS"
+          STATE="$(printf '%s\n' "$STATUS" | grep -Eo 'KernelWorkerStatus\.[A-Z_]+' | tail -n 1 | sed 's/.*\.//' || true)"
+          echo "Parsed Kaggle state: ${STATE:-UNKNOWN}"
+          case "$STATE" in
+            QUEUED|RUNNING|STARTING|INITIALIZING|CANCEL_REQUESTED)
+              echo "An earlier Kaggle process is active or cancellation is pending; refusing a second push."
+              exit 1
+              ;;
+            COMPLETE|ERROR|FAILED|CANCELLED|CANCEL_ACKNOWLEDGED)
+              echo "Previous Kaggle process is terminal; safe to submit this run."
+              exit 0
+              ;;
+            *)
+              echo "Kaggle status is unknown; failing closed to prevent overlapping generations."
+              exit 1
+              ;;
+          esac
+
+      - name: Push unified Kaggle notebook
+        working-directory: kaggle/tv-off-unified
+        run: timeout 120s kaggle kernels push -p . --timeout 1800
+
+      - name: Wait for Kaggle generation to finish
+        env:
+          KERNEL_ID: TVOffset/tv-off-unified-ace-step-sdxl-turbo
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 70); do
+            set +e
+            STATUS="$(timeout 15s kaggle kernels status "$KERNEL_ID" 2>&1)"
+            RC=$?
+            set -e
+            echo "$STATUS"
+            if [ "$RC" -eq 0 ]; then
+              if echo "$STATUS" | grep -Eiq 'complete|success'; then
+                echo "Kaggle generation completed."
+                exit 0
+              fi
+              STATE="$(printf '%s\n' "$STATUS" | grep -Eo 'KernelWorkerStatus\.[A-Z_]+' | tail -n 1 | sed 's/.*\.//' || true)"
+              echo "Parsed Kaggle state: ${STATE:-UNKNOWN}"
+              case "$STATE" in
+                ERROR|FAILED|CANCELLED|CANCEL_ACKNOWLEDGED)
+                  echo "Kaggle kernel failed."
+                  exit 1
+                  ;;
+                COMPLETE)
+                  echo "Kaggle generation completed."
+                  exit 0
+                  ;;
+                QUEUED|RUNNING|STARTING|INITIALIZING|CANCEL_REQUESTED) ;;
+                *)
+                  echo "Unknown Kaggle state; refusing to assume completion."
+                  exit 1
+                  ;;
+              esac
+            elif [ "$RC" -eq 124 ]; then
+              echo "Kaggle status request timed out; refusing to assume completion."
+              exit 1
+            else
+              echo "Kaggle status request failed: $RC"
+              exit 1
+            fi
+            sleep 30
+          done
+          echo "Timed out waiting for Kaggle kernel; inspect Kaggle logs."
+          exit 1
+
+      - name: Capture Kaggle execution logs on failure
+        if: failure()
+        env:
+          KERNEL_ID: TVOffset/tv-off-unified-ace-step-sdxl-turbo
+        run: |
+          set +e
+          echo '=== Kaggle kernel status ==='
+          timeout 15s kaggle kernels status "$KERNEL_ID" 2>&1 || true
+          echo '=== Kaggle kernel execution logs ==='
+          timeout 90s kaggle kernels logs "$KERNEL_ID" 2>&1 || true
+          echo '=== End Kaggle diagnostics ==='
+      - name: Verify Kaggle process is fully closed
+        if: always()
+        env:
+          KERNEL_ID: TVOffset/tv-off-unified-ace-step-sdxl-turbo
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 40); do
+            set +e
+            STATUS="$(timeout 15s kaggle kernels status "$KERNEL_ID" 2>&1)"
+            RC=$?
+            set -e
+            echo "Post-run Kaggle status ($attempt/40): $STATUS"
+            if [ "$RC" -ne 0 ]; then
+              echo "Kaggle status unavailable (exit $RC); closure is not confirmed."
+              sleep 15
+              continue
+            fi
+            STATE="$(printf '%s\n' "$STATUS" | grep -Eo 'KernelWorkerStatus\.[A-Z_]+' | tail -n 1 | sed 's/.*\.//' || true)"
+            echo "Post-run parsed Kaggle state: ${STATE:-UNKNOWN}"
+            case "$STATE" in
+              COMPLETE|ERROR|FAILED|CANCELLED|CANCEL_ACKNOWLEDGED)
+                echo "Kaggle process is confirmed terminal: $STATE"
+                exit 0
+                ;;
+              QUEUED|RUNNING|STARTING|INITIALIZING|CANCEL_REQUESTED)
+                echo "Kaggle is still active or cancellation is pending; waiting."
+                ;;
+              *)
+                echo "Unknown Kaggle state; refusing to assume process closure."
+                ;;
+            esac
+            sleep 15
+          done
+          echo "Could not confirm Kaggle process closure within 10 minutes."
+          exit 1
+
+      - name: Capture Kaggle logs after closure
+        if: always()
+        env:
+          KERNEL_ID: TVOffset/tv-off-unified-ace-step-sdxl-turbo
+        run: |
+          set +e
+          echo '=== Final Kaggle status after closure check ==='
+          timeout 15s kaggle kernels status "$KERNEL_ID" 2>&1 || true
+          echo '=== Final Kaggle execution logs ==='
+          timeout 90s kaggle kernels logs "$KERNEL_ID" 2>&1 || true
+          echo '=== End final Kaggle diagnostics ==='
+
+      - name: Download exact unified Kaggle output
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          timeout 180s kaggle kernels output TVOffset/tv-off-unified-ace-step-sdxl-turbo -p artifacts
+          test -n "$(find artifacts -type f -name 'ace_step_smoke_result.json' -print -quit)"
+
+      - name: Install FFmpeg and Python dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          python -m pip install --disable-pip-version-check -r requirements.txt
+          python -m py_compile build_and_upload_music_short.py
+
+      - name: Render and validate — publication disabled
+        env:
+          SOURCE_AUDIO_DIR: ${{ github.workspace }}/artifacts
+          PUBLISH_MODE: dry_run
+        run: python build_and_upload_music_short.py
+
+      - name: Upload dry-run MP4 and validation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: tv-off-unified-sdxl-dry-run
+          path: |
+            music-shorts/*.mp4
+            music-shorts/dry_run_report.json
+            artifacts/**/ace_step_smoke_result.json
+            artifacts/**/*.jpg
+            artifacts/**/*.png
+          if-no-files-found: error
+          retention-days: 14
