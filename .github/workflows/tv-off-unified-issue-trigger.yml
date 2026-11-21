@@ -28,6 +28,48 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Validate unified Kaggle notebook source and syntax
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast, json
+          from pathlib import Path
+
+          path = Path("kaggle/tv-off-unified/tv_off_unified.ipynb")
+          notebook = json.loads(path.read_text(encoding="utf-8"))
+          if notebook.get("nbformat") != 4:
+              raise SystemExit("Unified notebook must use nbformat 4")
+          checked = 0
+          for index, cell in enumerate(notebook.get("cells", [])):
+              if cell.get("cell_type") != "code":
+                  continue
+              source = cell.get("source", "")
+              if isinstance(source, list):
+                  if any(not isinstance(part, str) for part in source):
+                      raise SystemExit(f"Notebook cell {index} contains non-text source")
+                  for fragment_index, fragment in enumerate(source[:-1]):
+                      if not fragment.endswith(("\\n", "\\r")):
+                          raise SystemExit(
+                              f"Notebook cell {index} source fragment {fragment_index} "
+                              "is missing a line terminator"
+                          )
+                  source_text = "".join(source)
+              elif isinstance(source, str):
+                  source_text = source
+              else:
+                  raise SystemExit(f"Notebook cell {index} has invalid source type")
+              try:
+                  ast.parse(source_text, filename=f"{path}:cell-{index}")
+              except SyntaxError as exc:
+                  raise SystemExit(
+                      f"Unified notebook syntax error in cell {index}, "
+                      f"line {exc.lineno}: {exc.msg}"
+                  )
+              checked += 1
+          if checked == 0:
+              raise SystemExit("Unified notebook contains no executable code cells")
+          print(f"Validated Python syntax and line endings in {checked} unified notebook cells.")
+          PY
       - name: Configure Kaggle credentials
         env:
           KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
