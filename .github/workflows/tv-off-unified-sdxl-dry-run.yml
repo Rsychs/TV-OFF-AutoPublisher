@@ -17,7 +17,7 @@ concurrency:
 jobs:
   unified-generation-dry-run:
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 75
     steps:
       - name: Check out isolated feature branch
         uses: actions/checkout@v4
@@ -49,7 +49,7 @@ jobs:
           KERNEL_ID: TVOffset/tv-off-unified-ace-step-sdxl-turbo
         run: |
           set -euo pipefail
-          STATUS="$(kaggle kernels status "$KERNEL_ID" 2>&1 || true)"
+          STATUS="$(timeout 15s kaggle kernels status "$KERNEL_ID" 2>&1 || true)"
           echo "Preflight Kaggle status: $STATUS"
           if echo "$STATUS" | grep -Eiq 'running|queued|starting|initializing'; then
             echo "An earlier Kaggle process is still active; refusing a second push."
@@ -73,7 +73,7 @@ jobs:
           set -euo pipefail
           for attempt in $(seq 1 70); do
             set +e
-            STATUS="$(kaggle kernels status "$KERNEL_ID" 2>&1)"
+            STATUS="$(timeout 15s kaggle kernels status "$KERNEL_ID" 2>&1)"
             RC=$?
             set -e
             echo "$STATUS"
@@ -86,6 +86,12 @@ jobs:
                 echo "Kaggle kernel failed."
                 exit 1
               fi
+            elif [ "$RC" -eq 124 ]; then
+              echo "Kaggle status request timed out; refusing to assume completion."
+              exit 1
+            else
+              echo "Kaggle status request failed: $RC"
+              exit 1
             fi
             sleep 30
           done
@@ -99,9 +105,9 @@ jobs:
         run: |
           set +e
           echo '=== Kaggle kernel status ==='
-          kaggle kernels status "$KERNEL_ID" 2>&1
+          timeout 15s kaggle kernels status "$KERNEL_ID" 2>&1 || true
           echo '=== Kaggle kernel execution logs ==='
-          kaggle kernels logs "$KERNEL_ID" 2>&1
+          timeout 90s kaggle kernels logs "$KERNEL_ID" 2>&1 || true
           echo '=== End Kaggle diagnostics ==='
       - name: Verify Kaggle process is fully closed
         if: always()
@@ -133,7 +139,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts
-          kaggle kernels output TVOffset/tv-off-unified-ace-step-sdxl-turbo -p artifacts
+          timeout 180s kaggle kernels output TVOffset/tv-off-unified-ace-step-sdxl-turbo -p artifacts
           test -n "$(find artifacts -type f -name 'ace_step_smoke_result.json' -print -quit)"
 
       - name: Install FFmpeg and Python dependencies
