@@ -17,7 +17,7 @@ jobs:
        github.event.comment.body == '/publish-unified-sdxl' &&
        github.event.comment.user.login == 'Rsychs')
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     concurrency:
       group: tv-off-single-video
       cancel-in-progress: false
@@ -75,12 +75,12 @@ jobs:
         id: push-kernel
         run: |
           set -euo pipefail
-          timeout 120s kaggle kernels push -p kaggle/tv-off-unified --timeout 1800
+          timeout 120s kaggle kernels push -p kaggle/tv-off-unified --timeout 5400
       - name: Wait for Kaggle kernel
         shell: bash
         run: |
           set -euo pipefail
-          for i in $(seq 1 70); do
+          for i in $(seq 1 150); do
             set +e
             STATUS="$(timeout 15s kaggle kernels status TVOffset/tv-off-unified-ace-step-sdxl-turbo 2>&1)"
             RC=$?
@@ -109,7 +109,7 @@ jobs:
             esac
             sleep 30
           done
-          echo 'Timed out waiting for Kaggle kernel'
+          echo 'Timed out waiting for Kaggle kernel after 75 minutes'
           exit 1
       - name: Capture Kaggle execution logs on failure
         if: failure()
