@@ -242,7 +242,7 @@ jobs:
               )
 
           merged_state = dict(remote_state)
-          for key in ("_published_audio_sha256", "_published_video_sha256"):
+          for key in ("_published_audio_sha256", "_published_video_sha256", "_published_full_video_sha256"):
               merged = []
               for value in list(remote_state.get(key, [])) + list(local_state.get(key, [])):
                   if value and value not in merged:
@@ -279,6 +279,7 @@ jobs:
           for key, value in (
               ("_published_audio_sha256", historical["audio_sha256"]),
               ("_published_video_sha256", historical["short_video_sha256"]),
+              ("_published_full_video_sha256", historical["full_video_sha256"]),
           ):
               if value not in merged_state[key]:
                   merged_state[key].append(value)
