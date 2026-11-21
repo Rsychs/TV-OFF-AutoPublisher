@@ -307,6 +307,21 @@ jobs:
               f"{len(merged_state.get('published_tracks', []))} track records;",
               "last publish", merged_state.get("_last_published_at"),
           )
+          destination_dir = "/TV OFF/Music Library/Original Tracks/Approved"
+          folder_check = requests.post(
+              "https://api.dropboxapi.com/2/files/get_metadata",
+              headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
+              json={"path": destination_dir},
+              timeout=30,
+          )
+          if not folder_check.ok:
+              raise SystemExit(
+                  f"Dropbox production destination is not accessible: "
+                  f"{destination_dir} ({folder_check.status_code} {folder_check.text})"
+              )
+          if folder_check.json().get(".tag") != "folder":
+              raise SystemExit(f"Dropbox production destination is not a folder: {destination_dir}")
+
           saved = []
           for name in audio_files + [manifest_path.name]:
               local = (manifest_path.parent / name).resolve()
@@ -315,7 +330,7 @@ jobs:
               digest = hashlib.sha256(local.read_bytes()).hexdigest()
               if name == manifest.get("audio_file") and digest != manifest.get("sha256"):
                   raise SystemExit("WAV SHA-256 does not match generation manifest")
-              target = "/" + local.name
+              target = destination_dir + "/" + local.name
               headers = {
                   "Authorization": f"Bearer {access_token}",
                   "Content-Type": "application/octet-stream",
