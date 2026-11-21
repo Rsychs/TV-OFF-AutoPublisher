@@ -14,7 +14,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
 ROOT = Path(__file__).resolve().parent
-AUDIO_DIR = Path(os.environ.get("SOURCE_AUDIO_DIR", ROOT / "kaggle-output"))
+AUDIO_DIR = Path(os.environ.get("SOURCE_AUDIO_DIR", ROOT / "colab-output"))
 OUT = ROOT / "music-shorts"
 STATE = ROOT / "music_shorts_state.json"
 DURATION = 30
