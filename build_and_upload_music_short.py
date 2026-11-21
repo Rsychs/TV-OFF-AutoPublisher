@@ -141,7 +141,7 @@ def main():
     run([
         "ffmpeg", "-y", "-hide_banner", "-loop", "1", "-framerate", "1", "-i", str(full_scene),
         "-i", str(audio), "-vf", full_filter,
-        "-map", "[v]", "-map", "1:a:0", "-t", f"{duration:.3f}",
+        "-map", "0:v:0", "-map", "1:a:0", "-t", f"{duration:.3f}",
         "-af", "afade=t=in:st=0:d=0.5,afade=t=out:st=" + f"{max(0.5, duration-2):.3f}" + ":d=2,loudnorm=I=-16:TP=-1.5:LRA=11",
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
         "-r", "1", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(full_video)
