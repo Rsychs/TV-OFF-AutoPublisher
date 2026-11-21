@@ -79,6 +79,8 @@ def main():
     video = OUT / f"TV-OFF_Original-Music_Short_{slot}.mp4"
     full_video = OUT / f"TV-OFF_Original-Music_Full_{slot}.mp4"
     title = re.sub(r"\s+", " ", str(m["title"])).strip()
+    if re.search(r"\d", title):
+        raise RuntimeError("Public YouTube title must not contain digits; refusing upload.")
     safe_title = title.replace("\\", "").replace("'", "").replace(":", " —").replace("%", " ").replace(",", " ").replace("[", "(").replace("]", ")")
     # Newly generated tracks must carry the exact visual rendered in the same ACE-Step run.
     bundled_visual = m.get("visual_file")
