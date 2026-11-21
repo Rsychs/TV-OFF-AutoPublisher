@@ -90,6 +90,20 @@ def main():
     if m.get("visual_style") != m.get("style") or m.get("visual_seed") != m.get("seed"):
         raise RuntimeError("Bundled visual metadata does not match this exact music track")
     print(f"Using music-generation visual: {scene.name} | style={m['visual_style']}")
+    # Full-length upload uses a separately generated native 16:9 image.
+    bundled_landscape = m.get("landscape_file")
+    if not bundled_landscape:
+        raise RuntimeError("Missing separately generated landscape artwork for full-track upload")
+    full_scene = (manifest_path.parent / bundled_landscape).resolve()
+    if not full_scene.is_relative_to(AUDIO_DIR.resolve()) or not full_scene.is_file():
+        raise RuntimeError("Landscape artwork is missing or outside the downloaded track artifact")
+    if full_scene.stat().st_size < 100000:
+        raise RuntimeError("Landscape artwork is unexpectedly small")
+    full_visual_hash = sha256(full_scene)
+    if full_visual_hash != m.get("landscape_sha256"):
+        raise RuntimeError("Landscape artwork SHA-256 does not match generation manifest")
+    if (m.get("landscape_width"), m.get("landscape_height")) != (1920, 1080):
+        raise RuntimeError("Full-track artwork must be 1920x1080 landscape")
     if not scene.is_file() or scene.stat().st_size < 100000:
         raise RuntimeError("Music-specific visual asset is missing or too small")
     visual_hash = sha256(scene)
@@ -121,14 +135,12 @@ def main():
         raise RuntimeError(f"Rendered Short duration is not {DURATION} seconds")
     # Full-track companion: landscape 16:9, same artwork, static frame, complete original audio.
     full_filter = (
-        "[0:v]scale=1920:1080:force_original_aspect_ratio=increase,"
-        "crop=1920:1080,gblur=sigma=28,eq=brightness=-0.12[bg];"
-        "[0:v]scale=608:1080:force_original_aspect_ratio=decrease,"
-        "setsar=1[art];[bg][art]overlay=(W-w)/2:0,format=yuv420p[v]"
+        "scale=1920:1080:force_original_aspect_ratio=increase,"
+        "crop=1920:1080,setsar=1,format=yuv420p"
     )
     run([
-        "ffmpeg", "-y", "-hide_banner", "-loop", "1", "-framerate", "1", "-i", str(scene),
-        "-i", str(audio), "-filter_complex", full_filter,
+        "ffmpeg", "-y", "-hide_banner", "-loop", "1", "-framerate", "1", "-i", str(full_scene),
+        "-i", str(audio), "-vf", full_filter,
         "-map", "[v]", "-map", "1:a:0", "-t", f"{duration:.3f}",
         "-af", "afade=t=in:st=0:d=0.5,afade=t=out:st=" + f"{max(0.5, duration-2):.3f}" + ":d=2,loudnorm=I=-16:TP=-1.5:LRA=11",
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
