@@ -46,14 +46,14 @@ jobs:
 
       - name: Push unified Kaggle notebook
         working-directory: kaggle/tv-off-unified
-        run: kaggle kernels push -p .
+        run: kaggle kernels push -p . --timeout 1800
 
       - name: Wait for Kaggle generation to finish
         env:
           KERNEL_ID: TVOffset/tv-off-unified-ace-step-sdxl-turbo
         run: |
           set -euo pipefail
-          for attempt in $(seq 1 60); do
+          for attempt in $(seq 1 70); do
             set +e
             STATUS="$(kaggle kernels status "$KERNEL_ID" 2>&1)"
             RC=$?
@@ -75,6 +75,7 @@ jobs:
           exit 1
 
       - name: Verify Kaggle process is fully closed
+        if: always()
         env:
           KERNEL_ID: TVOffset/tv-off-unified-ace-step-sdxl-turbo
         run: |
