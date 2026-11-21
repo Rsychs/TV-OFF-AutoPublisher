@@ -278,7 +278,7 @@ jobs:
         if: steps.reserve-slot.outputs.should_run == 'true'
         env:
           PUBLISH_MODE: publish
-          SOURCE_AUDIO_DIR: kaggle-output
+          SOURCE_AUDIO_DIR: colab-output
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
