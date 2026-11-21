@@ -14,12 +14,12 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
 ROOT = Path(__file__).resolve().parent
-AUDIO_DIR = Path(os.environ.get("SOURCE_AUDIO_DIR", ROOT / "artifacts"))
+AUDIO_DIR = Path(os.environ.get("SOURCE_AUDIO_DIR", ROOT / "kaggle-output"))
 OUT = ROOT / "music-shorts"
 STATE = ROOT / "music_shorts_state.json"
 DURATION = 30
 COOLDOWN_SECONDS = 3600
-PUBLISH_MODE = os.environ.get("PUBLISH_MODE", "dry_run").strip().lower()
+PUBLISH_MODE = os.environ.get("PUBLISH_MODE", "publish").strip().lower()
 if PUBLISH_MODE not in {"dry_run", "publish"}:
     raise RuntimeError("PUBLISH_MODE must be dry_run or publish")
 
@@ -39,8 +39,8 @@ def main():
         raise RuntimeError(f"Expected exactly one ACE-Step manifest, found {len(manifests)}")
     manifest_path = manifests[0]
     m = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if m.get("status") != "ok" or m.get("publishing_enabled") is not False:
-        raise RuntimeError("ACE-Step manifest is not a verified non-publishing generation result")
+    if m.get("status") != "ok" or m.get("publishing_enabled") is not True:
+        raise RuntimeError("ACE-Step manifest is not an explicitly approved production generation result")
     if not m.get("title") or not m.get("style") or not m.get("prompt"):
         raise RuntimeError("ACE-Step manifest is missing title/style/prompt")
     audio = (manifest_path.parent / m["audio_file"]).resolve()
@@ -137,7 +137,7 @@ def main():
     if video_hash in state.get("_published_video_sha256", []):
         raise RuntimeError("Duplicate rendered video detected; refusing upload")
 
-    # Safe default: create and retain a verified MP4, but never contact YouTube.
+    # Dry-run remains available only when explicitly requested; production is the default.
     if PUBLISH_MODE == "dry_run":
         report = {
             "status": "dry_run_passed", "published": False, "title": title,
