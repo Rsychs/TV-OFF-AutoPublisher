@@ -52,7 +52,7 @@ jobs:
           KERNEL_ID: TVOffset/tv-off-unified-ace-step-sdxl-turbo
         run: |
           set -euo pipefail
-          STATUS="$(kaggle kernels status "$KERNEL_ID" 2>&1 || true)"
+          STATUS="$(timeout 15s kaggle kernels status "$KERNEL_ID" 2>&1 || true)"
           echo "Preflight Kaggle status: $STATUS"
           if echo "$STATUS" | grep -Eiq 'running|queued|starting|initializing'; then
             echo "An earlier Kaggle process is still active; refusing a second push."
@@ -69,19 +69,24 @@ jobs:
         id: push-kernel
         run: |
           set -euo pipefail
-          kaggle kernels push -p kaggle/tv-off-unified --timeout 1800
+          timeout 120s kaggle kernels push -p kaggle/tv-off-unified --timeout 1800
       - name: Wait for Kaggle kernel
         shell: bash
         run: |
           set -euo pipefail
           for i in $(seq 1 70); do
-            STATUS="$(kaggle kernels status TVOffset/tv-off-unified-ace-step-sdxl-turbo 2>&1 || true)"
+            set +e
+            STATUS="$(timeout 15s kaggle kernels status TVOffset/tv-off-unified-ace-step-sdxl-turbo 2>&1)"
+            RC=$?
+            set -e
             echo "$STATUS"
-            if echo "$STATUS" | grep -Eiq 'complete|success'; then exit 0; fi
-            if echo "$STATUS" | grep -Eiq 'error|failed'; then
+            if echo "$STATUS" | grep -Eiq 'error|failed|cancel'; then
               echo "Kaggle kernel entered an error state; refusing to download stale output."
               exit 1
             fi
+            if [ "$RC" -eq 124 ]; then echo "Kaggle status request timed out."; exit 1; fi
+            if [ "$RC" -ne 0 ]; then echo "Kaggle status request failed: $RC"; exit 1; fi
+            if echo "$STATUS" | grep -Eiq 'complete|success'; then exit 0; fi
             sleep 30
           done
           echo 'Timed out waiting for Kaggle kernel'
@@ -93,9 +98,9 @@ jobs:
         run: |
           set +e
           echo '=== Kaggle kernel status ==='
-          kaggle kernels status "$KERNEL_ID" 2>&1
+          timeout 15s kaggle kernels status "$KERNEL_ID" 2>&1 || true
           echo '=== Kaggle kernel execution logs ==='
-          kaggle kernels logs "$KERNEL_ID" 2>&1
+          timeout 90s kaggle kernels logs "$KERNEL_ID" 2>&1 || true
           echo '=== End Kaggle diagnostics ==='
       - name: Verify Kaggle process is fully closed
         if: always()
@@ -126,7 +131,7 @@ jobs:
       - name: Download Kaggle output
         run: |
           mkdir -p kaggle-output
-          kaggle kernels output TVOffset/tv-off-unified-ace-step-sdxl-turbo -p kaggle-output
+          timeout 180s kaggle kernels output TVOffset/tv-off-unified-ace-step-sdxl-turbo -p kaggle-output
       - name: Save completed original song to Dropbox
         env:
           DROPBOX_MUSIC_APP_KEY: ${{ secrets.DROPBOX_MUSIC_APP_KEY }}
