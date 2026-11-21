@@ -71,12 +71,190 @@ jobs:
               ;;
           esac
 
-      - name: Push unified Kaggle kernel
+      - name: Reserve UTC slot and enforce shared cooldown
+        id: reserve-slot
+        env:
+          DROPBOX_MUSIC_APP_KEY: \${{ secrets.DROPBOX_MUSIC_APP_KEY }}
+          DROPBOX_MUSIC_APP_SECRET: \${{ secrets.DROPBOX_MUSIC_APP_SECRET }}
+          DROPBOX_MUSIC_REFRESH_TOKEN: \${{ secrets.DROPBOX_MUSIC_REFRESH_TOKEN }}
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --quiet requests
+          python - <<'PY'
+          import hashlib, json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          import requests
+
+          required = ["DROPBOX_MUSIC_APP_KEY", "DROPBOX_MUSIC_APP_SECRET", "DROPBOX_MUSIC_REFRESH_TOKEN"]
+          missing = [key for key in required if not os.environ.get(key)]
+          if missing:
+              raise SystemExit("Missing Dropbox state-reservation secrets: " + ", ".join(missing))
+
+          local_path = Path("music_shorts_state.json")
+          local = json.loads(local_path.read_text(encoding="utf-8")) if local_path.is_file() else {}
+          if not isinstance(local, dict):
+              raise SystemExit("Repository publication state is not a JSON object")
+
+          token_response = requests.post(
+              "https://api.dropboxapi.com/oauth2/token",
+              data={"grant_type": "refresh_token", "refresh_token": os.environ["DROPBOX_MUSIC_REFRESH_TOKEN"]},
+              auth=(os.environ["DROPBOX_MUSIC_APP_KEY"], os.environ["DROPBOX_MUSIC_APP_SECRET"]),
+              timeout=30,
+          )
+          token_response.raise_for_status()
+          token = token_response.json()["access_token"]
+          state_path = "/music_shorts_state.json"
+          remote_response = requests.post(
+              "https://content.dropboxapi.com/2/files/download",
+              headers={"Authorization": f"Bearer {token}", "Dropbox-API-Arg": json.dumps({"path": state_path})},
+              timeout=30,
+          )
+          if remote_response.status_code == 200:
+              remote = json.loads(remote_response.content.decode("utf-8"))
+              if not isinstance(remote, dict):
+                  raise SystemExit("Dropbox publication state is not a JSON object")
+          elif remote_response.status_code == 409 and "path/not_found" in remote_response.text:
+              remote = {}
+              print("Dropbox state file does not exist yet; seeding it from the repository.")
+          else:
+              raise SystemExit(
+                  f"Cannot restore Dropbox publication state: "
+                  f"{remote_response.status_code} {remote_response.text}"
+              )
+
+          state = dict(remote)
+          for key in (
+              "_published_audio_sha256",
+              "_published_video_sha256",
+              "_published_full_video_sha256",
+              "_processed_utc_slots",
+          ):
+              merged = []
+              for source in (remote, local):
+                  values = source.get(key, [])
+                  if not isinstance(values, list):
+                      raise SystemExit(f"Publication state field {key} is not a list")
+                  for value in values:
+                      if value and value not in merged:
+                          merged.append(value)
+              state[key] = merged[-500:]
+
+          tracks = {}
+          for source in (remote, local):
+              records = source.get("published_tracks", [])
+              if not isinstance(records, list):
+                  raise SystemExit("published_tracks is not a list")
+              for record in records:
+                  if not isinstance(record, dict):
+                      continue
+                  key = record.get("audio_sha256") or record.get("short_video_id") or record.get("video_id")
+                  if key:
+                      tracks[key] = record
+
+          historical = {
+              "short_video_id": "0DibjqE_k3Q",
+              "short_url": "https://youtu.be/0DibjqE_k3Q",
+              "full_video_id": "hTiUvLQxXZo",
+              "full_url": "https://youtu.be/hTiUvLQxXZo",
+              "track_title": "Neon Afterglow 83184",
+              "audio_sha256": "b0e94f4f9217d2470820897de9a92a4e7b086bc768c6017baa73fd94ded8d1d7",
+              "short_video_sha256": "0a26bda28d055c160f35d77cc21f844d9c5ff5bb9e7c127573b8420288db06f5",
+              "full_video_sha256": "6e823d6a8e6313aeec9d906870deec9bfc0587572c3fa7ea961eb5dfce2da1ae",
+              "short_published_at": "2026-11-21T14:41:07.830759+00:00",
+              "full_published_at": "2026-11-21T14:41:07.831006+00:00",
+              "full_upload_status": "published",
+          }
+          tracks.setdefault(historical["audio_sha256"], historical)
+          state["published_tracks"] = list(tracks.values())[-500:]
+
+          published_times = []
+          for source in (remote, local):
+              value = source.get("_last_published_at")
+              if value:
+                  dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+                  if dt.tzinfo is None:
+                      dt = dt.replace(tzinfo=timezone.utc)
+                  published_times.append(dt.astimezone(timezone.utc))
+          published_times.append(datetime.fromisoformat(historical["short_published_at"]).astimezone(timezone.utc))
+          if published_times:
+              state["_last_published_at"] = max(published_times).isoformat()
+
+          now = datetime.now(timezone.utc)
+          slot = now.replace(minute=0, second=0, microsecond=0).strftime("%Y-%m-%dT%H:00:00Z")
+          processed = state.get("_processed_utc_slots", [])
+          if slot in processed:
+              skip_reason = "utc_slot_already_processed"
+          else:
+              skip_reason = ""
+
+          pending_pairs = [
+              item for item in state["published_tracks"]
+              if item.get("short_video_id") and item.get("full_upload_status") != "published"
+          ]
+          if pending_pairs and not skip_reason:
+              skip_reason = "previous_short_has_no_confirmed_full_track"
+
+          last = state.get("_last_published_at")
+          if last and not skip_reason:
+              last_dt = datetime.fromisoformat(str(last).replace("Z", "+00:00"))
+              if last_dt.tzinfo is None:
+                  last_dt = last_dt.replace(tzinfo=timezone.utc)
+              remaining = 3600 - (now - last_dt.astimezone(timezone.utc)).total_seconds()
+              if remaining > 0:
+                  skip_reason = f"cooldown_active_{int(remaining)}s"
+
+          if slot not in processed:
+              processed.append(slot)
+          state["_processed_utc_slots"] = processed[-500:]
+          state_bytes = json.dumps(state, indent=2, ensure_ascii=False).encode("utf-8")
+          upload = requests.post(
+              "https://content.dropboxapi.com/2/files/upload",
+              headers={
+                  "Authorization": f"Bearer {token}",
+                  "Content-Type": "application/octet-stream",
+                  "Dropbox-API-Arg": json.dumps({
+                      "path": state_path, "mode": "overwrite", "autorename": False,
+                      "mute": True, "strict_conflict": True
+                  }, separators=(",", ":")),
+              },
+              data=state_bytes,
+              timeout=60,
+          )
+          upload.raise_for_status()
+          downloaded = requests.post(
+              "https://content.dropboxapi.com/2/files/download",
+              headers={"Authorization": f"Bearer {token}", "Dropbox-API-Arg": json.dumps({"path": state_path})},
+              timeout=30,
+          )
+          downloaded.raise_for_status()
+          digest = hashlib.sha256(state_bytes).hexdigest()
+          if hashlib.sha256(downloaded.content).hexdigest() != digest:
+              raise SystemExit("UTC slot reservation read-back SHA-256 mismatch")
+          local_path.write_bytes(state_bytes)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write("state_reserved=true\n")
+              output.write(f"should_run={'false' if skip_reason else 'true'}\n")
+              output.write(f"skip_reason={skip_reason or 'none'}\n")
+
+          print("UTC slot reservation saved and read-back verified:", slot)
+          print("Last confirmed publication:", state.get("_last_published_at", "none"))
+          print("Processed UTC slots retained:", len(state["_processed_utc_slots"]))
+          if skip_reason:
+              print("Production generation safely skipped:", skip_reason)
+          else:
+              print("Production slot reserved; unified ACE-Step + SDXL may proceed.")
+          PY
+
+      - name: 
+        if: steps.reserve-slot.outputs.should_run == 'true'Push unified Kaggle kernel
         id: push-kernel
         run: |
           set -euo pipefail
           timeout 120s kaggle kernels push -p kaggle/tv-off-unified --timeout 5400
-      - name: Wait for Kaggle kernel
+      - name: 
+        if: steps.reserve-slot.outputs.should_run == 'true'Wait for Kaggle kernel
         shell: bash
         run: |
           set -euo pipefail
@@ -111,7 +289,8 @@ jobs:
           done
           echo 'Timed out waiting for Kaggle kernel after 75 minutes'
           exit 1
-      - name: Capture Kaggle execution logs on failure
+      - name: 
+        if: steps.reserve-slot.outputs.should_run == 'true'Capture Kaggle execution logs on failure
         if: failure()
         env:
           KERNEL_ID: TVOffset/tv-off-unified-ace-step-sdxl-turbo
@@ -170,11 +349,13 @@ jobs:
           timeout 90s kaggle kernels logs "$KERNEL_ID" 2>&1 || true
           echo '=== End final Kaggle diagnostics ==='
 
-      - name: Download Kaggle output
+      - name: 
+        if: steps.reserve-slot.outputs.should_run == 'true'Download Kaggle output
         run: |
           mkdir -p kaggle-output
           timeout 180s kaggle kernels output TVOffset/tv-off-unified-ace-step-sdxl-turbo -p kaggle-output
-      - name: Save completed original song to Dropbox
+      - name: 
+        if: steps.reserve-slot.outputs.should_run == 'true'Save completed original song to Dropbox
         id: dropbox-save
         env:
           DROPBOX_MUSIC_APP_KEY: ${{ secrets.DROPBOX_MUSIC_APP_KEY }}
@@ -365,12 +546,14 @@ jobs:
           for path in saved:
               print(path)
           PY
-      - name: Install render dependencies
+      - name: 
+        if: steps.reserve-slot.outputs.should_run == 'true'Install render dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
           python -m pip install -r requirements.txt
-      - name: Build and publish Short + complete original track
+      - name: 
+        if: steps.reserve-slot.outputs.should_run == 'true'Build and publish Short + complete original track
         env:
           PUBLISH_MODE: publish
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
