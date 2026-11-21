@@ -109,7 +109,7 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in $(seq 1 10); do
-            STATUS="$(kaggle kernels status "$KERNEL_ID" 2>&1 || true)"
+            STATUS="$(timeout 15s kaggle kernels status "$KERNEL_ID" 2>&1 || true)"
             echo "Post-run Kaggle status ($attempt/10): $STATUS"
             if echo "$STATUS" | grep -Eiq 'complete|success'; then
               if echo "$STATUS" | grep -Eiq 'running|queued|starting|initializing'; then
