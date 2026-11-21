@@ -68,6 +68,31 @@ jobs:
           done
           echo 'Timed out waiting for Kaggle kernel'
           exit 1
+      - name: Verify Kaggle process is fully closed
+        env:
+          KERNEL_ID: TVOffset/tv-off-unified-ace-step-sdxl-turbo
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 10); do
+            STATUS="$(kaggle kernels status "$KERNEL_ID" 2>&1 || true)"
+            echo "Post-run Kaggle status ($attempt/10): $STATUS"
+            if echo "$STATUS" | grep -Eiq 'complete|success'; then
+              if echo "$STATUS" | grep -Eiq 'running|queued|starting|initializing'; then
+                echo "Kaggle still reports an active state; refusing to continue."
+                exit 1
+              fi
+              echo "Kaggle process is closed."
+              exit 0
+            fi
+            if echo "$STATUS" | grep -Eiq 'error|fail|cancel'; then
+              echo "Kaggle process ended unsuccessfully."
+              exit 1
+            fi
+            sleep 15
+          done
+          echo "Could not confirm Kaggle process closure."
+          exit 1
+
       - name: Download Kaggle output
         run: |
           mkdir -p kaggle-output
