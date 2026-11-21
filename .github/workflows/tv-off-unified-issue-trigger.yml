@@ -44,15 +44,22 @@ jobs:
       - name: Install Kaggle CLI
         run: python -m pip install --upgrade six kaggle
       - name: Push unified Kaggle kernel
-        run: kaggle kernels push -p kaggle/tv-off-unified
+        id: push-kernel
+        run: |
+          set -euo pipefail
+          kaggle kernels push -p kaggle/tv-off-unified
       - name: Wait for Kaggle kernel
         shell: bash
         run: |
+          set -euo pipefail
           for i in $(seq 1 60); do
             STATUS="$(kaggle kernels status TVOffset/tv-off-unified-ace-step-sdxl-turbo 2>&1 || true)"
             echo "$STATUS"
             if echo "$STATUS" | grep -Eiq 'complete|success'; then exit 0; fi
-            if echo "$STATUS" | grep -Eiq 'error|failed'; then exit 1; fi
+            if echo "$STATUS" | grep -Eiq 'error|failed'; then
+              echo "Kaggle kernel entered an error state; refusing to download stale output."
+              exit 1
+            fi
             sleep 30
           done
           echo 'Timed out waiting for Kaggle kernel'
