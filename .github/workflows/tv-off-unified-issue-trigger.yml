@@ -16,7 +16,7 @@ jobs:
        github.event.issue.pull_request == null &&
        github.event.issue.number == 30 &&
        github.event.issue.title == 'TV OFF Colab Unified Dry Run' &&
-       github.event.comment.body == '/publish-colab-unified' &&
+       (github.event.comment.body == '/publish-colab-unified' || github.event.comment.body == '/publish-colab-unified-force') &&
        github.event.comment.user.login == 'Rsychs') ||
       (github.event_name == 'issue_comment' &&
        github.event.issue.pull_request == null &&
