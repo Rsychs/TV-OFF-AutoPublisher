@@ -1,4 +1,4 @@
-name: TV OFF Unified ACE-Step + SDXL — issue trigger
+name: TV OFF Unified ACE-Step + SDXL — production publish
 on:
   issue_comment:
     types: [created]
@@ -6,11 +6,11 @@ permissions:
   contents: read
   actions: read
 jobs:
-  dry-run:
+  production-publish:
     if: >-
       github.event.issue.pull_request == null &&
       github.event.issue.title == 'TV OFF Unified SDXL Dry Run' &&
-      github.event.comment.body == '/run-unified-sdxl-dry-run' &&
+      github.event.comment.body == '/publish-unified-sdxl' &&
       github.event.comment.user.login == 'Rsychs'
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -66,15 +66,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
           python -m pip install -r requirements.txt
-      - name: Build validated dry-run MP4
+      - name: Build and publish validated 30-second Short
         env:
-          PUBLISH_MODE: dry_run
+          PUBLISH_MODE: publish
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
         run: python build_and_upload_music_short.py
-      - name: Upload dry-run artifacts
+      - name: Upload production artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: tv-off-unified-sdxl-dry-run
+          name: tv-off-unified-sdxl-production
           path: |
             kaggle-output/
             music-shorts/
