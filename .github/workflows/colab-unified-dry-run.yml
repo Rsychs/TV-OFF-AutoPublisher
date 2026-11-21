@@ -55,9 +55,13 @@ jobs:
           for cell in nb.get("cells", []):
               if cell.get("cell_type") != "code":
                   continue
-              text = "\n".join(cell.get("source", []))
-              text = text.replace("/kaggle/working", "/content")
-              cell["source"] = text.splitlines(keepends=True)
+              source = cell.get("source", "")
+              if isinstance(source, list):
+                  source = "".join(source)
+              if not isinstance(source, str):
+                  raise SystemExit("Notebook code cell source must be text.")
+              source = source.replace("/kaggle/working", "/content")
+              cell["source"] = source
               cell["outputs"] = []
               cell["execution_count"] = None
           out = Path("/tmp/tv_off_colab_unified.ipynb")
