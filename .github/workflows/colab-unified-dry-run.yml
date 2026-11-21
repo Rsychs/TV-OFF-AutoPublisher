@@ -2,9 +2,12 @@ name: TV OFF — Colab unified ACE-Step + SDXL dry run
 
 on:
   workflow_dispatch:
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
+  issues: read
 
 concurrency:
   group: tv-off-colab-unified-dry-run
@@ -12,6 +15,13 @@ concurrency:
 
 jobs:
   unified-dry-run:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request == null &&
+       github.event.issue.title == 'TV OFF Colab Unified Dry Run' &&
+       github.event.comment.body == '/run-colab-unified' &&
+       github.event.comment.user.login == 'Rsychs')
     runs-on: ubuntu-latest
     timeout-minutes: 240
     steps:
@@ -33,7 +43,6 @@ jobs:
           printf '%s' "$COLAB_OAUTH_TOKEN_JSON" > "$HOME/.config/colab-cli/token.json"
           chmod 600 "$HOME/.config/colab-cli/token.json"
           python -m pip install --disable-pip-version-check --quiet google-colab-cli keyrings.alt
-          keyring set --help >/dev/null 2>&1 || true
 
       - name: Prepare Colab-compatible unified notebook
         run: |
