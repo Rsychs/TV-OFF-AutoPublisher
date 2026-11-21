@@ -3,19 +3,21 @@
     "6e86f786636647c3c6d9f3f23acc207064ac5af543e154386b22679f6525b216",
     "0b7a40ade6dec08b9eca5ae06b5ae2fb20cab4727641ea2e913d8c306acd5e01",
     "46f0aa095617fce86095e756972f9d107f8e55e7cd22f8bd83e32e3a1c5e3b9e",
-    "b0e94f4f9217d2470820897de9a92a4e7b086bc768c6017baa73fd94ded8d1d7"
+    "b0e94f4f9217d2470820897de9a92a4e7b086bc768c6017baa73fd94ded8d1d7",
+    "bb1d1a8a5c8fe36def687310537d4ad4bd3eee62e77bf24f3d1015729a8faa65"
   ],
   "_published_video_sha256": [
     "92fd8404132e90878de22dd452d6659aaffc014dd70437e107f48336d5d83a1c",
     "6ed1c8ccd0920c3412db8dbd2db80f6c6873d112f77d5147f3ca1cb868c472b5",
     "73559691d4c519af01f0648eac0b81db2b0edd8279a65ac7ed70655c2a45ad08",
-    "0a26bda28d055c160f35d77cc21f844d9c5ff5bb9e7c127573b8420288db06f5"
+    "0a26bda28d055c160f35d77cc21f844d9c5ff5bb9e7c127573b8420288db06f5",
+    "617cfe57140726c3c58c2f792b1760a960358e9dd652008dbced7a7d18252e8c"
   ],
   "published_tracks": [
     {
       "video_id": "5JN6UYU8LDk",
       "youtube_url": "https://youtu.be/5JN6UYU8LDk",
-      "track_title": "Calle de Sal — Afro-Cuban Son Montuno",
+      "track_title": "Calle de Sal \u2014 Afro-Cuban Son Montuno",
       "style": "Afro-Cuban son montuno / rumba guaguanco instrumental, 3-2 clave",
       "audio_sha256": "6e86f786636647c3c6d9f3f23acc207064ac5af543e154386b22679f6525b216",
       "video_sha256": "92fd8404132e90878de22dd452d6659aaffc014dd70437e107f48336d5d83a1c",
@@ -26,7 +28,7 @@
     {
       "video_id": "UM7dh4L75og",
       "youtube_url": "https://youtu.be/UM7dh4L75og",
-      "track_title": "The Jade Courtyard at First Light — Korean Gugak",
+      "track_title": "The Jade Courtyard at First Light \u2014 Korean Gugak",
       "style": "Instrumental Korean gugak chamber / courtly jeongak ensemble with pentatonic ujo melody and heterophonic acoustic instrumentation",
       "audio_sha256": "0b7a40ade6dec08b9eca5ae06b5ae2fb20cab4727641ea2e913d8c306acd5e01",
       "video_sha256": "6ed1c8ccd0920c3412db8dbd2db80f6c6873d112f77d5147f3ca1cb868c472b5",
@@ -39,7 +41,7 @@
       "short_url": "https://youtu.be/A9OHx8aAq8M",
       "full_video_id": "pH1BCfgtHus",
       "full_url": "https://youtu.be/pH1BCfgtHus",
-      "track_title": "Midnight Pavilion 61221 — Korean Gugak",
+      "track_title": "Midnight Pavilion 61221 \u2014 Korean Gugak",
       "style": "Instrumental Korean gugak chamber / courtly jeongak ensemble with pentatonic ujo melody and heterophonic acoustic instrumentation",
       "audio_sha256": "46f0aa095617fce86095e756972f9d107f8e55e7cd22f8bd83e32e3a1c5e3b9e",
       "short_video_sha256": "73559691d4c519af01f0648eac0b81db2b0edd8279a65ac7ed70655c2a45ad08",
@@ -64,12 +66,29 @@
       "short_published_at": "2026-11-21T14:41:07.830759+00:00",
       "full_published_at": "2026-11-21T14:41:07.831006+00:00",
       "full_upload_status": "published"
+    },
+    {
+      "short_video_id": "MD_-Fzu9xnU",
+      "short_url": "https://youtu.be/MD_-Fzu9xnU",
+      "track_title": "Glass City Dreams",
+      "style": "Electro Instrumental",
+      "audio_sha256": "bb1d1a8a5c8fe36def687310537d4ad4bd3eee62e77bf24f3d1015729a8faa65",
+      "short_video_sha256": "617cfe57140726c3c58c2f792b1760a960358e9dd652008dbced7a7d18252e8c",
+      "full_video_sha256": "5d49aae575f2ee989cb6dd55fdf0cd02acd4f77095b8021d95fdb0e6d04e9d5c",
+      "visual_sha256": "a4c62dc2f4a3c89e8543148a2872eb9c6a5cce63f49e9f1a1f99e8ea526ca342",
+      "duration_seconds": 186.0,
+      "short_published_at": "2026-11-21T21:34:48.165460+00:00",
+      "full_upload_status": "published",
+      "full_video_id": "6dLTSLHxcKQ",
+      "full_url": "https://youtu.be/6dLTSLHxcKQ",
+      "full_published_at": "2026-11-21T21:34:49.821351+00:00"
     }
   ],
-  "_last_published_at": "2026-11-21T14:41:07.831006+00:00",
+  "_last_published_at": "2026-11-21T21:34:48.165460+00:00",
   "_published_full_video_sha256": [
     "6a5b07b2d1dafd64f597825d9e06f573c592afe56e284d9abde0c762bcb5fd87",
-    "6e823d6a8e6313aeec9d906870deec9bfc0587572c3fa7ea961eb5dfce2da1ae"
+    "6e823d6a8e6313aeec9d906870deec9bfc0587572c3fa7ea961eb5dfce2da1ae",
+    "5d49aae575f2ee989cb6dd55fdf0cd02acd4f77095b8021d95fdb0e6d04e9d5c"
   ],
   "_processed_utc_slots": [
     "2026-11-21T21:00:00Z"
