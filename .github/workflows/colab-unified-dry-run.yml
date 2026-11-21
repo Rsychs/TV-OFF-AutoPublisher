@@ -55,7 +55,7 @@ jobs:
           for cell in nb.get("cells", []):
               if cell.get("cell_type") != "code":
                   continue
-              text = "".join(cell.get("source", []))
+              text = "\n".join(cell.get("source", []))
               text = text.replace("/kaggle/working", "/content")
               cell["source"] = text.splitlines(keepends=True)
               cell["outputs"] = []
