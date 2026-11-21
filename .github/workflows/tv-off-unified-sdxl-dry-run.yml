@@ -44,6 +44,24 @@ jobs:
           fi
           python -m pip install --disable-pip-version-check --quiet kaggle
 
+      - name: Refuse to overwrite an active Kaggle kernel
+        env:
+          KERNEL_ID: TVOffset/tv-off-unified-ace-step-sdxl-turbo
+        run: |
+          set -euo pipefail
+          STATUS="$(kaggle kernels status "$KERNEL_ID" 2>&1 || true)"
+          echo "Preflight Kaggle status: $STATUS"
+          if echo "$STATUS" | grep -Eiq 'running|queued|starting|initializing'; then
+            echo "An earlier Kaggle process is still active; refusing a second push."
+            exit 1
+          fi
+          if echo "$STATUS" | grep -Eiq 'complete|success|error|failed|cancel'; then
+            echo "Previous Kaggle process is in a terminal state; safe to submit this run."
+            exit 0
+          fi
+          echo "Kaggle status is unknown; failing closed to prevent overlapping generations."
+          exit 1
+
       - name: Push unified Kaggle notebook
         working-directory: kaggle/tv-off-unified
         run: kaggle kernels push -p . --timeout 1800
