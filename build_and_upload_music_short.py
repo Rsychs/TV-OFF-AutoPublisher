@@ -97,31 +97,16 @@ def main():
     if m.get("visual_width") not in (None, 1080) or m.get("visual_height") not in (None, 1920):
         raise RuntimeError("Visual dimensions are not the required 1080x1920 vertical format")
 
-    # Locked camera; the animated waveform and progress marker provide restrained motion.
-    graph = (
-        "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,"
-        "eq=contrast=1.04:saturation=1.08,format=yuv420p[bg];"
-        "[1:a]showwaves=s=980x170:mode=cline:scale=sqrt:rate=30:colors=0xE8C98A,"
-        "format=rgba,colorchannelmixer=aa=0.82[w];"
-        "[bg][w]overlay=(W-w)/2:1410:shortest=1,"
-        "drawbox=x=0:y=1908:w=iw:h=7:color=0xE8C98A@0.95:t=fill,"
-        "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
-        "text='ORIGINAL MUSIC':fontcolor=white:fontsize=54:x=(w-text_w)/2:y=250:"
-        "shadowcolor=black@0.55:shadowx=2:shadowy=3,"
-        "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:"
-        f"text='{safe_title[:52]}':fontcolor=0xE7DFFF:fontsize=32:x=(w-text_w)/2:y=340:"
-        "shadowcolor=black@0.55:shadowx=2:shadowy=3,"
-        "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:"
-        "text='TV OFF':fontcolor=white:fontsize=46:x=(w-text_w)/2:y=1650:"
-        "shadowcolor=black@0.65:shadowx=2:shadowy=3,"
-        "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:"
-        "text='FULL TRACK ON OUR CHANNEL':fontcolor=white:fontsize=27:"
-        "x=(w-text_w)/2:y=1775:alpha='if(lt(t,22),0,min(1,(t-22)))':enable='gte(t,22)'[v]"
+    # Pure visual Short: one still image + original music. No text, logo, waveform,
+    # progress bar, overlays, or camera movement.
+    video_filter = (
+        "scale=1080:1920:force_original_aspect_ratio=increase,"
+        "crop=1080:1920,setsar=1,eq=contrast=1.04:saturation=1.08,format=yuv420p"
     )
     run([
         "ffmpeg", "-y", "-hide_banner", "-loop", "1", "-framerate", "30", "-i", str(scene),
-        "-ss", f"{clip_start:.3f}", "-i", str(audio), "-filter_complex", graph,
-        "-map", "[v]", "-map", "1:a:0", "-t", str(DURATION),
+        "-ss", f"{clip_start:.3f}", "-i", str(audio), "-vf", video_filter,
+        "-map", "0:v:0", "-map", "1:a:0", "-t", str(DURATION),
         "-af", "afade=t=in:st=0:d=0.35,afade=t=out:st=28.8:d=1.2,loudnorm=I=-16:TP=-1.5:LRA=11",
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "19", "-pix_fmt", "yuv420p",
         "-r", "30", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(video)
@@ -166,8 +151,10 @@ def main():
     youtube = build("youtube", "v3", credentials=creds)
     short_title = f"{title[:75]} | Original Music #Shorts"
     description = (
-        f"A 30-second excerpt from {title}, an original {m['style']} composition created for TV OFF.\n\n"
-        "Listen to the full original track on the TV OFF channel.\n\n"
+        "Follow TV OFF for more original music and new instrumental soundscapes.\\n\\n"
+        f"Original composition: {title}\\n"
+        f"Style: {m['style']}\\n\\n"
+        "New music. New atmospheres. Stay tuned.\\n\\n"
         "#Shorts #OriginalMusic #InstrumentalMusic #TVOFF"
     )
     response = youtube.videos().insert(
