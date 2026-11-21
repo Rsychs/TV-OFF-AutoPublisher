@@ -1,0 +1,55 @@
+name: TV OFF — Colab CLI GPU smoke test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tv-off-colab-gpu-smoke
+  cancel-in-progress: false
+
+jobs:
+  colab-gpu-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/colab-cli-gpu-worker
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Restore Colab CLI OAuth credentials
+        env:
+          COLAB_OAUTH_TOKEN_JSON: ${{ secrets.COLAB_OAUTH_TOKEN_JSON }}
+        run: |
+          set -euo pipefail
+          if [ -z "${COLAB_OAUTH_TOKEN_JSON:-}" ]; then
+            echo "Missing COLAB_OAUTH_TOKEN_JSON repository secret."
+            exit 1
+          fi
+          mkdir -p "$HOME/.config/colab-cli"
+          printf '%s' "$COLAB_OAUTH_TOKEN_JSON" > "$HOME/.config/colab-cli/token.json"
+          chmod 600 "$HOME/.config/colab-cli/token.json"
+          python -m pip install --disable-pip-version-check --quiet google-colab-cli
+
+      - name: Request a Colab T4 runtime
+        run: |
+          set -euo pipefail
+          colab --auth oauth2 new -s tv-off-smoke --gpu T4
+
+      - name: Verify the remote GPU
+        run: |
+          set -euo pipefail
+          colab --auth oauth2 exec -s tv-off-smoke -f tools/colab_gpu_smoke.py
+
+      - name: Always release the Colab runtime
+        if: always()
+        run: |
+          set +e
+          colab --auth oauth2 stop -s tv-off-smoke
+          exit 0
