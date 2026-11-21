@@ -1,0 +1,82 @@
+name: TV OFF Unified ACE-Step + SDXL — issue trigger
+on:
+  issue_comment:
+    types: [created]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  dry-run:
+    if: >-
+      github.event.issue.pull_request == null &&
+      github.event.issue.title == 'TV OFF Unified SDXL Dry Run' &&
+      github.event.comment.body == '/run-unified-sdxl-dry-run' &&
+      github.event.comment.user.login == 'Rsychs'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    concurrency:
+      group: tv-off-single-video
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/tv-off-sdxl-automation
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Configure Kaggle credentials
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+        run: |
+          mkdir -p ~/.kaggle
+          if [ -n "$KAGGLE_API_TOKEN" ]; then
+            printf '%s' "$KAGGLE_API_TOKEN" > ~/.kaggle/access_token
+            chmod 600 ~/.kaggle/access_token
+          elif [ -n "$KAGGLE_USERNAME" ] && [ -n "$KAGGLE_KEY" ]; then
+            printf '{"username":"%s","key":"%s"}' "$KAGGLE_USERNAME" "$KAGGLE_KEY" > ~/.kaggle/kaggle.json
+            chmod 600 ~/.kaggle/kaggle.json
+          else
+            echo 'Missing Kaggle credentials: set KAGGLE_API_TOKEN or KAGGLE_USERNAME + KAGGLE_KEY'
+            exit 1
+          fi
+      - name: Install Kaggle CLI
+        run: python -m pip install --upgrade kaggle
+      - name: Push unified Kaggle kernel
+        run: kaggle kernels push -p kaggle/tv-off-unified
+      - name: Wait for Kaggle kernel
+        shell: bash
+        run: |
+          for i in $(seq 1 60); do
+            STATUS="$(kaggle kernels status TVOffset/tv-off-unified-ace-step-sdxl-turbo 2>&1 || true)"
+            echo "$STATUS"
+            if echo "$STATUS" | grep -Eiq 'complete|success'; then exit 0; fi
+            if echo "$STATUS" | grep -Eiq 'error|failed'; then exit 1; fi
+            sleep 30
+          done
+          echo 'Timed out waiting for Kaggle kernel'
+          exit 1
+      - name: Download Kaggle output
+        run: |
+          mkdir -p kaggle-output
+          kaggle kernels output TVOffset/tv-off-unified-ace-step-sdxl-turbo -p kaggle-output
+      - name: Install render dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install -r requirements.txt
+      - name: Build validated dry-run MP4
+        env:
+          PUBLISH_MODE: dry_run
+        run: python build_and_upload_music_short.py
+      - name: Upload dry-run artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tv-off-unified-sdxl-dry-run
+          path: |
+            kaggle-output/
+            music-shorts/
+          if-no-files-found: warn
+          retention-days: 7
