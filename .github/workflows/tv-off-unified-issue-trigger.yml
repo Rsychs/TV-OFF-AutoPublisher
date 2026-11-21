@@ -74,9 +74,9 @@ jobs:
       - name: Reserve UTC slot and enforce shared cooldown
         id: reserve-slot
         env:
-          DROPBOX_MUSIC_APP_KEY: \${{ secrets.DROPBOX_MUSIC_APP_KEY }}
-          DROPBOX_MUSIC_APP_SECRET: \${{ secrets.DROPBOX_MUSIC_APP_SECRET }}
-          DROPBOX_MUSIC_REFRESH_TOKEN: \${{ secrets.DROPBOX_MUSIC_REFRESH_TOKEN }}
+          DROPBOX_MUSIC_APP_KEY: ${{ secrets.DROPBOX_MUSIC_APP_KEY }}
+          DROPBOX_MUSIC_APP_SECRET: ${{ secrets.DROPBOX_MUSIC_APP_SECRET }}
+          DROPBOX_MUSIC_REFRESH_TOKEN: ${{ secrets.DROPBOX_MUSIC_REFRESH_TOKEN }}
         run: |
           set -euo pipefail
           python -m pip install --disable-pip-version-check --quiet requests
@@ -247,14 +247,14 @@ jobs:
               print("Production slot reserved; unified ACE-Step + SDXL may proceed.")
           PY
 
-      - name: 
-        if: steps.reserve-slot.outputs.should_run == 'true'Push unified Kaggle kernel
+      - name: Push unified Kaggle kernel
+        if: steps.reserve-slot.outputs.should_run == 'true'
         id: push-kernel
         run: |
           set -euo pipefail
           timeout 120s kaggle kernels push -p kaggle/tv-off-unified --timeout 5400
-      - name: 
-        if: steps.reserve-slot.outputs.should_run == 'true'Wait for Kaggle kernel
+      - name: Wait for Kaggle kernel
+        if: steps.reserve-slot.outputs.should_run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -289,9 +289,8 @@ jobs:
           done
           echo 'Timed out waiting for Kaggle kernel after 75 minutes'
           exit 1
-      - name: 
-        if: steps.reserve-slot.outputs.should_run == 'true'Capture Kaggle execution logs on failure
-        if: failure()
+      - name: Capture Kaggle execution logs on failure
+        if: failure() && steps.reserve-slot.outputs.should_run == 'true'
         env:
           KERNEL_ID: TVOffset/tv-off-unified-ace-step-sdxl-turbo
         run: |
@@ -349,13 +348,13 @@ jobs:
           timeout 90s kaggle kernels logs "$KERNEL_ID" 2>&1 || true
           echo '=== End final Kaggle diagnostics ==='
 
-      - name: 
-        if: steps.reserve-slot.outputs.should_run == 'true'Download Kaggle output
+      - name: Download Kaggle output
+        if: steps.reserve-slot.outputs.should_run == 'true'
         run: |
           mkdir -p kaggle-output
           timeout 180s kaggle kernels output TVOffset/tv-off-unified-ace-step-sdxl-turbo -p kaggle-output
-      - name: 
-        if: steps.reserve-slot.outputs.should_run == 'true'Save completed original song to Dropbox
+      - name: Save completed original song to Dropbox
+        if: steps.reserve-slot.outputs.should_run == 'true'
         id: dropbox-save
         env:
           DROPBOX_MUSIC_APP_KEY: ${{ secrets.DROPBOX_MUSIC_APP_KEY }}
@@ -546,14 +545,14 @@ jobs:
           for path in saved:
               print(path)
           PY
-      - name: 
-        if: steps.reserve-slot.outputs.should_run == 'true'Install render dependencies
+      - name: Install render dependencies
+        if: steps.reserve-slot.outputs.should_run == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
           python -m pip install -r requirements.txt
-      - name: 
-        if: steps.reserve-slot.outputs.should_run == 'true'Build and publish Short + complete original track
+      - name: Build and publish Short + complete original track
+        if: steps.reserve-slot.outputs.should_run == 'true'
         env:
           PUBLISH_MODE: publish
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
