@@ -152,20 +152,50 @@ jobs:
                   if key:
                       tracks[key] = record
 
-          historical = {
-              "short_video_id": "0DibjqE_k3Q",
-              "short_url": "https://youtu.be/0DibjqE_k3Q",
-              "full_video_id": "hTiUvLQxXZo",
-              "full_url": "https://youtu.be/hTiUvLQxXZo",
-              "track_title": "Neon Afterglow 83184",
-              "audio_sha256": "b0e94f4f9217d2470820897de9a92a4e7b086bc768c6017baa73fd94ded8d1d7",
-              "short_video_sha256": "0a26bda28d055c160f35d77cc21f844d9c5ff5bb9e7c127573b8420288db06f5",
-              "full_video_sha256": "6e823d6a8e6313aeec9d906870deec9bfc0587572c3fa7ea961eb5dfce2da1ae",
-              "short_published_at": "2026-11-21T14:41:07.830759+00:00",
-              "full_published_at": "2026-11-21T14:41:07.831006+00:00",
-              "full_upload_status": "published",
-          }
-          tracks.setdefault(historical["audio_sha256"], historical)
+          historical_records = [
+              {
+                  "short_video_id": "A9OHx8aAq8M",
+                  "short_url": "https://youtu.be/A9OHx8aAq8M",
+                  "full_video_id": "pH1BCfgtHus",
+                  "full_url": "https://youtu.be/pH1BCfgtHus",
+                  "track_title": "Midnight Pavilion 61221 — Korean Gugak",
+                  "style": "Instrumental Korean gugak chamber / courtly jeongak ensemble with pentatonic ujo melody and heterophonic acoustic instrumentation",
+                  "audio_sha256": "46f0aa095617fce86095e756972f9d107f8e55e7cd22f8bd83e32e3a1c5e3b9e",
+                  "short_video_sha256": "73559691d4c519af01f0648eac0b81db2b0edd8279a65ac7ed70655c2a45ad08",
+                  "full_video_sha256": "6a5b07b2d1dafd64f597825d9e06f573c592afe56e284d9abde0c762bcb5fd87",
+                  "visual_sha256": "8f9decc59234d17b5cc3bf3a36811113133f926ceab1ed4626e47f506245e090",
+                  "duration_seconds": 174.0,
+                  "short_published_at": "2026-11-21T13:57:28.751622+00:00",
+                  "full_published_at": "2026-11-21T13:57:28.751651+00:00",
+                  "full_upload_status": "published",
+              },
+              {
+                  "short_video_id": "0DibjqE_k3Q",
+                  "short_url": "https://youtu.be/0DibjqE_k3Q",
+                  "full_video_id": "hTiUvLQxXZo",
+                  "full_url": "https://youtu.be/hTiUvLQxXZo",
+                  "track_title": "Neon Afterglow 83184",
+                  "style": "Electro Instrumental",
+                  "audio_sha256": "b0e94f4f9217d2470820897de9a92a4e7b086bc768c6017baa73fd94ded8d1d7",
+                  "short_video_sha256": "0a26bda28d055c160f35d77cc21f844d9c5ff5bb9e7c127573b8420288db06f5",
+                  "full_video_sha256": "6e823d6a8e6313aeec9d906870deec9bfc0587572c3fa7ea961eb5dfce2da1ae",
+                  "visual_sha256": "610740b036682f934b9561a8e0529641f7bcad2f4165a95a7643b6be3fcd2af1",
+                  "duration_seconds": 174.0,
+                  "short_published_at": "2026-11-21T14:41:07.830759+00:00",
+                  "full_published_at": "2026-11-21T14:41:07.831006+00:00",
+                  "full_upload_status": "published",
+              },
+          ]
+          for historical in historical_records:
+              tracks.setdefault(historical["audio_sha256"], historical)
+              for key, value in (
+                  ("_published_audio_sha256", historical["audio_sha256"]),
+                  ("_published_video_sha256", historical["short_video_sha256"]),
+                  ("_published_full_video_sha256", historical["full_video_sha256"]),
+              ):
+                  if value and value not in state[key]:
+                      state[key].append(value)
+                      state[key] = state[key][-500:]
           state["published_tracks"] = list(tracks.values())[-500:]
 
           published_times = []
@@ -176,7 +206,8 @@ jobs:
                   if dt.tzinfo is None:
                       dt = dt.replace(tzinfo=timezone.utc)
                   published_times.append(dt.astimezone(timezone.utc))
-          published_times.append(datetime.fromisoformat(historical["short_published_at"]).astimezone(timezone.utc))
+          for historical in historical_records:
+              published_times.append(datetime.fromisoformat(historical["short_published_at"]).astimezone(timezone.utc))
           if published_times:
               state["_last_published_at"] = max(published_times).isoformat()
 
