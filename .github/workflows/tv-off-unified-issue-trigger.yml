@@ -41,7 +41,7 @@ jobs:
           python - <<'PY'
           import ast, json
           from pathlib import Path
-          path = Path("kaggle/tv-off-unified/tv_off_unified.ipynb")
+          path = Path("kaggle/tv-off-prod/tv_off_unified.ipynb")
           notebook = json.loads(path.read_text(encoding="utf-8"))
           if notebook.get("nbformat") != 4:
               raise SystemExit("Unified notebook must use nbformat 4")
@@ -284,7 +284,7 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          src = Path("kaggle/tv-off-unified/tv_off_unified.ipynb")
+          src = Path("kaggle/tv-off-prod/tv_off_unified.ipynb")
           nb = json.loads(src.read_text(encoding="utf-8"))
           for cell in nb.get("cells", []):
               if cell.get("cell_type") != "code":
@@ -304,20 +304,20 @@ jobs:
           PY
       - name: Allocate Colab T4
         if: steps.reserve-slot.outputs.should_run == 'true'
-        run: colab --auth oauth2 new -s tv-off-unified --gpu T4
+        run: colab --auth oauth2 new -s tv-off-prod --gpu T4
       - name: Execute unified ACE-Step + SDXL on Colab
         if: steps.reserve-slot.outputs.should_run == 'true'
         timeout-minutes: 210
-        run: colab --auth oauth2 exec -s tv-off-unified --timeout 0 -f /tmp/tv_off_colab_unified.ipynb
+        run: colab --auth oauth2 exec -s tv-off-prod --timeout 0 -f /tmp/tv_off_colab_unified.ipynb
       - name: Package and verify generated assets on Colab
         if: steps.reserve-slot.outputs.should_run == 'true'
-        run: colab --auth oauth2 exec -s tv-off-unified --timeout 0 -f tools/colab_package_output.py
+        run: colab --auth oauth2 exec -s tv-off-prod --timeout 0 -f tools/colab_package_output.py
       - name: Download and verify Colab production assets
         if: steps.reserve-slot.outputs.should_run == 'true'
         run: |
           set -euo pipefail
           mkdir -p kaggle-output
-          colab --auth oauth2 download -s tv-off-unified /content/tv_off_colab_dry_run.zip /tmp/tv_off_colab_production.zip
+          colab --auth oauth2 download -s tv-off-prod /content/tv_off_colab_dry_run.zip /tmp/tv_off_colab_production.zip
           python - <<'PY'
           import zipfile, json, hashlib
           from pathlib import Path
@@ -342,7 +342,7 @@ jobs:
         if: always() && steps.reserve-slot.outputs.should_run == 'true'
         run: |
           set +e
-          colab --auth oauth2 stop -s tv-off-unified
+          colab --auth oauth2 stop -s tv-off-prod
           exit 0
       - name: Save completed original song to Dropbox
         if: steps.reserve-slot.outputs.should_run == 'true'
@@ -627,7 +627,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: tv-off-unified-sdxl-production
+          name: tv-off-prod-sdxl-production
           path: |
             kaggle-output/
             music-shorts/
