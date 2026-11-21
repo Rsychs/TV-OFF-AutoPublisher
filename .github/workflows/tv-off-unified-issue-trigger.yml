@@ -16,7 +16,7 @@ jobs:
        github.event.issue.pull_request == null &&
        github.event.issue.number == 30 &&
        github.event.issue.title == 'TV OFF Colab Unified Dry Run' &&
-       github.event.comment.body == '/publish-colab-unified' &&
+       (github.event.comment.body == '/publish-colab-unified' || github.event.comment.body == '/publish-colab-unified-force') &&
        github.event.comment.user.login == 'Rsychs') ||
       (github.event_name == 'issue_comment' &&
        github.event.issue.pull_request == null &&
@@ -72,6 +72,8 @@ jobs:
           python -m pip install --disable-pip-version-check --quiet google-colab-cli keyrings.alt
       - name: Reserve UTC slot and enforce shared cooldown
         id: reserve-slot
+        env:
+          TV_OFF_FORCE_RUN: ${{ github.event_name == 'issue_comment' && github.event.comment.body == '/publish-colab-unified-force' }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -116,12 +118,16 @@ jobs:
           now = datetime.now(timezone.utc)
           slot = now.replace(minute=0,second=0,microsecond=0).strftime("%Y-%m-%dT%H:00:00Z")
           processed = state["_processed_utc_slots"]
+          force_run = __import__("os").environ.get("TV_OFF_FORCE_RUN", "false").lower() == "true"
           skip = "utc_slot_already_processed" if slot in processed else ""
           if not skip and state.get("_last_published_at"):
               last = datetime.fromisoformat(str(state["_last_published_at"]).replace("Z","+00:00"))
               if last.tzinfo is None: last = last.replace(tzinfo=timezone.utc)
               remaining = 3600 - (now-last.astimezone(timezone.utc)).total_seconds()
               if remaining > 0: skip = f"cooldown_active_{int(remaining)}s"
+          if force_run:
+              print("ONE-TIME MANUAL OVERRIDE: bypassing UTC-slot and 60-minute cooldown guards; hash deduplication and concurrency lock remain enabled.")
+              skip = ""
           if slot not in processed: processed.append(slot)
           state["_processed_utc_slots"] = processed[-500:]
           path.write_text(json.dumps(state,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
