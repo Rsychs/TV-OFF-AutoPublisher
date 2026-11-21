@@ -175,6 +175,7 @@ jobs:
           mkdir -p kaggle-output
           timeout 180s kaggle kernels output TVOffset/tv-off-unified-ace-step-sdxl-turbo -p kaggle-output
       - name: Save completed original song to Dropbox
+        id: dropbox-save
         env:
           DROPBOX_MUSIC_APP_KEY: ${{ secrets.DROPBOX_MUSIC_APP_KEY }}
           DROPBOX_MUSIC_APP_SECRET: ${{ secrets.DROPBOX_MUSIC_APP_SECRET }}
@@ -301,6 +302,8 @@ jobs:
               merged_state["_last_published_at"] = max(parsed).isoformat()
           state_path.write_text(json.dumps(merged_state, indent=2, ensure_ascii=False), encoding="utf-8")
           Path(".tv_off_state_synced").write_text("ok", encoding="utf-8")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write("state_synced=true\n")
           print(
               "RESTORED AND MERGED PUBLICATION STATE:",
               f"{len(merged_state.get('_published_audio_sha256', []))} audio hashes,",
@@ -375,17 +378,17 @@ jobs:
         run: python build_and_upload_music_short.py
 
       - name: Persist publication state to Dropbox
-        if: always()
+        if: always() && steps.dropbox-save.outputs.state_synced == 'true'
         env:
           DROPBOX_MUSIC_APP_KEY: ${{ secrets.DROPBOX_MUSIC_APP_KEY }}
           DROPBOX_MUSIC_APP_SECRET: ${{ secrets.DROPBOX_MUSIC_APP_SECRET }}
           DROPBOX_MUSIC_REFRESH_TOKEN: ${{ secrets.DROPBOX_MUSIC_REFRESH_TOKEN }}
         run: |
           set -euo pipefail
-          if [ ! -f .tv_off_state_synced ]; then
-            echo "Dropbox state was not restored; refusing to overwrite remote state."
-            exit 0
-          fi
+          test -f .tv_off_state_synced || {
+            echo "Dropbox state restore output was set but its marker is missing."
+            exit 1
+          }
           python -m pip install --quiet requests
           python - <<'PY'
           import hashlib, json, os
