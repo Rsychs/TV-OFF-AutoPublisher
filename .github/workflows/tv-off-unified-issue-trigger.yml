@@ -1,5 +1,7 @@
 name: TV OFF Unified ACE-Step + SDXL — production publish
 on:
+  schedule:
+    - cron: '0 * * * *'
   issue_comment:
     types: [created]
 permissions:
@@ -8,10 +10,12 @@ permissions:
 jobs:
   production-publish:
     if: >-
-      github.event.issue.pull_request == null &&
-      github.event.issue.title == 'TV OFF Unified SDXL Dry Run' &&
-      github.event.comment.body == '/publish-unified-sdxl' &&
-      github.event.comment.user.login == 'Rsychs'
+      (github.event_name == 'schedule') ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request == null &&
+       github.event.issue.title == 'TV OFF Unified SDXL Dry Run' &&
+       github.event.comment.body == '/publish-unified-sdxl' &&
+       github.event.comment.user.login == 'Rsychs')
     runs-on: ubuntu-latest
     timeout-minutes: 90
     concurrency:
@@ -68,6 +72,85 @@ jobs:
         run: |
           mkdir -p kaggle-output
           kaggle kernels output TVOffset/tv-off-unified-ace-step-sdxl-turbo -p kaggle-output
+      - name: Save completed original song to Dropbox
+        env:
+          DROPBOX_MUSIC_APP_KEY: ${{ secrets.DROPBOX_MUSIC_APP_KEY }}
+          DROPBOX_MUSIC_APP_SECRET: ${{ secrets.DROPBOX_MUSIC_APP_SECRET }}
+          DROPBOX_MUSIC_REFRESH_TOKEN: ${{ secrets.DROPBOX_MUSIC_REFRESH_TOKEN }}
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet requests
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          import requests
+
+          required = ["DROPBOX_MUSIC_APP_KEY", "DROPBOX_MUSIC_APP_SECRET", "DROPBOX_MUSIC_REFRESH_TOKEN"]
+          missing = [key for key in required if not os.environ.get(key)]
+          if missing:
+              raise SystemExit("Missing Dropbox Music secrets: " + ", ".join(missing))
+          root = Path("kaggle-output")
+          manifests = list(root.rglob("ace_step_smoke_result.json"))
+          if len(manifests) != 1:
+              raise SystemExit(f"Expected one generation manifest, found {len(manifests)}")
+          manifest_path = manifests[0]
+          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+          if manifest.get("status") != "ok" or manifest.get("publishing_enabled") is not True:
+              raise SystemExit("Refusing to save an unverified or non-production track")
+          title = str(manifest.get("title", "")).strip()
+          if not title or any(ch.isdigit() for ch in title):
+              raise SystemExit("Public track title must be non-empty and contain no digits")
+          audio_files = [manifest.get("audio_file"), manifest.get("mp3_file")]
+          audio_files = [name for name in audio_files if name]
+          if not audio_files:
+              raise SystemExit("Manifest contains no audio files")
+          token_response = requests.post(
+              "https://api.dropboxapi.com/oauth2/token",
+              data={"grant_type": "refresh_token", "refresh_token": os.environ["DROPBOX_MUSIC_REFRESH_TOKEN"]},
+              auth=(os.environ["DROPBOX_MUSIC_APP_KEY"], os.environ["DROPBOX_MUSIC_APP_SECRET"]),
+              timeout=30,
+          )
+          token_response.raise_for_status()
+          access_token = token_response.json()["access_token"]
+          saved = []
+          for name in audio_files + [manifest_path.name]:
+              local = (manifest_path.parent / name).resolve()
+              if not local.is_relative_to(root.resolve()) or not local.is_file():
+                  raise SystemExit(f"Missing or unsafe production file: {name}")
+              digest = hashlib.sha256(local.read_bytes()).hexdigest()
+              if name == manifest.get("audio_file") and digest != manifest.get("sha256"):
+                  raise SystemExit("WAV SHA-256 does not match generation manifest")
+              target = "/" + local.name
+              headers = {
+                  "Authorization": f"Bearer {access_token}",
+                  "Content-Type": "application/octet-stream",
+                  "Dropbox-API-Arg": json.dumps({
+                      "path": target, "mode": "add", "autorename": False,
+                      "mute": True, "strict_conflict": True
+                  }, separators=(",", ":")),
+              }
+              with local.open("rb") as stream:
+                  response = requests.post(
+                      "https://content.dropboxapi.com/2/files/upload",
+                      headers=headers, data=stream, timeout=600
+                  )
+              if not response.ok:
+                  raise SystemExit(f"Dropbox upload failed for {name}: {response.status_code} {response.text}")
+              result = response.json()
+              if result.get("path_display") != target or result.get("size") != local.stat().st_size:
+                  raise SystemExit(f"Dropbox metadata mismatch for {name}")
+              verify = requests.post(
+                  "https://api.dropboxapi.com/2/files/get_metadata",
+                  headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
+                  json={"path": target}, timeout=30
+              )
+              if not verify.ok or verify.json().get("size") != local.stat().st_size:
+                  raise SystemExit(f"Dropbox verification failed for {name}")
+              saved.append(target)
+          print("DROPBOX SONG SAVE VERIFIED:")
+          for path in saved:
+              print(path)
+          PY
       - name: Install render dependencies
         run: |
           sudo apt-get update
