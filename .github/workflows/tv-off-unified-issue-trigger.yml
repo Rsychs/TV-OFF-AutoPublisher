@@ -73,7 +73,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
           python -m pip install -r requirements.txt
-      - name: Build and publish validated 30-second Short
+      - name: Build and publish Short + complete original track
         env:
           PUBLISH_MODE: publish
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
