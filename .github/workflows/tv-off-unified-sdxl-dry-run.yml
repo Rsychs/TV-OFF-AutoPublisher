@@ -55,7 +55,7 @@ jobs:
               echo "An earlier Kaggle process is active or cancellation is pending; refusing a second push."
               exit 1
               ;;
-            COMPLETE|ERROR|FAILED|CANCELLED)
+            COMPLETE|ERROR|FAILED|CANCELLED|CANCEL_ACKNOWLEDGED)
               echo "Previous Kaggle process is terminal; safe to submit this run."
               exit 0
               ;;
@@ -88,7 +88,7 @@ jobs:
               STATE="$(printf '%s\n' "$STATUS" | grep -Eo 'KernelWorkerStatus\.[A-Z_]+' | tail -n 1 | sed 's/.*\.//' || true)"
               echo "Parsed Kaggle state: ${STATE:-UNKNOWN}"
               case "$STATE" in
-                ERROR|FAILED|CANCELLED)
+                ERROR|FAILED|CANCELLED|CANCEL_ACKNOWLEDGED)
                   echo "Kaggle kernel failed."
                   exit 1
                   ;;
@@ -145,7 +145,7 @@ jobs:
             STATE="$(printf '%s\n' "$STATUS" | grep -Eo 'KernelWorkerStatus\.[A-Z_]+' | tail -n 1 | sed 's/.*\.//' || true)"
             echo "Post-run parsed Kaggle state: ${STATE:-UNKNOWN}"
             case "$STATE" in
-              COMPLETE|ERROR|FAILED|CANCELLED)
+              COMPLETE|ERROR|FAILED|CANCELLED|CANCEL_ACKNOWLEDGED)
                 echo "Kaggle process is confirmed terminal: $STATE"
                 exit 0
                 ;;
