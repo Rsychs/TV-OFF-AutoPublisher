@@ -77,6 +77,7 @@ def main():
     slot = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
     scene = OUT / f"scene_{slot}.png"
     video = OUT / f"TV-OFF_Original-Music_Short_{slot}.mp4"
+    full_video = OUT / f"TV-OFF_Original-Music_Full_{slot}.mp4"
     title = re.sub(r"\s+", " ", str(m["title"])).strip()
     safe_title = title.replace("\\", "").replace("'", "").replace(":", " —").replace("%", " ").replace(",", " ").replace("[", "(").replace("]", ")")
     # Newly generated tracks must carry the exact visual rendered in the same ACE-Step run.
@@ -118,6 +119,30 @@ def main():
                            capture_output=True, text=True, check=True)
     if abs(float(probe.stdout.strip()) - DURATION) > 0.15:
         raise RuntimeError(f"Rendered Short duration is not {DURATION} seconds")
+    # Full-track companion: landscape 16:9, same artwork, static frame, complete original audio.
+    full_filter = (
+        "[0:v]scale=1920:1080:force_original_aspect_ratio=increase,"
+        "crop=1920:1080,gblur=sigma=28,eq=brightness=-0.12[bg];"
+        "[0:v]scale=608:1080:force_original_aspect_ratio=decrease,"
+        "setsar=1[art];[bg][art]overlay=(W-w)/2:0,format=yuv420p[v]"
+    )
+    run([
+        "ffmpeg", "-y", "-hide_banner", "-loop", "1", "-framerate", "1", "-i", str(scene),
+        "-i", str(audio), "-filter_complex", full_filter,
+        "-map", "[v]", "-map", "1:a:0", "-t", f"{duration:.3f}",
+        "-af", "afade=t=in:st=0:d=0.5,afade=t=out:st=" + f"{max(0.5, duration-2):.3f}" + ":d=2,loudnorm=I=-16:TP=-1.5:LRA=11",
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
+        "-r", "1", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(full_video)
+    ])
+    if not full_video.is_file() or full_video.stat().st_size < 100000:
+        raise RuntimeError("Rendered full-track video is missing or unexpectedly small")
+    full_probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                                 "-of", "default=noprint_wrappers=1:nokey=1", str(full_video)],
+                                capture_output=True, text=True, check=True)
+    if abs(float(full_probe.stdout.strip()) - duration) > 0.5:
+        raise RuntimeError("Full-track video duration does not match source audio")
+    full_video_hash = sha256(full_video)
+
     video_hash = sha256(video)
     if video_hash in state.get("_published_video_sha256", []):
         raise RuntimeError("Duplicate rendered video detected; refusing upload")
@@ -128,6 +153,7 @@ def main():
             "status": "dry_run_passed", "published": False, "title": title,
             "audio_sha256": audio_hash, "visual_sha256": visual_hash,
             "video_sha256": video_hash, "video_file": str(video),
+            "full_video_sha256": full_video_hash, "full_video_file": str(full_video),
             "duration_seconds": DURATION, "visual_model": m.get("visual_model"),
             "visual_generation_seed": m.get("visual_generation_seed"),
             "pipeline_version": m.get("pipeline_version")
@@ -150,39 +176,69 @@ def main():
     creds.refresh(Request())
     youtube = build("youtube", "v3", credentials=creds)
     short_title = f"{title[:75]} | Original Music #Shorts"
-    description = (
+    follow_description = (
         "Follow TV OFF for more original music and new instrumental soundscapes.\\n\\n"
         f"Original composition: {title}\\n"
         f"Style: {m['style']}\\n\\n"
         "New music. New atmospheres. Stay tuned.\\n\\n"
         "#Shorts #OriginalMusic #InstrumentalMusic #TVOFF"
     )
-    response = youtube.videos().insert(
+    full_title = f"{title[:85]} | Full Original Music"
+    full_description = (
+        "Listen to the complete original composition.\\n\\n"
+        "Follow TV OFF for more original music and new instrumental soundscapes.\\n\\n"
+        f"Composition: {title}\\n"
+        f"Style: {m['style']}\\n"
+        f"Duration: {int(duration // 60)}:{int(duration % 60):02d}\\n\\n"
+        "#OriginalMusic #InstrumentalMusic #TVOFF"
+    )
+    short_response = youtube.videos().insert(
         part="snippet,status",
-        body={"snippet": {"title": short_title[:100], "description": description,
+        body={"snippet": {"title": short_title[:100], "description": follow_description,
                           "tags": ["Shorts", "Original Music", "Instrumental", str(m["style"]), "TV OFF"],
                           "categoryId": "10"},
               "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False}},
         media_body=MediaFileUpload(str(video), mimetype="video/mp4", chunksize=-1, resumable=True)
     ).execute()
-    video_id = response["id"]
+    short_id = short_response["id"]
+    short_url = f"https://youtu.be/{short_id}"
+    print(f"MUSIC SHORT PUBLISHED: {short_url} | duration=30s")
+
+    # Persist the first successful upload before attempting the companion full track.
     published = datetime.now(timezone.utc).isoformat()
     state.setdefault("_published_audio_sha256", []).append(audio_hash)
     state["_published_audio_sha256"] = state["_published_audio_sha256"][-500:]
     state.setdefault("_published_video_sha256", []).append(video_hash)
     state["_published_video_sha256"] = state["_published_video_sha256"][-500:]
     state.setdefault("published_tracks", []).append({
-        "video_id": video_id, "youtube_url": f"https://youtu.be/{video_id}",
+        "short_video_id": short_id, "short_url": short_url,
         "track_title": title, "style": m["style"], "audio_sha256": audio_hash,
-        "video_sha256": video_hash, "visual_sha256": visual_hash,
-        "visual_model": m.get("visual_model"), "visual_generation_seed": m.get("visual_generation_seed"),
-        "published_at": published,
-        "clip_start_seconds": clip_start, "duration_seconds": DURATION
+        "short_video_sha256": video_hash, "full_video_sha256": full_video_hash,
+        "visual_sha256": visual_hash, "duration_seconds": duration,
+        "short_published_at": published, "full_upload_status": "pending"
     })
     state["published_tracks"] = state["published_tracks"][-500:]
     state["_last_published_at"] = published
     STATE.write_text(json.dumps(state, indent=2), encoding="utf-8")
-    print(f"MUSIC SHORT PUBLISHED: https://youtu.be/{video_id} | track={title} | duration={DURATION}s")
+
+    full_response = youtube.videos().insert(
+        part="snippet,status",
+        body={"snippet": {"title": full_title[:100], "description": full_description,
+                          "tags": ["Original Music", "Full Track", "Instrumental", str(m["style"]), "TV OFF"],
+                          "categoryId": "10"},
+              "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False}},
+        media_body=MediaFileUpload(str(full_video), mimetype="video/mp4", chunksize=-1, resumable=True)
+    ).execute()
+    full_id = full_response["id"]
+    full_url = f"https://youtu.be/{full_id}"
+    state["published_tracks"][-1].update({
+        "full_video_id": full_id, "full_url": full_url,
+        "full_published_at": datetime.now(timezone.utc).isoformat(),
+        "full_upload_status": "published"
+    })
+    STATE.write_text(json.dumps(state, indent=2), encoding="utf-8")
+    print(f"FULL ORIGINAL AUDIO PUBLISHED: {full_url} | duration={duration:.1f}s")
+    print(f"PAIR PUBLISHED: Short={short_url} | Full={full_url}")
 
 if __name__ == "__main__":
     main()
