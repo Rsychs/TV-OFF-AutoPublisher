@@ -1,0 +1,108 @@
+name: TV OFF — Colab unified ACE-Step + SDXL dry run
+
+on:
+  workflow_dispatch:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: read
+
+concurrency:
+  group: tv-off-colab-unified-dry-run
+  cancel-in-progress: false
+
+jobs:
+  unified-dry-run:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request == null &&
+       github.event.issue.title == 'TV OFF Colab Unified Dry Run' &&
+       github.event.comment.body == '/run-colab-unified' &&
+       github.event.comment.user.login == 'Rsychs')
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/colab-cli-gpu-worker
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Restore Colab CLI OAuth credentials
+        env:
+          COLAB_OAUTH_TOKEN_JSON: ${{ secrets.COLAB_OAUTH_TOKEN_JSON }}
+        run: |
+          set -euo pipefail
+          test -n "${COLAB_OAUTH_TOKEN_JSON:-}" || { echo "Missing COLAB_OAUTH_TOKEN_JSON"; exit 1; }
+          mkdir -p "$HOME/.config/colab-cli"
+          printf '%s' "$COLAB_OAUTH_TOKEN_JSON" > "$HOME/.config/colab-cli/token.json"
+          chmod 600 "$HOME/.config/colab-cli/token.json"
+          python -m pip install --disable-pip-version-check --quiet google-colab-cli keyrings.alt
+
+      - name: Prepare Colab-compatible unified notebook
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          src = Path("kaggle/tv-off-unified/tv_off_unified.ipynb")
+          nb = json.loads(src.read_text(encoding="utf-8"))
+          for cell in nb.get("cells", []):
+              if cell.get("cell_type") != "code":
+                  continue
+              text = "".join(cell.get("source", []))
+              text = text.replace("/kaggle/working", "/content")
+              cell["source"] = text.splitlines(keepends=True)
+              cell["outputs"] = []
+              cell["execution_count"] = None
+          out = Path("/tmp/tv_off_colab_unified.ipynb")
+          out.write_text(json.dumps(nb, ensure_ascii=False), encoding="utf-8")
+          print("Prepared", out, "cells=", len(nb.get("cells", [])))
+          PY
+
+      - name: Allocate Colab T4
+        run: colab --auth oauth2 new -s tv-off-unified --gpu T4
+
+      - name: Execute unified ACE-Step + SDXL notebook
+        timeout-minutes: 210
+        run: colab --auth oauth2 exec -s tv-off-unified -f /tmp/tv_off_colab_unified.ipynb
+
+      - name: Package and verify generated assets on Colab
+        run: colab --auth oauth2 exec -s tv-off-unified -f tools/colab_package_output.py
+
+      - name: Download generated package
+        run: |
+          set -euo pipefail
+          colab --auth oauth2 download -s tv-off-unified /content/tv_off_colab_dry_run.zip ./tv_off_colab_dry_run.zip
+          test -s ./tv_off_colab_dry_run.zip
+          python - <<'PY'
+          import zipfile
+          p = "tv_off_colab_dry_run.zip"
+          with zipfile.ZipFile(p) as z:
+              names = set(z.namelist())
+              required = {"ace_step_smoke_result.json"}
+              if not required.issubset(names):
+                  raise SystemExit("Downloaded archive is missing its manifest.")
+              print("Downloaded verified archive; files:", len(names))
+          PY
+
+      - name: Always release Colab T4
+        if: always()
+        run: |
+          set +e
+          colab --auth oauth2 stop -s tv-off-unified
+          exit 0
+
+      - name: Upload dry-run artifacts for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tv-off-colab-unified-dry-run
+          path: tv_off_colab_dry_run.zip
+          if-no-files-found: warn
+          retention-days: 7
