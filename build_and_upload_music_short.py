@@ -104,9 +104,31 @@ def main():
     video = OUT / f"TV-OFF_Original-Music_Short_{slot}.mp4"
     full_video = OUT / f"TV-OFF_Original-Music_Full_{slot}.mp4"
     title = re.sub(r"\s+", " ", str(m["title"])).strip()
+    style_label = re.sub(r"\s+", " ", str(m["style"])).strip()
     if re.search(r"\d", title):
         raise RuntimeError("Public YouTube title must not contain digits; refusing upload.")
-    safe_title = title.replace("\\", "").replace("'", "").replace(":", " —").replace("%", " ").replace(",", " ").replace("[", "(").replace("]", ")")
+    # Every public title must name its actual genre. Avoid reusing a previously
+    # published title by adding a natural, non-numeric session subtitle.
+    title_variants = [
+        "Late Night Session", "After Hours", "The Evening Edit",
+        "A Different Perspective", "The Quiet Session", "Midnight Edition",
+        "An Intimate Performance", "City Lights Session", "The Sunday Session",
+        "A New Chapter", "The Night Shift", "The Listening Room"
+    ]
+    prior_titles = {
+        f"{str(item.get('track_title', '')).strip()} | {str(item.get('style', '')).strip()}"
+        for item in tracks if isinstance(item, dict)
+    }
+    public_title = f"{title} | {style_label}"
+    if public_title in prior_titles:
+        for variant in title_variants:
+            candidate = f"{title} — {variant} | {style_label}"
+            if candidate not in prior_titles:
+                public_title = candidate
+                break
+        else:
+            raise RuntimeError("No unused public title variant remains; refusing a duplicate title.")
+    safe_title = public_title.replace("\\", "").replace("'", "").replace(":", " —").replace("%", " ").replace(",", " ").replace("[", "(").replace("]", ")")
     # Newly generated tracks must carry the exact visual rendered in the same ACE-Step run.
     bundled_visual = m.get("visual_file")
     if not bundled_visual:
@@ -279,7 +301,7 @@ def main():
     # Dry-run remains available only when explicitly requested; production is the default.
     if PUBLISH_MODE == "dry_run":
         report = {
-            "status": "dry_run_passed", "published": False, "title": title,
+            "status": "dry_run_passed", "published": False, "title": public_title,
             "audio_sha256": audio_hash, "visual_sha256": visual_hash,
             "video_sha256": video_hash, "video_file": str(video),
             "full_video_sha256": full_video_hash, "full_video_file": str(full_video),
@@ -306,7 +328,7 @@ def main():
     )
     creds.refresh(Request())
     youtube = build("youtube", "v3", credentials=creds)
-    short_title = f"{title[:75]} | Original Music #Shorts"
+    short_title = f"{public_title[:85]} #Shorts"
     follow_description = (
         "Follow TV OFF for more original music and new instrumental soundscapes.\\n\\n"
         f"Original composition: {title}\\n"
@@ -314,7 +336,7 @@ def main():
         "New music. New atmospheres. Stay tuned.\\n\\n"
         "#Shorts #OriginalMusic #InstrumentalMusic #TVOFF"
     )
-    full_title = f"{title[:85]} | Full Original Music"
+    full_title = f"{public_title[:78]} — Full Track"
     full_description = (
         "Listen to the complete original composition.\\n\\n"
         "Follow TV OFF for more original music and new instrumental soundscapes.\\n\\n"
@@ -365,7 +387,7 @@ def main():
         state["_published_video_sha256"] = list(dict.fromkeys(state["_published_video_sha256"]))[-500:]
         state.setdefault("published_tracks", []).append({
             "short_video_id": short_id, "short_url": short_url,
-            "track_title": title, "style": m["style"], "audio_sha256": audio_hash,
+            "track_title": public_title.rsplit(" | ", 1)[0], "style": style_label, "audio_sha256": audio_hash,
             "short_video_sha256": video_hash, "full_video_sha256": full_video_hash,
             "visual_sha256": visual_hash, "blender_version": blender_version,
             "blender_render_sha256": blender_render_hash, "duration_seconds": duration,
