@@ -241,6 +241,10 @@ jobs:
                   processed.append(slot)
                   state["_processed_utc_slots"] = processed[-500:]
                   should_run = True
+          if skip and should_run:
+              raise SystemExit(f"Unsafe reservation: skip_reason={skip} while should_run=true; refusing GPU allocation.")
+          if should_run and should_resume:
+              raise SystemExit("Unsafe reservation: new generation and pending-pair recovery cannot both be enabled.")
           path.write_text(json.dumps(state, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
               out.write("should_run=" + ("true" if should_run else "false") + "\n")
