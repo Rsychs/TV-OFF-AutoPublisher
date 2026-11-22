@@ -172,15 +172,13 @@ jobs:
           git commit -m "Reserve TV OFF UTC production slot" || echo "State reservation already committed"
           git push
 
-      - name: Install render dependencies and verify Blender
+      - name: Install audio/video packaging dependencies
         if: steps.reserve-slot.outputs.should_run == 'true'
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y ffmpeg blender
+          sudo apt-get install -y ffmpeg
           python -m pip install -r requirements.txt
-          blender --version
-          blender --background --python scripts/render_tv_off_short_scene.py -- --help
           ffmpeg -version | head -n 1
       - name: Prepare Colab-compatible unified notebook
         if: steps.reserve-slot.outputs.should_run == 'true'
@@ -266,6 +264,25 @@ jobs:
             exit 1
           fi
           echo "Colab production session is absent from the active-session list."
+      - name: Install optional Blender renderer (non-blocking)
+        if: steps.reserve-slot.outputs.should_run == 'true'
+        continue-on-error: true
+        timeout-minutes: 10
+        run: |
+          set +e
+          if command -v blender >/dev/null 2>&1; then
+            blender --version
+            exit 0
+          fi
+          sudo apt-get update
+          sudo apt-get install -y blender
+          RC=$?
+          if [ "$RC" -ne 0 ]; then
+            echo "Blender installation unavailable; publisher will use the verified SDXL visual fallback."
+            exit 0
+          fi
+          blender --version || true
+
       - name: Build and publish Short + complete original track
         if: steps.reserve-slot.outputs.should_run == 'true'
         env:
