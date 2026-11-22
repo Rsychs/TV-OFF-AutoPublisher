@@ -16,7 +16,7 @@ jobs:
        github.event.issue.pull_request == null &&
        github.event.issue.number == 30 &&
        github.event.issue.title == 'TV OFF Colab Unified Dry Run' &&
-       (github.event.comment.body == '/publish-colab-unified' || github.event.comment.body == '/publish-colab-unified-force') &&
+       github.event.comment.body == '/publish-colab-unified' &&
        github.event.comment.user.login == 'Rsychs') ||
       (github.event_name == 'issue_comment' &&
        github.event.issue.pull_request == null &&
@@ -45,6 +45,13 @@ jobs:
           notebook = json.loads(path.read_text(encoding="utf-8"))
           if notebook.get("nbformat") != 4:
               raise SystemExit("Unified notebook must use nbformat 4")
+          for source_path in (
+              Path("build_and_upload_music_short.py"),
+              Path("scripts/render_tv_off_short_scene.py"),
+              Path("tools/colab_package_output.py"),
+          ):
+              ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
+          print("Validated publisher, Blender renderer, and Colab packaging Python syntax.")
           checked = 0
           for index, cell in enumerate(notebook.get("cells", [])):
               if cell.get("cell_type") != "code":
@@ -117,10 +124,17 @@ jobs:
               raise SystemExit("YouTube OAuth token lacks the youtube.upload scope.")
           print("YouTube upload OAuth verified; required scope is present.")
           PY
+      - name: Install render dependencies and verify Blender
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg blender
+          python -m pip install -r requirements.txt
+          blender --version
+          blender --background --python scripts/render_tv_off_short_scene.py -- --help
+          ffmpeg -version | head -n 1
       - name: Reserve UTC slot and enforce shared cooldown
         id: reserve-slot
-        env:
-          TV_OFF_FORCE_RUN: ${{ github.event_name == 'issue_comment' && github.event.comment.body == '/publish-colab-unified-force' }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -138,7 +152,6 @@ jobs:
           now = datetime.now(timezone.utc)
           slot = now.replace(minute=0, second=0, microsecond=0).strftime("%Y-%m-%dT%H:00:00Z")
           processed = state["_processed_utc_slots"]
-          force = os.environ.get("TV_OFF_FORCE_RUN", "false").lower() == "true"
           skip = "utc_slot_already_processed" if slot in processed else ""
           last_value = state.get("_last_published_at")
           if not skip and last_value:
@@ -146,10 +159,9 @@ jobs:
               if last.tzinfo is None: last = last.replace(tzinfo=timezone.utc)
               remaining = 3600 - (now - last.astimezone(timezone.utc)).total_seconds()
               if remaining > 0: skip = f"cooldown_active_{int(remaining)}s"
-          if force:
-              print("Manual override: bypassing UTC slot and cooldown only; deduplication and concurrency remain active.")
-              skip = ""
-          if slot not in processed: processed.append(slot)
+          # Reserve the slot only when generation is approved. A cooldown skip
+          # must not burn the hour; a failed approved run remains reserved.
+          if not skip: processed.append(slot)
           state["_processed_utc_slots"] = processed[-500:]
           path.write_text(json.dumps(state, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
@@ -268,12 +280,6 @@ jobs:
             exit 1
           fi
           echo "Colab production session is absent from the active-session list."
-      - name: Install render dependencies
-        if: steps.reserve-slot.outputs.should_run == 'true'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-          python -m pip install -r requirements.txt
       - name: Build and publish Short + complete original track
         if: steps.reserve-slot.outputs.should_run == 'true'
         env:
