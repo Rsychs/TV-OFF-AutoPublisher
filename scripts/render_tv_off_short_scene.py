@@ -186,7 +186,16 @@ cam=bpy.context.object
 cam.rotation_euler=(Vector((0,1.55,2.05))-cam.location).to_track_quat("-Z","Y").to_euler()
 cam.data.lens=42; cam.data.sensor_width=36; cam.data.sensor_fit="VERTICAL"
 scene=bpy.context.scene; scene.camera=cam
-scene.render.engine="BLENDER_EEVEE_NEXT"; scene.eevee.taa_render_samples=96
+available_engines={item.identifier for item in bpy.types.RenderSettings.bl_rna.properties["engine"].enum_items}
+if "BLENDER_EEVEE_NEXT" in available_engines:
+    scene.render.engine="BLENDER_EEVEE_NEXT"
+elif "BLENDER_EEVEE" in available_engines:
+    scene.render.engine="BLENDER_EEVEE"
+else:
+    raise RuntimeError("No supported Eevee render engine is available in this Blender build")
+eevee_settings=getattr(scene,"eevee",None)
+if eevee_settings is not None and hasattr(eevee_settings,"taa_render_samples"):
+    eevee_settings.taa_render_samples=96
 scene.render.resolution_x=1080; scene.render.resolution_y=1920; scene.render.resolution_percentage=100
 scene.render.image_settings.file_format="PNG"; scene.render.image_settings.color_mode="RGBA"
 scene.render.film_transparent=False
