@@ -2,9 +2,6 @@ name: TV OFF — Colab unified ACE-Step + SDXL dry run
 
 on:
   workflow_dispatch:
-  issue_comment:
-    types: [created]
-
 permissions:
   contents: read
   issues: read
