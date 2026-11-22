@@ -379,6 +379,36 @@ jobs:
             sleep $((attempt * 30))
           done
 
+      - name: Verify both YouTube IDs and completed pair in GitHub state
+        if: steps.reserve-slot.outputs.should_run == 'true' || steps.reserve-slot.outputs.should_resume_pending == 'true'
+        env:
+          SOURCE_AUDIO_DIR: ${{ steps.reserve-slot.outputs.should_resume_pending == 'true' && '/tmp/tv-off-resume/colab-output' || 'colab-output' }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, re, os
+          from pathlib import Path
+          root=Path(os.environ["SOURCE_AUDIO_DIR"])
+          manifests=list(root.rglob("ace_step_smoke_result.json"))
+          if len(manifests)!=1:
+              raise SystemExit(f"Expected one production manifest; found {len(manifests)}")
+          m=json.loads(manifests[0].read_text(encoding="utf-8"))
+          tracks=json.loads(Path("music_shorts_state.json").read_text(encoding="utf-8")).get("published_tracks",[])
+          match=next((x for x in reversed(tracks) if isinstance(x,dict) and x.get("audio_sha256")==m.get("sha256")),None)
+          if not match:
+              raise SystemExit("No GitHub state record exists for this exact audio SHA-256.")
+          short_id=str(match.get("short_video_id") or "")
+          full_id=str(match.get("full_video_id") or "")
+          valid=re.compile(r"^[A-Za-z0-9_-]{11}$")
+          if not valid.fullmatch(short_id) or not valid.fullmatch(full_id):
+              raise SystemExit("Both real 11-character YouTube video IDs are required.")
+          if match.get("full_upload_status")!="published":
+              raise SystemExit("Full-track upload is not confirmed as published.")
+          if short_id==full_id:
+              raise SystemExit("Short and full-track IDs must be different.")
+          print("PAIR PUBLISHED AND RECORDED:",f"https://youtu.be/{short_id}",f"https://youtu.be/{full_id}")
+          PY
+
       - name: Persist publication state to GitHub
         if: always() && (steps.reserve-slot.outputs.should_run == 'true' || steps.reserve-slot.outputs.should_resume_pending == 'true')
         run: |
