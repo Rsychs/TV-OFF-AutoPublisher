@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 import time
@@ -24,6 +25,7 @@ if PUBLISH_MODE not in {"dry_run", "publish"}:
     raise RuntimeError("PUBLISH_MODE must be dry_run or publish")
 
 def run(args):
+    print("RUN:", " ".join(map(str, args)), flush=True)
     subprocess.run(args, check=True, timeout=1800)
 
 def sha256(path):
@@ -137,6 +139,59 @@ def main():
     if m.get("visual_width") not in (None, 1080) or m.get("visual_height") not in (None, 1920):
         raise RuntimeError("Visual dimensions are not the required 1080x1920 vertical format")
 
+    # Render the Short's architectural scene with Blender after Colab has released
+    # its T4. Keep ACE-Step/SDXL generation untouched; the SDXL landscape artwork
+    # is displayed on the Blender-rendered television screen.
+    blender_bin = shutil.which(os.environ.get("BLENDER_BIN", "blender"))
+    if not blender_bin:
+        raise RuntimeError("Blender executable is unavailable; refusing a non-Blender production render.")
+    blender_version_result = subprocess.run(
+        [blender_bin, "--version"], capture_output=True, text=True, check=True, timeout=30
+    )
+    blender_version = blender_version_result.stdout.splitlines()[0].strip()
+    blender_scene = OUT / f"blender_scene_{slot}.png"
+    visual_kind = str(m.get("kind") or m.get("category") or "original_music").strip().lower()
+    if visual_kind not in ("original_music", "brown_noise", "white_noise"):
+        visual_kind = "original_music"
+    render_command = [
+        blender_bin, "--background", "--python", str(ROOT / "scripts/render_tv_off_short_scene.py"), "--",
+        "--out", str(blender_scene), "--kind", visual_kind, "--slot", slot,
+        "--style", str(m.get("style", "Original Music")),
+        "--screen-image", str(full_scene),
+    ]
+    run(render_command)
+    if not blender_scene.is_file() or blender_scene.stat().st_size < 100000:
+        raise RuntimeError("Blender production render is missing or unexpectedly small.")
+    image_probe = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "v:0",
+         "-show_entries", "stream=width,height", "-of", "json", str(blender_scene)],
+        capture_output=True, text=True, check=True,
+    )
+    image_streams = json.loads(image_probe.stdout).get("streams", [])
+    if not image_streams or (image_streams[0].get("width"), image_streams[0].get("height")) != (1080, 1920):
+        raise RuntimeError("Blender render must be exactly 1080x1920.")
+    blender_render_hash = sha256(blender_scene)
+    blender_manifest = {
+        "renderer": "Blender",
+        "blender_version": blender_version,
+        "render_file": blender_scene.name,
+        "render_sha256": blender_render_hash,
+        "width": 1080,
+        "height": 1920,
+        "audio_sha256": audio_hash,
+        "sdxl_landscape_file": full_scene.name,
+        "sdxl_landscape_sha256": full_visual_hash,
+        "style": str(m.get("style", "")),
+        "title": title,
+        "rendered_at": datetime.now(timezone.utc).isoformat(),
+    }
+    blender_manifest_path = OUT / f"blender_render_manifest_{slot}.json"
+    blender_manifest_path.write_text(json.dumps(blender_manifest, indent=2), encoding="utf-8")
+    print(
+        f"BLENDER_PRODUCTION_RENDER_OK: {blender_version} | {blender_scene.name} | "
+        f"sha256={blender_render_hash}"
+    )
+
     # Pure visual Short: one still image + original music. No text, logo, waveform,
     # progress bar, overlays, or camera movement.
     video_filter = (
@@ -144,7 +199,7 @@ def main():
         "crop=1080:1920,setsar=1,eq=contrast=1.04:saturation=1.08,format=yuv420p"
     )
     run([
-        "ffmpeg", "-y", "-hide_banner", "-loop", "1", "-framerate", "30", "-i", str(scene),
+        "ffmpeg", "-y", "-hide_banner", "-loop", "1", "-framerate", "30", "-i", str(blender_scene),
         "-ss", f"{clip_start:.3f}", "-i", str(audio), "-vf", video_filter,
         "-map", "0:v:0", "-map", "1:a:0", "-t", str(DURATION),
         "-af", "afade=t=in:st=0:d=0.35,afade=t=out:st=28.8:d=1.2,loudnorm=I=-16:TP=-1.5:LRA=11",
@@ -195,6 +250,8 @@ def main():
             "full_video_sha256": full_video_hash, "full_video_file": str(full_video),
             "duration_seconds": DURATION, "visual_model": m.get("visual_model"),
             "visual_generation_seed": m.get("visual_generation_seed"),
+            "blender_version": blender_version, "blender_render_sha256": blender_render_hash,
+            "blender_render_manifest": str(blender_manifest_path),
             "pipeline_version": m.get("pipeline_version")
         }
         (OUT / "dry_run_report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
@@ -275,7 +332,8 @@ def main():
             "short_video_id": short_id, "short_url": short_url,
             "track_title": title, "style": m["style"], "audio_sha256": audio_hash,
             "short_video_sha256": video_hash, "full_video_sha256": full_video_hash,
-            "visual_sha256": visual_hash, "duration_seconds": duration,
+            "visual_sha256": visual_hash, "blender_version": blender_version,
+            "blender_render_sha256": blender_render_hash, "duration_seconds": duration,
             "short_published_at": published, "full_upload_status": "pending"
         })
         state["published_tracks"] = state["published_tracks"][-500:]
