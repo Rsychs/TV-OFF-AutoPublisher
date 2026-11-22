@@ -42,7 +42,7 @@ jobs:
           from datetime import datetime
           from zoneinfo import ZoneInfo
           command = os.environ.get("TV_OFF_ISSUE_COMMAND", "")
-          match = re.fullmatch(r"/tv-off-music (\\d{8})-(\\d{2})", command)
+          match = re.fullmatch(r"/tv-off-music ([0-9]{8})-([0-9]{2})", command)
           if not match:
               raise SystemExit("Issue command must exactly match /tv-off-music YYYYMMDD-HH.")
           now = datetime.now(ZoneInfo("Europe/Riga"))
