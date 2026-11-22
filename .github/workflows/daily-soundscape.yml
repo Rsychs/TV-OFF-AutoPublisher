@@ -9,13 +9,7 @@ permissions:
 
 jobs:
   build-and-publish:
-    if: >-
-      github.event_name == 'issue_comment' &&
-      github.event.issue.pull_request == null &&
-      github.event.issue.number == 15 &&
-      github.event.comment.user.login == 'Rsychs' &&
-      (startsWith(github.event.comment.body, '/tv-off-longform ') ||
-       startsWith(github.event.comment.body, '/tv-off-music '))
+    if: false
     concurrency:
       group: tv-off-single-video
       cancel-in-progress: false
