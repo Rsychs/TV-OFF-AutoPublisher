@@ -8,6 +8,7 @@ argv=sys.argv[sys.argv.index("--")+1:] if "--" in sys.argv else sys.argv[1:]
 p=argparse.ArgumentParser()
 p.add_argument("--out",required=True); p.add_argument("--kind",required=True)
 p.add_argument("--slot",required=True); p.add_argument("--style",default="")
+p.add_argument("--screen-image",default="")
 a=p.parse_args(argv)
 seed=sum(ord(x) for x in a.slot+a.kind+a.style)
 rng=random.Random(seed)
@@ -106,6 +107,34 @@ else:
 cube("Floating walnut media wall",(0,4.48,2.25),(4.6,.18,2.8),wood,.08)
 cube("Large flat screen television",(0,4.30,2.45),(3.65,.12,2.12),black,.06)
 cube("Dark television display",(0,4.225,2.45),(3.48,.018,1.95),screen,.025)
+if a.screen_image:
+    screen_path=os.path.abspath(a.screen_image)
+    if not os.path.isfile(screen_path):
+        raise FileNotFoundError("SDXL screen artwork does not exist: "+screen_path)
+    image=bpy.data.images.load(screen_path,check_existing=False)
+    image.pack()
+    display_mat=bpy.data.materials.new("SDXL artwork displayed on TV")
+    display_mat.use_nodes=True
+    nodes=display_mat.node_tree.nodes
+    links=display_mat.node_tree.links
+    bsdf=nodes.get("Principled BSDF")
+    tex=nodes.new("ShaderNodeTexImage")
+    tex.image=image
+    tex.interpolation="Linear"
+    links.new(tex.outputs["Color"],bsdf.inputs["Base Color"])
+    emission_color=bsdf.inputs.get("Emission Color")
+    if emission_color is not None:
+        links.new(tex.outputs["Color"],emission_color)
+        strength=bsdf.inputs.get("Emission Strength")
+        if strength is not None:
+            strength.default_value=0.18
+    bsdf.inputs["Roughness"].default_value=0.22
+    bpy.ops.mesh.primitive_plane_add(size=2,location=(0,4.205,2.45),rotation=(math.radians(90),0,0))
+    display=bpy.context.object
+    display.name="SDXL artwork on television screen"
+    display.scale=(1.735,0.97,1)
+    display.data.materials.append(display_mat)
+    print("TV_OFF_SDXL_SCREEN_IMAGE",screen_path)
 cube("Floating media console",(0,4.05,.72),(4.9,.65,.38),wood,.06)
 for x in [-1.8,1.8]:
     cube("Console shadow gap",(x,3.70,.70),(.025,.02,.22),metal,.005)
