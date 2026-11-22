@@ -1,8 +1,5 @@
 name: TV OFF — Original Music to Shorts
 on:
-  workflow_run:
-    workflows: ["TV OFF Music Library — Dropbox Stage Only"]
-    types: [completed]
   workflow_dispatch:
     inputs:
       source_run_id:
