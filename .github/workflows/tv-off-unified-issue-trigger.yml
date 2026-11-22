@@ -262,6 +262,7 @@ jobs:
 
       - name: Install audio/video packaging dependencies
         if: steps.reserve-slot.outputs.should_run == 'true' || steps.reserve-slot.outputs.should_resume_pending == 'true'
+        timeout-minutes: 10
         run: |
           set -euo pipefail
           sudo apt-get update
@@ -298,7 +299,7 @@ jobs:
         run: colab --auth oauth2 new -s tv-off-prod --gpu T4
       - name: Execute unified ACE-Step + SDXL on Colab (safe retry)
         if: steps.reserve-slot.outputs.should_run == 'true'
-        timeout-minutes: 210
+        timeout-minutes: 30
         run: |
           set -euo pipefail
           for attempt in 1 2; do
