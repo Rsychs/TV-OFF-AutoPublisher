@@ -210,7 +210,7 @@ jobs:
               and item.get("short_video_id")
               and item.get("full_upload_status") != "published"
           ]
-          should_run = True
+          should_run = False
           should_resume = False
           resume_run_id = ""
           skip = ""
@@ -240,6 +240,7 @@ jobs:
               if not skip:
                   processed.append(slot)
                   state["_processed_utc_slots"] = processed[-500:]
+                  should_run = True
           path.write_text(json.dumps(state, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
               out.write("should_run=" + ("true" if should_run else "false") + "\n")
@@ -331,6 +332,7 @@ jobs:
           done
       - name: Package and verify generated assets on Colab (retry transient CLI errors)
         if: steps.reserve-slot.outputs.should_run == 'true'
+        timeout-minutes: 20
         run: |
           set -euo pipefail
           for attempt in 1 2 3; do
