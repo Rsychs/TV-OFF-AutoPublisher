@@ -8,7 +8,8 @@
     "d7b5e1632e5eab83b5809d54dd0111fd3b20594eab83d59a63d5d8e4325896ef",
     "04ad7c3f6cedc56d842e258d776828e72d694327bc1ae22d3fbebca2b8063eea",
     "3585e8055a75d66b8962eb668de951e1a76dfdd7ee72fdd0a61677eb2df84b6f",
-    "eed01252207530af853f8a6e42c01e132af5325d4d23afa92264f1efe80365de"
+    "eed01252207530af853f8a6e42c01e132af5325d4d23afa92264f1efe80365de",
+    "6ede9def29e4dec29f66f9b24bcaf23edfe35f19dc54ed4624d5f0dfb9eb06a8"
   ],
   "_published_video_sha256": [
     "92fd8404132e90878de22dd452d6659aaffc014dd70437e107f48336d5d83a1c",
@@ -19,13 +20,14 @@
     "24cd44fecb86bba93450ba407c81a361dd725f4f4f571d7a9e745530ecfe118d",
     "6d693e91a8e4a08d0f3ad8325672c94c3baff5e12c5623b5ce6c98f257e771bd",
     "5ca86a8cdba18d70f5396eb11a297d3cfa184021d0afc6a126fbfe860c2eb712",
-    "aa8faecbf03e8deb17823c1dc5cda22fa7b2e813e6ad8ed429a932fc43e93ebc"
+    "aa8faecbf03e8deb17823c1dc5cda22fa7b2e813e6ad8ed429a932fc43e93ebc",
+    "f12a1907c3d683de646e2dc0c809943b1d937d35111d347d974ac3f15b88624e"
   ],
   "published_tracks": [
     {
       "video_id": "5JN6UYU8LDk",
       "youtube_url": "https://youtu.be/5JN6UYU8LDk",
-      "track_title": "Calle de Sal — Afro-Cuban Son Montuno",
+      "track_title": "Calle de Sal \u2014 Afro-Cuban Son Montuno",
       "style": "Afro-Cuban son montuno / rumba guaguanco instrumental, 3-2 clave",
       "audio_sha256": "6e86f786636647c3c6d9f3f23acc207064ac5af543e154386b22679f6525b216",
       "video_sha256": "92fd8404132e90878de22dd452d6659aaffc014dd70437e107f48336d5d83a1c",
@@ -36,7 +38,7 @@
     {
       "video_id": "UM7dh4L75og",
       "youtube_url": "https://youtu.be/UM7dh4L75og",
-      "track_title": "The Jade Courtyard at First Light — Korean Gugak",
+      "track_title": "The Jade Courtyard at First Light \u2014 Korean Gugak",
       "style": "Instrumental Korean gugak chamber / courtly jeongak ensemble with pentatonic ujo melody and heterophonic acoustic instrumentation",
       "audio_sha256": "0b7a40ade6dec08b9eca5ae06b5ae2fb20cab4727641ea2e913d8c306acd5e01",
       "video_sha256": "6ed1c8ccd0920c3412db8dbd2db80f6c6873d112f77d5147f3ca1cb868c472b5",
@@ -49,7 +51,7 @@
       "short_url": "https://youtu.be/A9OHx8aAq8M",
       "full_video_id": "pH1BCfgtHus",
       "full_url": "https://youtu.be/pH1BCfgtHus",
-      "track_title": "Midnight Pavilion 61221 — Korean Gugak",
+      "track_title": "Midnight Pavilion 61221 \u2014 Korean Gugak",
       "style": "Instrumental Korean gugak chamber / courtly jeongak ensemble with pentatonic ujo melody and heterophonic acoustic instrumentation",
       "audio_sha256": "46f0aa095617fce86095e756972f9d107f8e55e7cd22f8bd83e32e3a1c5e3b9e",
       "short_video_sha256": "73559691d4c519af01f0648eac0b81db2b0edd8279a65ac7ed70655c2a45ad08",
@@ -157,9 +159,28 @@
       "full_video_id": "SXbZcSD2e_k",
       "full_url": "https://youtu.be/SXbZcSD2e_k",
       "full_published_at": "2026-11-22T08:14:14.968082+00:00"
+    },
+    {
+      "short_video_id": "abFv6tgdpqA",
+      "short_url": "https://youtu.be/abFv6tgdpqA",
+      "track_title": "Soft Focus Memories",
+      "style": "Lo-fi",
+      "audio_sha256": "6ede9def29e4dec29f66f9b24bcaf23edfe35f19dc54ed4624d5f0dfb9eb06a8",
+      "short_video_sha256": "f12a1907c3d683de646e2dc0c809943b1d937d35111d347d974ac3f15b88624e",
+      "full_video_sha256": "40395acd78fb47d15d5d58209b1829ef64a67792a25f0bfdc300c2d0bad431b4",
+      "visual_sha256": "393cf399d2d444c813fe850e915c1be156db7d201e8056e6e9da360fc8805ac6",
+      "blender_version": "Blender 5.0.1",
+      "blender_render_sha256": null,
+      "duration_seconds": 168.0,
+      "short_published_at": "2026-11-22T10:15:18.549623+00:00",
+      "production_run_id": "45010745463",
+      "full_upload_status": "published",
+      "full_video_id": "PNmyX7JLQwU",
+      "full_url": "https://youtu.be/PNmyX7JLQwU",
+      "full_published_at": "2026-11-22T10:15:20.385718+00:00"
     }
   ],
-  "_last_published_at": "2026-11-22T08:14:13.348659+00:00",
+  "_last_published_at": "2026-11-22T10:15:18.549623+00:00",
   "_published_full_video_sha256": [
     "6a5b07b2d1dafd64f597825d9e06f573c592afe56e284d9abde0c762bcb5fd87",
     "6e823d6a8e6313aeec9d906870deec9bfc0587572c3fa7ea961eb5dfce2da1ae",
@@ -167,7 +188,8 @@
     "94894a325d03d5c34178ce34b731c9cc0cd2ffb4140a6bfddc60781f9b8123a6",
     "39870771c5f01e21917dd2db240ef59af7dd44df3d71e065a571ace3ab31be70",
     "aa5b03abaccbb47406fedb3a0907ffff536e02c79f90e863ef72edcdc7dcab1a",
-    "ab01a747ddb82aff0c472a26502598373efac755888ae57fab4ac00234f416b9"
+    "ab01a747ddb82aff0c472a26502598373efac755888ae57fab4ac00234f416b9",
+    "40395acd78fb47d15d5d58209b1829ef64a67792a25f0bfdc300c2d0bad431b4"
   ],
   "_processed_utc_slots": [
     "2026-11-21T21:00:00Z",
