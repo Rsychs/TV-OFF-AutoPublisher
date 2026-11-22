@@ -2,6 +2,13 @@ name: TV OFF Unified ACE-Step + SDXL — production publish
 on:
   schedule:
     - cron: '20 * * * *'
+  workflow_dispatch:
+    inputs:
+      launch_reason:
+        description: 'Reason for an owner-requested production run'
+        required: false
+        default: 'manual production launch'
+        type: string
 permissions:
   contents: write
   actions: read
