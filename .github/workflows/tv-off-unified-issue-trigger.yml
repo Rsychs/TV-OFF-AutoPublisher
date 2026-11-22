@@ -332,7 +332,7 @@ jobs:
           done
       - name: Package and verify generated assets on Colab (retry transient CLI errors)
         if: steps.reserve-slot.outputs.should_run == 'true'
-        timeout-minutes: 20
+        timeout-minutes: 30
         run: |
           set -euo pipefail
           for attempt in 1 2 3; do
