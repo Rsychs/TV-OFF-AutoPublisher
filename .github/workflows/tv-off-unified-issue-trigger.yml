@@ -322,7 +322,7 @@ jobs:
             ALLOC_LOG="$(timeout --signal=TERM --kill-after=20s 180s colab --auth oauth2 new -s tv-off-prod --gpu T4 2>&1)"
             ALLOC_RC=$?
             set -e
-            printf '%s\\n' "$ALLOC_LOG"
+            printf '%s\n' "$ALLOC_LOG"
             if [ "$ALLOC_RC" -eq 0 ]; then
               echo "Colab T4 allocation succeeded."
               exit 0
@@ -332,12 +332,12 @@ jobs:
             SESSIONS_OUTPUT="$(timeout 30s colab --auth oauth2 sessions 2>&1)"
             SESSIONS_RC=$?
             set -e
-            printf '%s\\n' "$SESSIONS_OUTPUT"
+            printf '%s\n' "$SESSIONS_OUTPUT"
             if [ "$SESSIONS_RC" -ne 0 ]; then
               echo "Cannot verify Colab session state after allocation failure; refusing another allocation."
               exit "$ALLOC_RC"
             fi
-            if printf '%s\\n' "$SESSIONS_OUTPUT" | grep -Eq '(^|[^[:alnum:]_-])tv-off-prod([^[:alnum:]_-]|$)'; then
+            if printf '%s\n' "$SESSIONS_OUTPUT" | grep -Eq '(^|[^[:alnum:]_-])tv-off-prod([^[:alnum:]_-]|$)'; then
               echo "The requested tv-off-prod session exists despite the allocation response; continuing with that single session."
               exit 0
             fi
@@ -394,8 +394,8 @@ jobs:
             PACKAGE_LOG="$(timeout --signal=TERM --kill-after=30s 8m colab --auth oauth2 exec -s tv-off-prod --timeout 0 -f tools/colab_package_output.py 2>&1)"
             PACKAGE_RC=$?
             set -e
-            printf '%s\\n' "$PACKAGE_LOG"
-            if [ "$PACKAGE_RC" -eq 0 ] && printf '%s\\n' "$PACKAGE_LOG" | grep -q 'COLAB_OUTPUT_PACKAGE_OK'; then
+            printf '%s\n' "$PACKAGE_LOG"
+            if [ "$PACKAGE_RC" -eq 0 ] && printf '%s\n' "$PACKAGE_LOG" | grep -q 'COLAB_OUTPUT_PACKAGE_OK'; then
               echo "Colab package success marker verified."
               exit 0
             fi
