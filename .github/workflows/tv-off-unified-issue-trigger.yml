@@ -61,7 +61,7 @@ jobs:
           printf '%s' "$COLAB_OAUTH_TOKEN_JSON" > "$HOME/.config/colab-cli/token.json"
           chmod 600 "$HOME/.config/colab-cli/token.json"
           python -m pip install --disable-pip-version-check --quiet google-colab-cli keyrings.alt
-      - name: Verify YouTube upload OAuth scope before Colab
+      - name: Verify YouTube upload OAuth scope before Colab (retry transient failures)
         env:
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
@@ -70,36 +70,47 @@ jobs:
           set -euo pipefail
           python -m pip install --disable-pip-version-check --quiet requests
           python - <<'PY'
-          import os, requests
+          import os, time, requests
           required = ("YT_CLIENT_ID", "YT_CLIENT_SECRET", "YT_REFRESH_TOKEN")
           missing = [name for name in required if not os.environ.get(name)]
           if missing:
               raise SystemExit("Missing YouTube upload secrets: " + ", ".join(missing))
-          response = requests.post(
-              "https://oauth2.googleapis.com/token",
-              data={
-                  "client_id": os.environ["YT_CLIENT_ID"],
-                  "client_secret": os.environ["YT_CLIENT_SECRET"],
-                  "refresh_token": os.environ["YT_REFRESH_TOKEN"],
-                  "grant_type": "refresh_token",
-              },
-              timeout=30,
-          )
-          if not response.ok:
+          payload = {
+              "client_id": os.environ["YT_CLIENT_ID"],
+              "client_secret": os.environ["YT_CLIENT_SECRET"],
+              "refresh_token": os.environ["YT_REFRESH_TOKEN"],
+              "grant_type": "refresh_token",
+          }
+          response = None
+          for attempt in range(1, 4):
+              try:
+                  response = requests.post("https://oauth2.googleapis.com/token", data=payload, timeout=30)
+              except requests.RequestException as exc:
+                  if attempt == 3:
+                      raise SystemExit(f"YouTube OAuth endpoint unavailable after 3 attempts: {exc}")
+                  time.sleep(attempt * 10)
+                  continue
+              if response.ok:
+                  break
               try:
                   detail = response.json()
               except ValueError:
                   detail = {}
-              print("YouTube OAuth refresh rejected:", response.status_code, detail.get("error", "unknown"), detail.get("error_description", ""))
+              error = detail.get("error", "unknown")
+              description = detail.get("error_description", "")
+              if response.status_code == 429 or response.status_code >= 500:
+                  if attempt < 3:
+                      print(f"Transient YouTube OAuth response HTTP {response.status_code}; retrying.")
+                      time.sleep(attempt * 15)
+                      continue
+              print("YouTube OAuth refresh rejected:", response.status_code, error, description)
               raise SystemExit("YouTube upload OAuth must be re-authorized before Colab allocation.")
+          if response is None or not response.ok:
+              raise SystemExit("YouTube upload OAuth could not be verified.")
           access_token = response.json().get("access_token")
           if not access_token:
               raise SystemExit("YouTube OAuth refresh returned no access token.")
-          info = requests.get(
-              "https://oauth2.googleapis.com/tokeninfo",
-              params={"access_token": access_token},
-              timeout=30,
-          )
+          info = requests.get("https://oauth2.googleapis.com/tokeninfo", params={"access_token": access_token}, timeout=30)
           if not info.ok:
               raise SystemExit(f"YouTube token scope inspection failed: HTTP {info.status_code}")
           scopes = set(info.json().get("scope", "").split())
@@ -108,24 +119,36 @@ jobs:
               raise SystemExit("YouTube OAuth token lacks the youtube.upload scope.")
           print("YouTube upload OAuth verified; required scope is present.")
           PY
-      - name: Refuse to overlap an active Colab session
+      - name: Wait for previous Colab session to close; refuse overlap
         run: |
           set -euo pipefail
           python - <<'PY'
-          import re, subprocess
-          result = subprocess.run(
-              ["colab", "--auth", "oauth2", "sessions"],
-              capture_output=True, text=True, timeout=30,
-          )
-          output = result.stdout + "\n" + result.stderr
-          print(output)
-          if result.returncode != 0:
-              raise SystemExit("Unable to inspect active Colab sessions; refusing a second GPU allocation.")
+          import re, subprocess, time
           names = ("tv-off-prod", "tv-off-unified")
-          active = [name for name in names if re.search(r"(?<![A-Za-z0-9_-])" + re.escape(name) + r"(?![A-Za-z0-9_-])", output)]
-          if active:
-              raise SystemExit("Existing TV OFF Colab session is still active: " + ", ".join(active))
-          print("No previous TV OFF Colab session is active.")
+          pattern = re.compile(r"(?<![A-Za-z0-9_-])(?:" + "|".join(map(re.escape, names)) + r")(?![A-Za-z0-9_-])")
+          for attempt in range(1, 41):
+              try:
+                  result = subprocess.run(
+                      ["colab", "--auth", "oauth2", "sessions"],
+                      capture_output=True, text=True, timeout=30,
+                  )
+              except subprocess.TimeoutExpired:
+                  print(f"Colab sessions query timed out ({attempt}/40); retrying safely.", flush=True)
+                  time.sleep(30)
+                  continue
+              output = result.stdout + "\n" + result.stderr
+              print(output, flush=True)
+              if result.returncode != 0:
+                  print(f"Colab sessions query failed ({attempt}/40); no GPU allocation will occur.", flush=True)
+                  time.sleep(30)
+                  continue
+              active = pattern.findall(output)
+              if not active:
+                  print("No previous TV OFF Colab session is active.")
+                  raise SystemExit(0)
+              print("Previous TV OFF Colab session is still active; waiting without allocating another GPU:", ", ".join(sorted(set(active))), flush=True)
+              time.sleep(30)
+          raise SystemExit("Previous Colab session did not close within 20 minutes; refusing overlapping generation.")
           PY
       - name: Reserve UTC slot, enforce cooldown, or recover pending pair
         id: reserve-slot
