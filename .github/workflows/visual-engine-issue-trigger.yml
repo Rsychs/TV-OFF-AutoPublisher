@@ -1,7 +1,6 @@
 name: TV OFF Visual Engine — issue-triggered LTX-2.5 test
 on:
-  issue_comment:
-    types: [created]
+  workflow_dispatch:
 permissions:
   contents: read
   issues: read
