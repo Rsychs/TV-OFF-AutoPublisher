@@ -2,23 +2,11 @@ name: TV OFF Unified ACE-Step + SDXL — production publish
 on:
   schedule:
     - cron: '20 * * * *'
-  issue_comment:
-    types: [created]
 permissions:
   contents: write
   actions: read
-  issues: read
 jobs:
   production-publish:
-    if: >-
-      (github.event_name == 'schedule') ||
-      (github.event_name == 'issue_comment' &&
-       github.event.issue.pull_request == null &&
-       github.event.issue.number == 30 &&
-       github.event.issue.title == 'TV OFF Colab Unified Dry Run' &&
-       github.event.comment.body == '/publish-colab-unified' &&
-       github.event.comment.user.login == 'Rsychs') ||
-
     runs-on: ubuntu-latest
     timeout-minutes: 180
     concurrency:
@@ -120,15 +108,25 @@ jobs:
               raise SystemExit("YouTube OAuth token lacks the youtube.upload scope.")
           print("YouTube upload OAuth verified; required scope is present.")
           PY
-      - name: Install render dependencies and verify Blender
+      - name: Refuse to overlap an active Colab session
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg blender
-          python -m pip install -r requirements.txt
-          blender --version
-          blender --background --python scripts/render_tv_off_short_scene.py -- --help
-          ffmpeg -version | head -n 1
+          python - <<'PY'
+          import re, subprocess
+          result = subprocess.run(
+              ["colab", "--auth", "oauth2", "sessions"],
+              capture_output=True, text=True, timeout=30,
+          )
+          output = result.stdout + "\n" + result.stderr
+          print(output)
+          if result.returncode != 0:
+              raise SystemExit("Unable to inspect active Colab sessions; refusing a second GPU allocation.")
+          names = ("tv-off-prod", "tv-off-unified")
+          active = [name for name in names if re.search(r"(?<![A-Za-z0-9_-])" + re.escape(name) + r"(?![A-Za-z0-9_-])", output)]
+          if active:
+              raise SystemExit("Existing TV OFF Colab session is still active: " + ", ".join(active))
+          print("No previous TV OFF Colab session is active.")
+          PY
       - name: Reserve UTC slot and enforce shared cooldown
         id: reserve-slot
         run: |
@@ -138,7 +136,9 @@ jobs:
           from datetime import datetime, timezone
           from pathlib import Path
           path = Path("music_shorts_state.json")
-          state = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+          if not path.is_file():
+              raise SystemExit("GitHub publication state is missing; refusing a new production run.")
+          state = json.loads(path.read_text(encoding="utf-8"))
           if not isinstance(state, dict):
               raise SystemExit("Repository publication state is not a JSON object")
           for key in ("_published_audio_sha256", "_published_video_sha256", "_published_full_video_sha256", "_processed_utc_slots", "published_tracks"):
@@ -172,6 +172,16 @@ jobs:
           git commit -m "Reserve TV OFF UTC production slot" || echo "State reservation already committed"
           git push
 
+      - name: Install render dependencies and verify Blender
+        if: steps.reserve-slot.outputs.should_run == 'true'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg blender
+          python -m pip install -r requirements.txt
+          blender --version
+          blender --background --python scripts/render_tv_off_short_scene.py -- --help
+          ffmpeg -version | head -n 1
       - name: Prepare Colab-compatible unified notebook
         if: steps.reserve-slot.outputs.should_run == 'true'
         run: |
@@ -195,26 +205,6 @@ jobs:
           out = Path("/tmp/tv_off_colab_unified.ipynb")
           out.write_text(json.dumps(nb, ensure_ascii=False), encoding="utf-8")
           print("Prepared", out, "cells=", len(nb.get("cells", [])))
-          PY
-      - name: Refuse to overlap an active Colab session
-        if: steps.reserve-slot.outputs.should_run == 'true'
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import re, subprocess
-          result = subprocess.run(
-              ["colab", "--auth", "oauth2", "sessions"],
-              capture_output=True, text=True, timeout=30,
-          )
-          output = result.stdout + "\n" + result.stderr
-          print(output)
-          if result.returncode != 0:
-              raise SystemExit("Unable to inspect active Colab sessions; refusing a second GPU allocation.")
-          names = ("tv-off-prod", "tv-off-unified")
-          active = [name for name in names if re.search(r"(?<![A-Za-z0-9_-])" + re.escape(name) + r"(?![A-Za-z0-9_-])", output)]
-          if active:
-              raise SystemExit("Existing TV OFF Colab session is still active: " + ", ".join(active))
-          print("No previous TV OFF Colab session is active.")
           PY
       - name: Allocate Colab T4
         id: allocate-colab
