@@ -307,10 +307,45 @@ jobs:
           out.write_text(json.dumps(nb, ensure_ascii=False), encoding="utf-8")
           print("Prepared", out, "cells=", len(nb.get("cells", [])))
           PY
-      - name: Allocate Colab T4
+      - name: Allocate Colab T4 (retry transient service errors)
         id: allocate-colab
         if: steps.reserve-slot.outputs.should_run == 'true'
-        run: colab --auth oauth2 new -s tv-off-prod --gpu T4
+        timeout-minutes: 12
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "Colab T4 allocation attempt $attempt/3"
+            set +e
+            ALLOC_LOG="$(timeout --signal=TERM --kill-after=20s 120s colab --auth oauth2 new -s tv-off-prod --gpu T4 2>&1)"
+            ALLOC_RC=$?
+            set -e
+            printf '%s\\n' "$ALLOC_LOG"
+            if [ "$ALLOC_RC" -eq 0 ]; then
+              echo "Colab T4 allocation succeeded."
+              exit 0
+            fi
+            echo "Colab allocation attempt $attempt failed with exit $ALLOC_RC; checking for an ambiguously-created session."
+            set +e
+            SESSIONS_OUTPUT="$(timeout 30s colab --auth oauth2 sessions 2>&1)"
+            SESSIONS_RC=$?
+            set -e
+            printf '%s\\n' "$SESSIONS_OUTPUT"
+            if [ "$SESSIONS_RC" -ne 0 ]; then
+              echo "Cannot verify Colab session state after allocation failure; refusing another allocation."
+              exit "$ALLOC_RC"
+            fi
+            if printf '%s\\n' "$SESSIONS_OUTPUT" | grep -Eq '(^|[^[:alnum:]_-])tv-off-prod([^[:alnum:]_-]|$)'; then
+              echo "The requested tv-off-prod session exists despite the allocation response; continuing with that single session."
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              delay=$((attempt * 30))
+              echo "No tv-off-prod session exists; retrying after ${delay}s."
+              sleep "$delay"
+            fi
+          done
+          echo "Colab T4 allocation failed after three bounded attempts."
+          exit 1
       - name: Execute unified ACE-Step + SDXL on Colab (safe retry)
         if: steps.reserve-slot.outputs.should_run == 'true'
         timeout-minutes: 50
