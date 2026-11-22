@@ -73,6 +73,7 @@ jobs:
               ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
           print("Validated publisher, Blender renderer, and Colab packaging Python syntax.")
           checked = 0
+          has_executable_sdxl = False
           for index, cell in enumerate(notebook.get("cells", [])):
               if cell.get("cell_type") != "code":
                   continue
@@ -80,11 +81,20 @@ jobs:
               source_text = "".join(source) if isinstance(source, list) else source
               if not isinstance(source_text, str):
                   raise SystemExit(f"Notebook cell {index} has invalid source")
-              ast.parse(source_text, filename=f"{path}:cell-{index}")
+              tree = ast.parse(source_text, filename=f"{path}:cell-{index}")
+              if (
+                  "AutoPipelineForText2Image" in source_text
+                  and "visual_file" in source_text
+                  and "landscape_file" in source_text
+                  and len(tree.body) >= 10
+              ):
+                  has_executable_sdxl = True
               checked += 1
           if checked < 2:
               raise SystemExit("Expected ACE-Step and SDXL executable notebook cells")
-          print(f"Validated Python syntax in {checked} notebook cells.")
+          if not has_executable_sdxl:
+              raise SystemExit("SDXL cell is missing executable visual-generation code; comment-only cells are rejected")
+          print(f"Validated Python syntax in {checked} notebook cells, including executable SDXL generation.")
           PY
       - name: Restore Colab CLI OAuth credentials
         if: always()
@@ -342,12 +352,19 @@ jobs:
           set -euo pipefail
           for attempt in 1 2 3; do
             echo "Colab packaging attempt $attempt/3"
-            if colab --auth oauth2 exec -s tv-off-prod --timeout 0 -f tools/colab_package_output.py; then
+            set +e
+            PACKAGE_LOG="$(colab --auth oauth2 exec -s tv-off-prod --timeout 0 -f tools/colab_package_output.py 2>&1)"
+            PACKAGE_RC=$?
+            set -e
+            printf '%s\\n' "$PACKAGE_LOG"
+            if [ "$PACKAGE_RC" -eq 0 ] && printf '%s\\n' "$PACKAGE_LOG" | grep -q 'COLAB_OUTPUT_PACKAGE_OK'; then
+              echo "Colab package success marker verified."
               exit 0
             fi
+            echo "Colab packaging attempt $attempt did not produce a verified archive."
             if [ "$attempt" -lt 3 ]; then sleep $((attempt * 15)); fi
           done
-          echo "Colab packaging failed after three attempts."
+          echo "Colab packaging failed after three verified attempts."
           exit 1
       - name: Download and verify Colab production assets
         if: steps.reserve-slot.outputs.should_run == 'true'
