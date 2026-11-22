@@ -313,13 +313,13 @@ jobs:
         run: colab --auth oauth2 new -s tv-off-prod --gpu T4
       - name: Execute unified ACE-Step + SDXL on Colab (safe retry)
         if: steps.reserve-slot.outputs.should_run == 'true'
-        timeout-minutes: 30
+        timeout-minutes: 50
         run: |
           set -euo pipefail
           for attempt in 1 2; do
             echo "Unified ACE-Step + SDXL execution attempt $attempt/2"
             set +e
-            colab --auth oauth2 exec -s tv-off-prod --timeout 0 -f /tmp/tv_off_colab_unified.ipynb
+            timeout --signal=TERM --kill-after=30s 20m colab --auth oauth2 exec -s tv-off-prod --timeout 0 -f /tmp/tv_off_colab_unified.ipynb
             rc=$?
             set -e
             if [ "$rc" -eq 0 ]; then
@@ -353,7 +353,7 @@ jobs:
           for attempt in 1 2 3; do
             echo "Colab packaging attempt $attempt/3"
             set +e
-            PACKAGE_LOG="$(colab --auth oauth2 exec -s tv-off-prod --timeout 0 -f tools/colab_package_output.py 2>&1)"
+            PACKAGE_LOG="$(timeout --signal=TERM --kill-after=30s 8m colab --auth oauth2 exec -s tv-off-prod --timeout 0 -f tools/colab_package_output.py 2>&1)"
             PACKAGE_RC=$?
             set -e
             printf '%s\\n' "$PACKAGE_LOG"
