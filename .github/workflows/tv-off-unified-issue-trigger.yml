@@ -1,7 +1,7 @@
 name: TV OFF Unified ACE-Step + SDXL — production publish
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '20 * * * *'
   issue_comment:
     types: [created]
 permissions:
