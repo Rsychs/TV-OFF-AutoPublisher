@@ -128,6 +128,12 @@ def main():
                 break
         else:
             raise RuntimeError("No unused public title variant remains; refusing a duplicate title.")
+    if resume_full_only:
+        # Recovery must keep the exact public title already used by the Short.
+        public_title = (
+            f"{str(existing_track.get('track_title', title)).strip()} | "
+            f"{str(existing_track.get('style', style_label)).strip()}"
+        )
     safe_title = public_title.replace("\\", "").replace("'", "").replace(":", " —").replace("%", " ").replace(",", " ").replace("[", "(").replace("]", ")")
     # Newly generated tracks must carry the exact visual rendered in the same ACE-Step run.
     bundled_visual = m.get("visual_file")
