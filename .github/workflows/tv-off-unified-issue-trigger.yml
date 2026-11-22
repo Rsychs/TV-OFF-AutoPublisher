@@ -9,11 +9,19 @@ on:
         required: false
         default: 'manual production launch'
         type: string
+  issue_comment:
+    types: [created]
 permissions:
   contents: write
   actions: read
 jobs:
   production-publish:
+    if: >-
+      github.event_name != 'issue_comment' ||
+      (github.event.issue.number == 15 &&
+       github.event.issue.pull_request == null &&
+       github.event.comment.user.login == 'Rsychs' &&
+       startsWith(github.event.comment.body, '/tv-off-music '))
     runs-on: ubuntu-latest
     timeout-minutes: 180
     concurrency:
@@ -23,6 +31,27 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: feature/colab-cli-gpu-worker
+      - name: Validate owner-issued TV OFF music command
+        if: github.event_name == 'issue_comment'
+        env:
+          TV_OFF_ISSUE_COMMAND: ${{ github.event.comment.body }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os, re
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          command = os.environ.get("TV_OFF_ISSUE_COMMAND", "")
+          match = re.fullmatch(r"/tv-off-music (\\d{8})-(\\d{2})", command)
+          if not match:
+              raise SystemExit("Issue command must exactly match /tv-off-music YYYYMMDD-HH.")
+          now = datetime.now(ZoneInfo("Europe/Riga"))
+          expected = now.strftime("%Y%m%d-") + f"{(now.hour // 3) * 3:02d}"
+          actual = match.group(1) + "-" + match.group(2)
+          if actual != expected:
+              raise SystemExit(f"Issue command slot {actual} is stale or future; current Riga slot is {expected}.")
+          print("Owner-authorized TV OFF music command validated for", expected)
+          PY
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
