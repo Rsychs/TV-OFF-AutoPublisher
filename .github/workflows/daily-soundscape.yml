@@ -1,9 +1,7 @@
 name: TV OFF — Variable-Duration Soundscape Video
 
 on:
-  issue_comment:
-    types: [created]
-
+  workflow_dispatch:
 permissions:
   contents: write
 
