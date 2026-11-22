@@ -1,8 +1,6 @@
 name: TV OFF Cloud Studio — room scene preview
 
 on:
-  issue_comment:
-    types: [created]
   workflow_dispatch:
     inputs:
       title:
