@@ -1,13 +1,7 @@
 name: TV OFF Music Library — Dropbox Stage Only
 
 on:
-  workflow_run:
-    workflows: ["TV OFF ACE-Step Kaggle GPU smoke test"]
-    types: [completed]
-    branches: [feature/kaggle-ace-step-provider]
-  issue_comment:
-    types: [created]
-
+  workflow_dispatch:
 permissions:
   actions: read
   contents: read
