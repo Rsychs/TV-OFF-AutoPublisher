@@ -369,7 +369,9 @@ def main():
             "short_video_sha256": video_hash, "full_video_sha256": full_video_hash,
             "visual_sha256": visual_hash, "blender_version": blender_version,
             "blender_render_sha256": blender_render_hash, "duration_seconds": duration,
-            "short_published_at": published, "full_upload_status": "pending"
+            "short_published_at": published,
+            "production_run_id": os.environ.get("GITHUB_RUN_ID", ""),
+            "full_upload_status": "pending"
         })
         state["published_tracks"] = state["published_tracks"][-500:]
         state["_last_published_at"] = published
