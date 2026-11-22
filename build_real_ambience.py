@@ -49,9 +49,12 @@ def main():
     for row in rows:
         kind = row["soundscape"].strip().lower()
         expected_platforms = {
-            "white_noise": "TV OFF / FFmpeg",
-            "brown_noise": "TV OFF / FFmpeg",
-            "original_music": "TV OFF / local synthesis",
+            "white_noise": {"TV OFF / FFmpeg"},
+            "brown_noise": {"TV OFF / FFmpeg"},
+            "original_music": {
+                "TV OFF / local synthesis",
+                "TV OFF / Stability AI Stable Audio API",
+            },
         }
         if kind not in expected_platforms:
             raise RuntimeError(f"Disallowed TV OFF category: {kind!r}")
@@ -61,8 +64,8 @@ def main():
         for field in ("file", "creator", "source_url", "license", "downloaded_at", "sha256"):
             if not item.get(field):
                 raise RuntimeError(f"{kind}: missing manifest field {field}")
-        if item.get("audio_type") != "synthetic" or item.get("platform") != expected_platforms[kind]:
-            raise RuntimeError(f"{kind}: only the approved local synthetic generator is allowed")
+        if item.get("audio_type") != "synthetic" or item.get("platform") not in expected_platforms[kind]:
+            raise RuntimeError(f"{kind}: audio source is not an approved TV OFF music/noise provider")
         source = (SOURCE_DIR / item["file"]).resolve()
         if not source.is_relative_to(SOURCE_DIR.resolve()) or not source.is_file():
             raise RuntimeError(f"{kind}: source audio is missing or outside the local audio directory")
