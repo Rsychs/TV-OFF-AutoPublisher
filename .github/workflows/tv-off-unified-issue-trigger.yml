@@ -236,19 +236,69 @@ jobs:
         id: allocate-colab
         if: steps.reserve-slot.outputs.should_run == 'true'
         run: colab --auth oauth2 new -s tv-off-prod --gpu T4
-      - name: Execute unified ACE-Step + SDXL on Colab
+      - name: Execute unified ACE-Step + SDXL on Colab (safe retry)
         if: steps.reserve-slot.outputs.should_run == 'true'
         timeout-minutes: 210
-        run: colab --auth oauth2 exec -s tv-off-prod --timeout 0 -f /tmp/tv_off_colab_unified.ipynb
-      - name: Package and verify generated assets on Colab
+        run: |
+          set -euo pipefail
+          for attempt in 1 2; do
+            echo "Unified ACE-Step + SDXL execution attempt $attempt/2"
+            set +e
+            colab --auth oauth2 exec -s tv-off-prod --timeout 0 -f /tmp/tv_off_colab_unified.ipynb
+            rc=$?
+            set -e
+            if [ "$rc" -eq 0 ]; then
+              echo "Unified Colab generation completed."
+              exit 0
+            fi
+            echo "Colab execution failed with exit $rc; stopping and verifying the session before any retry."
+            set +e
+            colab --auth oauth2 stop -s tv-off-prod
+            stop_rc=$?
+            sessions="$(colab --auth oauth2 sessions 2>&1)"
+            sessions_rc=$?
+            set -e
+            echo "$sessions"
+            if [ "$sessions_rc" -ne 0 ] || printf '%s\n' "$sessions" | grep -Eq '(^|[^[:alnum:]_-])tv-off-prod([^[:alnum:]_-]|$)'; then
+              echo "Could not confirm the failed Colab session is closed; refusing another GPU allocation."
+              exit "$rc"
+            fi
+            if [ "$attempt" -eq 2 ]; then
+              echo "Safe Colab execution retry budget exhausted."
+              exit "$rc"
+            fi
+            echo "Previous Colab session is confirmed closed; allocating one clean retry session."
+            colab --auth oauth2 new -s tv-off-prod --gpu T4
+          done
+      - name: Package and verify generated assets on Colab (retry transient CLI errors)
         if: steps.reserve-slot.outputs.should_run == 'true'
-        run: colab --auth oauth2 exec -s tv-off-prod --timeout 0 -f tools/colab_package_output.py
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "Colab packaging attempt $attempt/3"
+            if colab --auth oauth2 exec -s tv-off-prod --timeout 0 -f tools/colab_package_output.py; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 15)); fi
+          done
+          echo "Colab packaging failed after three attempts."
+          exit 1
       - name: Download and verify Colab production assets
         if: steps.reserve-slot.outputs.should_run == 'true'
         run: |
           set -euo pipefail
           mkdir -p colab-output
-          colab --auth oauth2 download -s tv-off-prod /content/tv_off_colab_dry_run.zip /tmp/tv_off_colab_production.zip
+          download_ok=false
+          for attempt in 1 2 3; do
+            echo "Colab artifact download attempt $attempt/3"
+            rm -f /tmp/tv_off_colab_production.zip
+            if timeout 180s colab --auth oauth2 download -s tv-off-prod /content/tv_off_colab_dry_run.zip /tmp/tv_off_colab_production.zip; then
+              download_ok=true
+              break
+            fi
+            sleep $((attempt * 15))
+          done
+          [ "$download_ok" = true ] || { echo "Colab artifact download failed after three attempts."; exit 1; }
           python - <<'PY'
           import zipfile, json, hashlib
           from pathlib import Path
