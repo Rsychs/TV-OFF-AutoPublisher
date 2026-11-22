@@ -139,43 +139,82 @@ def main():
     if m.get("visual_width") not in (None, 1080) or m.get("visual_height") not in (None, 1920):
         raise RuntimeError("Visual dimensions are not the required 1080x1920 vertical format")
 
-    # Render the Short's architectural scene with Blender after Colab has released
-    # its T4. Keep ACE-Step/SDXL generation untouched; the SDXL landscape artwork
-    # is displayed on the Blender-rendered television screen.
+    # Blender is attempted only after Colab has released its T4.
+    # A Blender failure must never discard a verified ACE-Step/SDXL release:
+    # fall back to the already hash-verified SDXL vertical artwork.
     blender_bin = shutil.which(os.environ.get("BLENDER_BIN", "blender"))
-    if not blender_bin:
-        raise RuntimeError("Blender executable is unavailable; refusing a non-Blender production render.")
-    blender_version_result = subprocess.run(
-        [blender_bin, "--version"], capture_output=True, text=True, check=True, timeout=30
-    )
-    blender_version = blender_version_result.stdout.splitlines()[0].strip()
+    blender_version = None
     blender_scene = OUT / f"blender_scene_{slot}.png"
-    visual_kind = str(m.get("kind") or m.get("category") or "original_music").strip().lower()
-    if visual_kind not in ("original_music", "brown_noise", "white_noise"):
-        visual_kind = "original_music"
-    render_command = [
-        blender_bin, "--background", "--python", str(ROOT / "scripts/render_tv_off_short_scene.py"), "--",
-        "--out", str(blender_scene), "--kind", visual_kind, "--slot", slot,
-        "--style", str(m.get("style", "Original Music")),
-        "--screen-image", str(full_scene),
-    ]
-    run(render_command)
-    if not blender_scene.is_file() or blender_scene.stat().st_size < 100000:
-        raise RuntimeError("Blender production render is missing or unexpectedly small.")
-    image_probe = subprocess.run(
-        ["ffprobe", "-v", "error", "-select_streams", "v:0",
-         "-show_entries", "stream=width,height", "-of", "json", str(blender_scene)],
-        capture_output=True, text=True, check=True,
-    )
-    image_streams = json.loads(image_probe.stdout).get("streams", [])
-    if not image_streams or (image_streams[0].get("width"), image_streams[0].get("height")) != (1080, 1920):
-        raise RuntimeError("Blender render must be exactly 1080x1920.")
-    blender_render_hash = sha256(blender_scene)
+    blender_manifest_path = OUT / f"blender_render_manifest_{slot}.json"
+    blender_invoked = False
+    blender_ok = False
+    blender_error = None
+    blender_render_hash = None
+    if blender_bin:
+        try:
+            version_result = subprocess.run(
+                [blender_bin, "--version"], capture_output=True, text=True,
+                check=True, timeout=30
+            )
+            blender_version = version_result.stdout.splitlines()[0].strip()
+            visual_kind = str(m.get("kind") or m.get("category") or "original_music").strip().lower()
+            if visual_kind not in ("original_music", "brown_noise", "white_noise"):
+                visual_kind = "original_music"
+            render_command = [
+                blender_bin, "--background", "--python", str(ROOT / "scripts/render_tv_off_short_scene.py"), "--",
+                "--out", str(blender_scene), "--kind", visual_kind, "--slot", slot,
+                "--style", str(m.get("style", "Original Music")),
+                "--screen-image", str(full_scene),
+            ]
+            print("BLENDER_PRODUCTION_RENDER_START:", " ".join(render_command), flush=True)
+            blender_invoked = True
+            render_result = subprocess.run(
+                render_command, capture_output=True, text=True, timeout=900
+            )
+            if render_result.stdout:
+                print(render_result.stdout, flush=True)
+            if render_result.stderr:
+                print(render_result.stderr[-6000:], flush=True)
+            if render_result.returncode != 0:
+                raise RuntimeError(f"Blender exited with code {render_result.returncode}")
+            if not blender_scene.is_file() or blender_scene.stat().st_size < 100000:
+                raise RuntimeError("Blender render is missing or unexpectedly small")
+            image_probe = subprocess.run(
+                ["ffprobe", "-v", "error", "-select_streams", "v:0",
+                 "-show_entries", "stream=width,height", "-of", "json", str(blender_scene)],
+                capture_output=True, text=True, check=True, timeout=30,
+            )
+            image_streams = json.loads(image_probe.stdout).get("streams", [])
+            if not image_streams or (image_streams[0].get("width"), image_streams[0].get("height")) != (1080, 1920):
+                raise RuntimeError("Blender render must be exactly 1080x1920")
+            blender_render_hash = sha256(blender_scene)
+            blender_ok = True
+            print(
+                f"BLENDER_PRODUCTION_RENDER_OK: {blender_version} | {blender_scene.name} | "
+                f"sha256={blender_render_hash}",
+                flush=True,
+            )
+        except Exception as exc:
+            blender_error = f"{type(exc).__name__}: {exc}"
+            print("BLENDER_RENDER_FAILED; continuing with verified SDXL vertical artwork:", blender_error, flush=True)
+    else:
+        blender_error = "Blender executable not installed on this runner"
+        print("BLENDER_NOT_AVAILABLE; continuing with verified SDXL vertical artwork.", flush=True)
+
+    if blender_ok:
+        short_scene = blender_scene
+    else:
+        short_scene = scene
+        print(f"SDXL_FALLBACK_VISUAL_OK: {short_scene.name} | sha256={visual_hash}", flush=True)
+
     blender_manifest = {
-        "renderer": "Blender",
+        "renderer": "Blender" if blender_ok else "SDXL fallback",
+        "blender_invoked": blender_invoked,
+        "blender_ok": blender_ok,
         "blender_version": blender_version,
-        "render_file": blender_scene.name,
-        "render_sha256": blender_render_hash,
+        "blender_error": blender_error,
+        "render_file": short_scene.name,
+        "render_sha256": sha256(short_scene),
         "width": 1080,
         "height": 1920,
         "audio_sha256": audio_hash,
@@ -185,12 +224,8 @@ def main():
         "title": title,
         "rendered_at": datetime.now(timezone.utc).isoformat(),
     }
-    blender_manifest_path = OUT / f"blender_render_manifest_{slot}.json"
     blender_manifest_path.write_text(json.dumps(blender_manifest, indent=2), encoding="utf-8")
-    print(
-        f"BLENDER_PRODUCTION_RENDER_OK: {blender_version} | {blender_scene.name} | "
-        f"sha256={blender_render_hash}"
-    )
+    print("PRODUCTION_VISUAL_RENDER_MANIFEST:", json.dumps(blender_manifest, ensure_ascii=False), flush=True)
 
     # Pure visual Short: one still image + original music. No text, logo, waveform,
     # progress bar, overlays, or camera movement.
@@ -199,7 +234,7 @@ def main():
         "crop=1080:1920,setsar=1,eq=contrast=1.04:saturation=1.08,format=yuv420p"
     )
     run([
-        "ffmpeg", "-y", "-hide_banner", "-loop", "1", "-framerate", "30", "-i", str(blender_scene),
+        "ffmpeg", "-y", "-hide_banner", "-loop", "1", "-framerate", "30", "-i", str(short_scene),
         "-ss", f"{clip_start:.3f}", "-i", str(audio), "-vf", video_filter,
         "-map", "0:v:0", "-map", "1:a:0", "-t", str(DURATION),
         "-af", "afade=t=in:st=0:d=0.35,afade=t=out:st=28.8:d=1.2,loudnorm=I=-16:TP=-1.5:LRA=11",
