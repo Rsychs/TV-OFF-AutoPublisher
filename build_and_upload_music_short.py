@@ -36,32 +36,32 @@ def sha256(path):
     return h.hexdigest()
 
 def public_genre_label(style):
-    value = re.sub(r"\\s+", " ", str(style or "")).strip()
+    value = re.sub(r"\s+", " ", str(style or "")).strip()
     lower = value.casefold()
     rules = [
-        (r"\\blo[\\s-]?fi\\b", "Lo-fi"),
-        (r"\\bjazz\\b", "Jazz"),
-        (r"\\belectro(?:nic)?\\b", "Electro Instrumental"),
-        (r"\\b(?:korean\\s+)?gugak\\b|\\bjeongak\\b", "Korean Gugak"),
-        (r"\\bafro[- ]cuban\\b|\\bson\\s+montuno\\b", "Afro-Cuban Son Montuno"),
-        (r"\\bambient\\b", "Ambient"),
-        (r"\\bsynthwave\\b", "Synthwave"),
-        (r"\\bclassical\\b", "Classical"),
-        (r"\\bdrum\\s*(?:and|&)\\s*bass\\b|\\bdnb\\b", "Drum & Bass"),
-        (r"\\bhip[- ]hop\\b", "Hip-Hop"),
-        (r"\\bhouse\\b", "House"),
-        (r"\\btrance\\b", "Trance"),
-        (r"\\breggae\\b", "Reggae"),
-        (r"\\bblues\\b", "Blues"),
-        (r"\\bafrobeat\\b", "Afrobeat"),
-        (r"\\bfolk\\b", "Folk"),
+        (r"\blo[\s-]?fi\b", "Lo-fi"),
+        (r"\bjazz\b", "Jazz"),
+        (r"\belectro(?:nic)?\b", "Electro Instrumental"),
+        (r"\b(?:korean\s+)?gugak\b|\bjeongak\b", "Korean Gugak"),
+        (r"\bafro[- ]cuban\b|\bson\s+montuno\b", "Afro-Cuban Son Montuno"),
+        (r"\bambient\b", "Ambient"),
+        (r"\bsynthwave\b", "Synthwave"),
+        (r"\bclassical\b", "Classical"),
+        (r"\bdrum\s*(?:and|&)\s*bass\b|\bdnb\b", "Drum & Bass"),
+        (r"\bhip[- ]hop\b", "Hip-Hop"),
+        (r"\bhouse\b", "House"),
+        (r"\btrance\b", "Trance"),
+        (r"\breggae\b", "Reggae"),
+        (r"\bblues\b", "Blues"),
+        (r"\bafrobeat\b", "Afrobeat"),
+        (r"\bfolk\b", "Folk"),
     ]
     for pattern, label in rules:
         if re.search(pattern, lower):
             return label
     first = re.split(r"[;,/|]", value, maxsplit=1)[0]
-    first = re.sub(r"\\binstrumental\\b", "", first, flags=re.IGNORECASE)
-    first = re.sub(r"\\s+", " ", first).strip(" -—")
+    first = re.sub(r"\binstrumental\b", "", first, flags=re.IGNORECASE)
+    first = re.sub(r"\s+", " ", first).strip(" -—")
     label = " ".join(first.split()[:4]).strip()
     if len(label) > 32:
         label = label[:32].rsplit(" ", 1)[0] or label[:32]
@@ -70,8 +70,8 @@ def public_genre_label(style):
     return label
 
 def youtube_title(base, genre, ending):
-    base = re.sub(r"\\s+", " ", str(base or "")).strip()
-    genre = re.sub(r"\\s+", " ", str(genre or "")).strip()
+    base = re.sub(r"\s+", " ", str(base or "")).strip()
+    genre = re.sub(r"\s+", " ", str(genre or "")).strip()
     if not base or not genre:
         raise RuntimeError("A public title requires both a track name and a genre.")
     suffix = f" | {genre}{ending}"
