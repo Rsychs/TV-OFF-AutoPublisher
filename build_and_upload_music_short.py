@@ -45,8 +45,8 @@ def probe_duration(path):
         [FFMPEG, "-hide_banner", "-i", str(path), "-t", "0", "-f", "null", "-"],
         capture_output=True, text=True, timeout=60,
     )
-    output = result.stderr + "\\n" + result.stdout
-    match = re.search(r"Duration:\\s*(\\d{2}):(\\d{2}):(\\d{2}(?:\\.\\d+)?)", output)
+    output = result.stderr + "\n" + result.stdout
+    match = re.search(r"Duration:\s*(\d{2}):(\d{2}):(\d{2}(?:\.\d+)?)", output)
     if not match:
         raise RuntimeError(f"Could not read media duration from bundled FFmpeg: {path}")
     hours, minutes, seconds = match.groups()
