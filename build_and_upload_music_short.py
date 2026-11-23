@@ -9,6 +9,9 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+import imageio_ffmpeg
+from PIL import Image
+
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
@@ -24,9 +27,30 @@ PUBLISH_MODE = os.environ.get("PUBLISH_MODE", "publish").strip().lower()
 if PUBLISH_MODE not in {"dry_run", "publish"}:
     raise RuntimeError("PUBLISH_MODE must be dry_run or publish")
 
+FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
+if not Path(FFMPEG).is_file():
+    raise RuntimeError("Bundled imageio-ffmpeg executable is missing")
+
 def run(args):
-    print("RUN:", " ".join(map(str, args)), flush=True)
+    args = list(map(str, args))
+    if args and args[0] == "ffmpeg":
+        args[0] = FFMPEG
+    print("RUN:", " ".join(args), flush=True)
     subprocess.run(args, check=True, timeout=1800)
+
+def probe_duration(path):
+    # imageio-ffmpeg bundles a static binary; do not rely on a separate system
+    # media-probe executable that is absent from some GitHub-hosted runner images.
+    result = subprocess.run(
+        [FFMPEG, "-hide_banner", "-i", str(path), "-t", "0", "-f", "null", "-"],
+        capture_output=True, text=True, timeout=60,
+    )
+    output = result.stderr + "\\n" + result.stdout
+    match = re.search(r"Duration:\\s*(\\d{2}):(\\d{2}):(\\d{2}(?:\\.\\d+)?)", output)
+    if not match:
+        raise RuntimeError(f"Could not read media duration from bundled FFmpeg: {path}")
+    hours, minutes, seconds = match.groups()
+    return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
 
 def sha256(path):
     h = hashlib.sha256()
@@ -274,13 +298,9 @@ def main():
                 raise RuntimeError(f"Blender exited with code {render_result.returncode}")
             if not blender_scene.is_file() or blender_scene.stat().st_size < 100000:
                 raise RuntimeError("Blender render is missing or unexpectedly small")
-            image_probe = subprocess.run(
-                ["ffprobe", "-v", "error", "-select_streams", "v:0",
-                 "-show_entries", "stream=width,height", "-of", "json", str(blender_scene)],
-                capture_output=True, text=True, check=True, timeout=30,
-            )
-            image_streams = json.loads(image_probe.stdout).get("streams", [])
-            if not image_streams or (image_streams[0].get("width"), image_streams[0].get("height")) != (1080, 1920):
+            with Image.open(blender_scene) as rendered_image:
+                image_size = rendered_image.size
+            if image_size != (1080, 1920):
                 raise RuntimeError("Blender render must be exactly 1080x1920")
             blender_render_hash = sha256(blender_scene)
             blender_ok = True
@@ -338,10 +358,7 @@ def main():
     ])
     if not video.is_file() or video.stat().st_size < 100000:
         raise RuntimeError("Rendered music Short is missing or unexpectedly small")
-    probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
-                            "-of", "default=noprint_wrappers=1:nokey=1", str(video)],
-                           capture_output=True, text=True, check=True)
-    if abs(float(probe.stdout.strip()) - DURATION) > 0.15:
+    if abs(probe_duration(video) - DURATION) > 0.15:
         raise RuntimeError(f"Rendered Short duration is not {DURATION} seconds")
     # Full-track companion: landscape 16:9, same artwork, static frame, complete original audio.
     full_filter = (
@@ -358,10 +375,7 @@ def main():
     ])
     if not full_video.is_file() or full_video.stat().st_size < 100000:
         raise RuntimeError("Rendered full-track video is missing or unexpectedly small")
-    full_probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
-                                 "-of", "default=noprint_wrappers=1:nokey=1", str(full_video)],
-                                capture_output=True, text=True, check=True)
-    if abs(float(full_probe.stdout.strip()) - duration) > 0.5:
+    if abs(probe_duration(full_video) - duration) > 0.5:
         raise RuntimeError("Full-track video duration does not match source audio")
     full_video_hash = sha256(full_video)
 
