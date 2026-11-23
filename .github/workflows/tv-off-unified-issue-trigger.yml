@@ -279,13 +279,30 @@ jobs:
         timeout-minutes: 20
         run: |
           set -euo pipefail
-          # Pin to Ubuntu 24.04, whose hosted image includes FFmpeg.
-          if ! command -v ffmpeg >/dev/null 2>&1; then
-            echo "FFmpeg is missing from the runner image; refusing packaging without the required binary."
-            exit 1
-          fi
-          ffmpeg -version | head -n 1
+          # Use the pinned imageio-ffmpeg wheel instead of assuming the hosted
+          # Ubuntu image has system FFmpeg/ffprobe preinstalled.
           python -m pip install --disable-pip-version-check --retries 3 --timeout 30 -r requirements.txt
+          python - <<'PY'
+          import subprocess
+          from pathlib import Path
+          import imageio_ffmpeg
+          from PIL import Image
+          ffmpeg = Path(imageio_ffmpeg.get_ffmpeg_exe())
+          if not ffmpeg.is_file():
+              raise SystemExit("Bundled imageio-ffmpeg executable is missing")
+          version = subprocess.run([str(ffmpeg), "-version"], capture_output=True, text=True, check=True, timeout=30)
+          encoders = subprocess.run([str(ffmpeg), "-hide_banner", "-encoders"], capture_output=True, text=True, check=True, timeout=30)
+          filters = subprocess.run([str(ffmpeg), "-hide_banner", "-filters"], capture_output=True, text=True, check=True, timeout=30)
+          available = encoders.stdout + encoders.stderr
+          available_filters = filters.stdout + filters.stderr
+          for required in ("libx264", "aac"):
+              if required not in available:
+                  raise SystemExit(f"Bundled FFmpeg is missing required encoder: {required}")
+          if "loudnorm" not in available_filters:
+              raise SystemExit("Bundled FFmpeg is missing the required loudnorm filter")
+          print(version.stdout.splitlines()[0])
+          print("Bundled FFmpeg, libx264, AAC, loudnorm, and Pillow image validation are ready.")
+          PY
       - name: Prepare Colab-compatible unified notebook
         if: steps.reserve-slot.outputs.should_run == 'true'
         run: |
