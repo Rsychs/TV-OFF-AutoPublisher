@@ -22,7 +22,7 @@ jobs:
        github.event.issue.pull_request == null &&
        github.event.comment.user.login == 'Rsychs' &&
        startsWith(github.event.comment.body, '/tv-off-music '))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 180
     concurrency:
       group: tv-off-single-video
@@ -279,8 +279,11 @@ jobs:
         timeout-minutes: 20
         run: |
           set -euo pipefail
-          # GitHub-hosted Ubuntu runners already include FFmpeg; avoid a slow apt index refresh.
-          command -v ffmpeg
+          # Pin to Ubuntu 24.04, whose hosted image includes FFmpeg.
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            echo "FFmpeg is missing from the runner image; refusing packaging without the required binary."
+            exit 1
+          fi
           ffmpeg -version | head -n 1
           python -m pip install --disable-pip-version-check --retries 3 --timeout 30 -r requirements.txt
       - name: Prepare Colab-compatible unified notebook
