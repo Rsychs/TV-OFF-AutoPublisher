@@ -23,7 +23,21 @@ jobs:
           python-version: "3.12"
       - name: Install media tools
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - name: Compile
-        run: python -m py_compile longform/assemble_longform.py longform/section_plan.py longform/generate_sections_colab.py tests/test_longform_assembler.py
+      - name: Compile and validate notebook/workflow syntax
+        run: |
+          python -m py_compile longform/assemble_longform.py longform/section_plan.py longform/generate_sections_colab.py tests/test_longform_assembler.py
+          python -m pip install --disable-pip-version-check --quiet pyyaml
+          python - <<'PY'
+          import ast, json, yaml
+          from pathlib import Path
+          notebook=json.loads(Path("longform/longform_colab_dry_run.ipynb").read_text(encoding="utf-8"))
+          assert notebook.get("nbformat")==4
+          for i,cell in enumerate(notebook.get("cells",[])):
+              if cell.get("cell_type")=="code":
+                  source=cell.get("source",[])
+                  ast.parse("".join(source) if isinstance(source,list) else source, filename=f"longform-notebook-cell-{i}")
+          yaml.safe_load(Path(".github/workflows/tv-off-longform-dry-run.yml").read_text(encoding="utf-8"))
+          print("Long-form notebook cells and workflow YAML parsed successfully.")
+          PY
       - name: Unit tests
         run: python -m unittest discover -s tests -p "test_longform_assembler.py" -v
