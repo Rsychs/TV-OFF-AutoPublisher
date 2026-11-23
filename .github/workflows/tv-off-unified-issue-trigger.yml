@@ -279,10 +279,10 @@ jobs:
         timeout-minutes: 20
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-          python -m pip install -r requirements.txt
+          # GitHub-hosted Ubuntu runners already include FFmpeg; avoid a slow apt index refresh.
+          command -v ffmpeg
           ffmpeg -version | head -n 1
+          python -m pip install --disable-pip-version-check --retries 3 --timeout 30 -r requirements.txt
       - name: Prepare Colab-compatible unified notebook
         if: steps.reserve-slot.outputs.should_run == 'true'
         run: |
@@ -473,14 +473,8 @@ jobs:
             blender --version
             exit 0
           fi
-          sudo apt-get update
-          sudo apt-get install -y blender
-          RC=$?
-          if [ "$RC" -ne 0 ]; then
-            echo "Blender installation unavailable; publisher will use the verified SDXL visual fallback."
-            exit 0
-          fi
-          blender --version || true
+          echo "Blender is not preinstalled on this runner; using the verified SDXL visual fallback."
+          exit 0
 
       - name: Download original Colab artifact for pending-pair recovery
         if: steps.reserve-slot.outputs.should_resume_pending == 'true'
