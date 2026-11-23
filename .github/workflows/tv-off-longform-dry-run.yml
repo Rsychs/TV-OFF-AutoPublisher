@@ -131,24 +131,6 @@ jobs:
         timeout-minutes: 210
         run: colab --auth oauth2 exec -s tv-off-prod --timeout 0 -f longform/longform_colab_dry_run.ipynb
 
-      - name: Always release and verify shared Colab T4
-        if: always() && steps.allocate.outcome != 'skipped'
-        run: |
-          set +e
-          colab --auth oauth2 stop -s tv-off-prod
-          timeout 30s colab --auth oauth2 sessions
-          rc=$?
-          set -e
-          if [ "$rc" -ne 0 ]; then
-            echo "Could not verify Colab session closure."
-            exit 1
-          fi
-          if timeout 30s colab --auth oauth2 sessions 2>&1 | grep -Eq '(^|[^[:alnum:]_-])tv-off-prod([^[:alnum:]_-]|$)'; then
-            echo "Colab T4 is still active; refusing downstream render."
-            exit 1
-          fi
-          echo "Colab T4 release verified."
-
       - name: Download and verify Colab dry-run package
         run: |
           set -euo pipefail
@@ -183,6 +165,24 @@ jobs:
               raise SystemExit("Native 16:9 SDXL visual failed verification.")
           print("COLAB LONGFORM SOURCES VERIFIED:",len(hashes),"unique sections.")
           PY
+
+      - name: Always release and verify shared Colab T4
+        if: always() && steps.allocate.outcome != 'skipped'
+        run: |
+          set +e
+          colab --auth oauth2 stop -s tv-off-prod
+          timeout 30s colab --auth oauth2 sessions
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            echo "Could not verify Colab session closure."
+            exit 1
+          fi
+          if timeout 30s colab --auth oauth2 sessions 2>&1 | grep -Eq '(^|[^[:alnum:]_-])tv-off-prod([^[:alnum:]_-]|$)'; then
+            echo "Colab T4 is still active; refusing downstream render."
+            exit 1
+          fi
+          echo "Colab T4 release verified."
 
       - name: Install FFmpeg
         run: |
