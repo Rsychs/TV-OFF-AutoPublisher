@@ -9,7 +9,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import math
 import secrets
 import shutil
 from pathlib import Path
@@ -17,14 +16,13 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 import torch
+from section_plan import required_sections, unique_title
 from acestep.handler import AceStepHandler
 from acestep.inference import GenerationConfig, GenerationParams, generate_music
 
 SECTION_SECONDS = 204
 SAMPLE_RATE = 48000
 CHANNELS = 2
-TARGET_HOURS = (1, 3, 8, 10)
-CROSSFADE_SECONDS = 2.0
 
 GENRES = {
     "Jazz": {
@@ -50,21 +48,6 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1 << 20), b""):
             h.update(chunk)
     return h.hexdigest()
-
-def required_sections(hours: int) -> int:
-    if hours not in TARGET_HOURS:
-        raise ValueError(f"Unsupported target duration: {hours}h")
-    # Ensure enough independent source time after every crossfade.
-    return math.ceil((hours * 3600) / (SECTION_SECONDS - CROSSFADE_SECONDS))
-
-def unique_title(genre: str, used: set[str], ordinal: int) -> str:
-    options = GENRES[genre]["titles"]
-    for offset in range(len(options)):
-        candidate = options[(ordinal + offset) % len(options)]
-        if candidate not in used:
-            used.add(candidate)
-            return candidate
-    raise RuntimeError(f"Exhausted unique title pool for {genre}; refusing repeated metadata.")
 
 def generate(hours: int, output: Path) -> dict:
     count = required_sections(hours)
@@ -100,7 +83,7 @@ def generate(hours: int, output: Path) -> dict:
         while seed in used_seeds:
             seed = secrets.randbelow(2**31 - 1) + 1
         used_seeds.add(seed)
-        title = unique_title(genre_name, used_titles, index // len(genres))
+        title = unique_title(genre_name, used_titles, index // len(genres), {name: data["titles"] for name, data in GENRES.items()})
         bpm = genre["bpm"][secrets.randbelow(len(genre["bpm"]))]
         section_dir = output / f"section-{index + 1:03d}"
         section_dir.mkdir(parents=True, exist_ok=False)
@@ -212,7 +195,7 @@ def generate(hours: int, output: Path) -> dict:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--hours", type=int, choices=TARGET_HOURS, required=True)
+    parser.add_argument("--hours", type=int, choices=(1, 3, 8, 10), required=True)
     parser.add_argument("--output", type=Path, default=Path("/content/longform-sections"))
     args = parser.parse_args()
     print(json.dumps(generate(args.hours, args.output), indent=2, ensure_ascii=False))
