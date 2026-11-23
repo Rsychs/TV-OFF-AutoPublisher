@@ -1,6 +1,7 @@
 import importlib.util
 import tempfile
 import unittest
+import importlib.util
 from pathlib import Path
 from unittest.mock import patch
 
@@ -50,3 +51,24 @@ class LongformValidationTests(unittest.TestCase):
 
 if __name__=="__main__":
     unittest.main()
+
+PLAN = Path(__file__).parents[1] / "longform" / "section_plan.py"
+plan_spec = importlib.util.spec_from_file_location("section_plan", PLAN)
+plan = importlib.util.module_from_spec(plan_spec)
+plan_spec.loader.exec_module(plan)
+
+class SectionPlanTests(unittest.TestCase):
+    def test_required_section_counts_cover_each_target(self):
+        expected = {1: 18, 3: 54, 8: 143, 10: 179}
+        for hours, count in expected.items():
+            self.assertEqual(plan.required_sections(hours), count)
+
+    def test_title_labels_remain_unique_for_ten_hour_mix(self):
+        titles = {"Jazz": [f"Jazz {i}" for i in range(12)]}
+        used = set()
+        generated = [plan.unique_title("Jazz", used, i, titles) for i in range(60)]
+        self.assertEqual(len(generated), len(set(generated)))
+
+    def test_rejects_unsupported_duration(self):
+        with self.assertRaises(ValueError):
+            plan.required_sections(2)
