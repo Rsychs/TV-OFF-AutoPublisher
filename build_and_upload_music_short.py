@@ -35,6 +35,57 @@ def sha256(path):
             h.update(chunk)
     return h.hexdigest()
 
+def public_genre_label(style):
+    value = re.sub(r"\\s+", " ", str(style or "")).strip()
+    lower = value.casefold()
+    rules = [
+        (r"\\blo[\\s-]?fi\\b", "Lo-fi"),
+        (r"\\bjazz\\b", "Jazz"),
+        (r"\\belectro(?:nic)?\\b", "Electro Instrumental"),
+        (r"\\b(?:korean\\s+)?gugak\\b|\\bjeongak\\b", "Korean Gugak"),
+        (r"\\bafro[- ]cuban\\b|\\bson\\s+montuno\\b", "Afro-Cuban Son Montuno"),
+        (r"\\bambient\\b", "Ambient"),
+        (r"\\bsynthwave\\b", "Synthwave"),
+        (r"\\bclassical\\b", "Classical"),
+        (r"\\bdrum\\s*(?:and|&)\\s*bass\\b|\\bdnb\\b", "Drum & Bass"),
+        (r"\\bhip[- ]hop\\b", "Hip-Hop"),
+        (r"\\bhouse\\b", "House"),
+        (r"\\btrance\\b", "Trance"),
+        (r"\\breggae\\b", "Reggae"),
+        (r"\\bblues\\b", "Blues"),
+        (r"\\bafrobeat\\b", "Afrobeat"),
+        (r"\\bfolk\\b", "Folk"),
+    ]
+    for pattern, label in rules:
+        if re.search(pattern, lower):
+            return label
+    first = re.split(r"[;,/|]", value, maxsplit=1)[0]
+    first = re.sub(r"\\binstrumental\\b", "", first, flags=re.IGNORECASE)
+    first = re.sub(r"\\s+", " ", first).strip(" -—")
+    label = " ".join(first.split()[:4]).strip()
+    if len(label) > 32:
+        label = label[:32].rsplit(" ", 1)[0] or label[:32]
+    if not label or label.casefold() in {"music", "original music", "instrumental", "instrumental music"}:
+        raise RuntimeError(f"Cannot identify a public genre from manifest style: {style!r}")
+    return label
+
+def youtube_title(base, genre, ending):
+    base = re.sub(r"\\s+", " ", str(base or "")).strip()
+    genre = re.sub(r"\\s+", " ", str(genre or "")).strip()
+    if not base or not genre:
+        raise RuntimeError("A public title requires both a track name and a genre.")
+    suffix = f" | {genre}{ending}"
+    available = 100 - len(suffix)
+    if available < 1:
+        raise RuntimeError("Genre label leaves no room for a YouTube title.")
+    base = base[:available].rstrip(" —-|")
+    if not base:
+        raise RuntimeError("Track title is empty after enforcing YouTube's 100-character limit.")
+    result = f"{base}{suffix}"
+    if len(result) > 100 or genre not in result:
+        raise RuntimeError("Could not preserve the genre within YouTube's 100-character title limit.")
+    return result
+
 def main():
     manifests = list(AUDIO_DIR.rglob("ace_step_smoke_result.json"))
     if len(manifests) != 1:
@@ -107,33 +158,49 @@ def main():
     style_label = re.sub(r"\s+", " ", str(m["style"])).strip()
     if re.search(r"\d", title):
         raise RuntimeError("Public YouTube title must not contain digits; refusing upload.")
-    # Every public title must name its actual genre. Avoid reusing a previously
-    # published title by adding a natural, non-numeric session subtitle.
+    # Keep a concise genre label at the end of both public titles. The title
+    # formatter reserves space for the genre and suffix before truncating the name.
+    genre_label = public_genre_label(style_label)
     title_variants = [
         "Late Night Session", "After Hours", "The Evening Edit",
         "A Different Perspective", "The Quiet Session", "Midnight Edition",
         "An Intimate Performance", "City Lights Session", "The Sunday Session",
         "A New Chapter", "The Night Shift", "The Listening Room"
     ]
-    prior_titles = {
-        f"{str(item.get('track_title', '')).strip()} | {str(item.get('style', '')).strip()}"
-        for item in tracks if isinstance(item, dict)
-    }
-    public_title = f"{title} | {style_label}"
-    if public_title in prior_titles:
-        for variant in title_variants:
-            candidate = f"{title} — {variant} | {style_label}"
-            if candidate not in prior_titles:
-                public_title = candidate
-                break
-        else:
-            raise RuntimeError("No unused public title variant remains; refusing a duplicate title.")
-    if resume_full_only:
-        # Recovery must keep the exact public title already used by the Short.
-        public_title = (
-            f"{str(existing_track.get('track_title', title)).strip()} | "
-            f"{str(existing_track.get('style', style_label)).strip()}"
+    def title_pair(base, genre):
+        return (
+            youtube_title(base, genre, " #Shorts"),
+            youtube_title(base, genre, " — Full Track"),
         )
+    prior_title_pairs = set()
+    for item in tracks:
+        if not isinstance(item, dict):
+            continue
+        previous_base = str(item.get("track_title", "")).strip()
+        previous_style = str(item.get("style", "")).strip()
+        if not previous_base or not previous_style:
+            continue
+        try:
+            previous_genre = str(item.get("public_genre") or public_genre_label(previous_style))
+            prior_title_pairs.add(title_pair(previous_base, previous_genre))
+        except RuntimeError:
+            continue
+    title_component = title
+    if resume_full_only:
+        # Recovery keeps the exact title component and genre already used by the Short.
+        title_component = str(existing_track.get("track_title", title)).strip()
+        genre_label = str(existing_track.get("public_genre") or public_genre_label(existing_track.get("style", style_label)))
+        existing_track["public_genre"] = genre_label
+    else:
+        if title_pair(title_component, genre_label) in prior_title_pairs:
+            for variant in title_variants:
+                candidate = f"{title} — {variant}"
+                if title_pair(candidate, genre_label) not in prior_title_pairs:
+                    title_component = candidate
+                    break
+            else:
+                raise RuntimeError("No unused public title variant remains; refusing a duplicate title.")
+    public_title = f"{title_component} | {genre_label}"
     safe_title = public_title.replace("\\", "").replace("'", "").replace(":", " —").replace("%", " ").replace(",", " ").replace("[", "(").replace("]", ")")
     # Newly generated tracks must carry the exact visual rendered in the same ACE-Step run.
     bundled_visual = m.get("visual_file")
@@ -334,7 +401,7 @@ def main():
     )
     creds.refresh(Request())
     youtube = build("youtube", "v3", credentials=creds)
-    short_title = f"{public_title[:85]} #Shorts"
+    short_title = youtube_title(title_component, genre_label, " #Shorts")
     follow_description = (
         "Follow TV OFF for more original music and new instrumental soundscapes.\\n\\n"
         f"Original composition: {title}\\n"
@@ -342,7 +409,7 @@ def main():
         "New music. New atmospheres. Stay tuned.\\n\\n"
         "#Shorts #OriginalMusic #InstrumentalMusic #TVOFF"
     )
-    full_title = f"{public_title[:78]} — Full Track"
+    full_title = youtube_title(title_component, genre_label, " — Full Track")
     full_description = (
         "Listen to the complete original composition.\\n\\n"
         "Follow TV OFF for more original music and new instrumental soundscapes.\\n\\n"
@@ -393,7 +460,7 @@ def main():
         state["_published_video_sha256"] = list(dict.fromkeys(state["_published_video_sha256"]))[-500:]
         state.setdefault("published_tracks", []).append({
             "short_video_id": short_id, "short_url": short_url,
-            "track_title": public_title.rsplit(" | ", 1)[0], "style": style_label, "audio_sha256": audio_hash,
+            "track_title": title_component, "style": style_label, "public_genre": genre_label, "audio_sha256": audio_hash,
             "short_video_sha256": video_hash, "full_video_sha256": full_video_hash,
             "visual_sha256": visual_hash, "blender_version": blender_version,
             "blender_render_sha256": blender_render_hash, "duration_seconds": duration,
