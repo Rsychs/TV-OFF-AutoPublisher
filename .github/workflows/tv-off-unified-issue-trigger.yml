@@ -391,14 +391,21 @@ jobs:
           SESSION_ROW_RE='(^[[:space:]]*\[\?\]|Hardware:|Variant:|Shape:|tv-off-prod|tv-off-unified|gpu-[A-Za-z0-9_-]+)'
           for attempt in 1 2; do
             echo "Unified ACE-Step + SDXL execution attempt $attempt/2"
+            EXEC_LOG="$(mktemp)"
             set +e
-            timeout --signal=TERM --kill-after=30s 20m colab --auth oauth2 exec -s tv-off-prod --timeout 0 -f /tmp/tv_off_colab_unified.ipynb
-            rc=$?
+            timeout --signal=TERM --kill-after=30s 20m colab --auth oauth2 exec -s tv-off-prod --timeout 0 -f /tmp/tv_off_colab_unified.ipynb 2>&1 | tee "$EXEC_LOG"
+            rc=${PIPESTATUS[0]}
             set -e
-            if [ "$rc" -eq 0 ]; then
-              echo "Unified Colab generation completed."
+            if [ "$rc" -eq 0 ] && grep -Fq "PRODUCTION MUSIC GENERATED AND VALIDATED" "$EXEC_LOG"; then
+              rm -f "$EXEC_LOG"
+              echo "Unified Colab generation completed and its production success marker was verified."
               exit 0
             fi
+            if [ "$rc" -eq 0 ]; then
+              echo "Colab CLI returned success without the notebook production marker; treating the notebook as failed."
+              rc=1
+            fi
+            rm -f "$EXEC_LOG"
             echo "Colab execution failed with exit $rc; stopping and verifying every active session before any retry."
             set +e
             colab --auth oauth2 stop -s tv-off-prod
