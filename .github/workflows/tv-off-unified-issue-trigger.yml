@@ -170,8 +170,8 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           import re, subprocess, time
-          names = ("tv-off-prod", "tv-off-unified")
-          pattern = re.compile(r"(?<![A-Za-z0-9_-])(?:" + "|".join(map(re.escape, names)) + r")(?![A-Za-z0-9_-])")
+          session_row = re.compile(r"^\s*\[\?\]|Hardware:|Variant:|Shape:|tv-off-prod|tv-off-unified|gpu-[A-Za-z0-9_-]+", re.I)
+          empty_marker = "no active sessions found on server"
           for attempt in range(1, 41):
               try:
                   result = subprocess.run(
@@ -188,14 +188,18 @@ jobs:
                   print(f"Colab sessions query failed ({attempt}/40); no GPU allocation will occur.", flush=True)
                   time.sleep(30)
                   continue
-              active = pattern.findall(output)
-              if not active:
-                  print("No previous TV OFF Colab session is active.")
+              rows = [line.strip() for line in output.splitlines() if session_row.search(line)]
+              if empty_marker in output.lower() and not rows:
+                  print("Colab confirms that no active sessions exist.")
                   raise SystemExit(0)
-              print("Previous TV OFF Colab session is still active; waiting without allocating another GPU:", ", ".join(sorted(set(active))), flush=True)
-              time.sleep(30)
-          raise SystemExit("Previous Colab session did not close within 20 minutes; refusing overlapping generation.")
+              if rows:
+                  print("Active Colab session(s) detected; waiting without allocating another GPU:", " | ".join(rows), flush=True)
+                  time.sleep(30)
+                  continue
+              raise SystemExit("Colab sessions response is ambiguous; refusing GPU allocation.")
+          raise SystemExit("Colab session state was not confirmed empty within 20 minutes; refusing overlapping generation.")
           PY
+      - name: Reserve UTC slot, enforce cooldown, or recover pending pair
       - name: Reserve UTC slot, enforce cooldown, or recover pending pair
         id: reserve-slot
         run: |
@@ -333,9 +337,10 @@ jobs:
         timeout-minutes: 30
         run: |
           set -euo pipefail
-          # Colab assignment has returned HTTP 503. Space retries to avoid
-          # hammering the same endpoint; reconcile sessions after every error.
+          # Colab assignment can return HTTP 503 or a capacity precondition failure.
+          # Retry only after the session list explicitly confirms that no session exists.
           delays=(60 120 240 360)
+          SESSION_ROW_RE='(^[[:space:]]*\[\?\]|Hardware:|Variant:|Shape:|tv-off-prod|tv-off-unified|gpu-[A-Za-z0-9_-]+)'
           for attempt in 1 2 3 4 5; do
             echo "Colab T4 allocation attempt $attempt/5"
             set +e
@@ -347,7 +352,7 @@ jobs:
               echo "Colab T4 allocation succeeded."
               exit 0
             fi
-            echo "Colab allocation attempt $attempt failed with exit $ALLOC_RC; reconciling session state."
+            echo "Colab allocation attempt $attempt failed with exit $ALLOC_RC; reconciling the complete session list."
             set +e
             SESSIONS_OUTPUT="$(timeout 30s colab --auth oauth2 sessions 2>&1)"
             SESSIONS_RC=$?
@@ -357,13 +362,23 @@ jobs:
               echo "Cannot verify Colab session state after allocation failure; refusing another allocation."
               exit "$ALLOC_RC"
             fi
-            if printf '%s\n' "$SESSIONS_OUTPUT" | grep -Eq '(^|[^[:alnum:]_-])tv-off-prod([^[:alnum:]_-]|$)'; then
-              echo "The requested tv-off-prod session exists despite the allocation response; continuing with that single session."
-              exit 0
+            SESSION_LINES="$(printf '%s\n' "$SESSIONS_OUTPUT" | grep -Ei "$SESSION_ROW_RE" || true)"
+            if [ -n "$SESSION_LINES" ]; then
+              SESSION_COUNT="$(printf '%s\n' "$SESSION_LINES" | grep -c . || true)"
+              if [ "$SESSION_COUNT" -eq 1 ] && printf '%s\n' "$SESSION_LINES" | grep -Eq '(^|[^[:alnum:]_-])tv-off-prod([^[:alnum:]_-]|$)'; then
+                echo "The single requested tv-off-prod session exists despite the allocation response; continuing with that one session."
+                exit 0
+              fi
+              echo "An active or unidentified Colab session appeared after allocation failure; refusing another allocation."
+              exit "$ALLOC_RC"
+            fi
+            if ! printf '%s\n' "$SESSIONS_OUTPUT" | grep -Fqi "No active sessions found on server."; then
+              echo "Colab sessions response is ambiguous after allocation failure; refusing another allocation."
+              exit "$ALLOC_RC"
             fi
             if [ "$attempt" -lt 5 ]; then
-              delay="${delays[$((attempt - 1))]}"
-              echo "No tv-off-prod session exists; waiting ${delay}s before the next bounded attempt."
+              delay="\${delays[$((attempt - 1))]}"
+              echo "Colab confirms no active sessions; waiting \${delay}s before the next bounded attempt."
               sleep "$delay"
             fi
           done
@@ -374,6 +389,7 @@ jobs:
         timeout-minutes: 50
         run: |
           set -euo pipefail
+          SESSION_ROW_RE='(^[[:space:]]*\[\?\]|Hardware:|Variant:|Shape:|tv-off-prod|tv-off-unified|gpu-[A-Za-z0-9_-]+)'
           for attempt in 1 2; do
             echo "Unified ACE-Step + SDXL execution attempt $attempt/2"
             set +e
@@ -384,7 +400,7 @@ jobs:
               echo "Unified Colab generation completed."
               exit 0
             fi
-            echo "Colab execution failed with exit $rc; stopping and verifying the session before any retry."
+            echo "Colab execution failed with exit $rc; stopping and verifying every active session before any retry."
             set +e
             colab --auth oauth2 stop -s tv-off-prod
             stop_rc=$?
@@ -392,17 +408,27 @@ jobs:
             sessions_rc=$?
             set -e
             echo "$sessions"
-            if [ "$sessions_rc" -ne 0 ] || printf '%s\n' "$sessions" | grep -Eq '(^|[^[:alnum:]_-])tv-off-prod([^[:alnum:]_-]|$)'; then
-              echo "Could not confirm the failed Colab session is closed; refusing another GPU allocation."
+            if [ "$sessions_rc" -ne 0 ]; then
+              echo "Colab session query failed; refusing another GPU allocation."
+              exit "$rc"
+            fi
+            SESSION_LINES="$(printf '%s\n' "$sessions" | grep -Ei "$SESSION_ROW_RE" || true)"
+            if [ -n "$SESSION_LINES" ]; then
+              echo "An active or unidentified Colab session remains after the failed execution; refusing another GPU allocation."
+              exit "$rc"
+            fi
+            if ! printf '%s\n' "$sessions" | grep -Fqi "No active sessions found on server."; then
+              echo "Colab sessions response is ambiguous after the failed execution; refusing another GPU allocation."
               exit "$rc"
             fi
             if [ "$attempt" -eq 2 ]; then
               echo "Safe Colab execution retry budget exhausted."
               exit "$rc"
             fi
-            echo "Previous Colab session is confirmed closed; allocating one clean retry session."
+            echo "Colab confirms that all sessions are closed; allocating one clean retry session."
             colab --auth oauth2 new -s tv-off-prod --gpu T4
           done
+      - name: Package and verify generated assets on Colab (retry transient CLI errors)
       - name: Package and verify generated assets on Colab (retry transient CLI errors)
         if: steps.reserve-slot.outputs.should_run == 'true'
         timeout-minutes: 30
@@ -481,11 +507,18 @@ jobs:
             echo "Cannot verify Colab session closure; refusing downstream publishing."
             exit 1
           fi
-          if printf '%s\n' "$SESSIONS_OUTPUT" | grep -Eq '(^|[^[:alnum:]_-])tv-off-prod([^[:alnum:]_-]|$)'; then
-            echo "Colab session tv-off-prod is still active; refusing downstream publishing."
+          SESSION_ROW_RE='(^[[:space:]]*\[\?\]|Hardware:|Variant:|Shape:|tv-off-prod|tv-off-unified|gpu-[A-Za-z0-9_-]+)'
+          SESSION_LINES="$(printf '%s\n' "$SESSIONS_OUTPUT" | grep -Ei "$SESSION_ROW_RE" || true)"
+          if [ -n "$SESSION_LINES" ]; then
+            echo "An active or unidentified Colab session remains; refusing downstream publishing."
             exit 1
           fi
-          echo "Colab production session is absent from the active-session list."
+          if ! printf '%s\n' "$SESSIONS_OUTPUT" | grep -Fqi "No active sessions found on server."; then
+            echo "Colab sessions response is ambiguous; refusing downstream publishing."
+            exit 1
+          fi
+          echo "Colab confirms that no active sessions remain."
+      - name: Install optional Blender renderer (non-blocking)
       - name: Install optional Blender renderer (non-blocking)
         if: steps.reserve-slot.outputs.should_run == 'true' || steps.reserve-slot.outputs.should_resume_pending == 'true'
         continue-on-error: true
