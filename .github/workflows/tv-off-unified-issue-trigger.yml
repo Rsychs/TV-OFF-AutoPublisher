@@ -454,10 +454,13 @@ jobs:
           m = json.loads((root / "ace_step_smoke_result.json").read_text())
           if m.get("status") != "ok" or m.get("publishing_enabled") is not True:
               raise SystemExit("Colab manifest is not approved for production")
-          for key, hash_key in [("audio_file","sha256"),("visual_file","visual_sha256"),("landscape_file","landscape_sha256")]:
+          checks = [("audio_file","sha256"),("visual_file","visual_sha256"),("landscape_file","landscape_sha256")]
+          if m.get("mp3_file"):
+              checks.append(("mp3_file","mp3_sha256"))
+          for key, hash_key in checks:
               p = root / m[key]
-              if not p.is_file() or hashlib.sha256(p.read_bytes()).hexdigest() != m.get(hash_key):
-                  raise SystemExit(f"Colab asset failed SHA-256 validation: {key}")
+              if not p.is_file() or not m.get(hash_key) or hashlib.sha256(p.read_bytes()).hexdigest() != m.get(hash_key):
+                  raise SystemExit(f"Colab asset failed SHA-256 validation: {key} ({hash_key})")
           print("COLAB PRODUCTION ASSETS VERIFIED:", m["title"], m["style"], m["duration_seconds"], "seconds")
           PY
       - name: Always release and verify Colab T4
