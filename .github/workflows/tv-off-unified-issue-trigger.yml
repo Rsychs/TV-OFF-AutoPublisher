@@ -1,7 +1,7 @@
 name: TV OFF Unified ACE-Step + SDXL — production publish
 on:
   schedule:
-    - cron: '20,40 * * * *'
+    - cron: '20 * * * *'
   workflow_dispatch:
     inputs:
       launch_reason:
