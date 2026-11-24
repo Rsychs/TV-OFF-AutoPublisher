@@ -23,7 +23,8 @@
     "95d65cbec1c7cbf0fe4b071e400e611de71de344d16e2b0c6c7bf1824f2b11fd",
     "859c3a3fc4842da705e8e620ea25b4e3764caa91fa5af4c79509d47ef8be0e15",
     "c42cc56d3ee49ac6b03259a99aae65bc5ba6b5514698f7645825d472ace58a86",
-    "b0f914a8f898a700da59e48933f71d249dc5c28cab387aa7fc806eccf3c5aaa6"
+    "b0f914a8f898a700da59e48933f71d249dc5c28cab387aa7fc806eccf3c5aaa6",
+    "0c9b13db4f60668a20d9f368e119f30ae6c88e099729bb35b9be60ee2081e710"
   ],
   "_published_video_sha256": [
     "92fd8404132e90878de22dd452d6659aaffc014dd70437e107f48336d5d83a1c",
@@ -49,13 +50,14 @@
     "e4e5d215b8a869e428eb2a497827bb1aa92d8d9357950e61135649caa767ee42",
     "3d06d92cec84dccd84a58116a261f25b83b6cbfcf53c3bfdbab215ea5806b62f",
     "2ae8c6b15e5cc57b5a64976350bb676f31ffcea49d0b2c65251ee7945efe5cab",
-    "36f987c9549620bece66f7fbd76d6ea73d4bf5377ed12ab67a3c71cd8c0e8f3a"
+    "36f987c9549620bece66f7fbd76d6ea73d4bf5377ed12ab67a3c71cd8c0e8f3a",
+    "690b3b5693ca10828b54eb0e8fdef4e226aed2f2331380ade25a8d9726c7a650"
   ],
   "published_tracks": [
     {
       "video_id": "5JN6UYU8LDk",
       "youtube_url": "https://youtu.be/5JN6UYU8LDk",
-      "track_title": "Calle de Sal — Afro-Cuban Son Montuno",
+      "track_title": "Calle de Sal \u2014 Afro-Cuban Son Montuno",
       "style": "Afro-Cuban son montuno / rumba guaguanco instrumental, 3-2 clave",
       "audio_sha256": "6e86f786636647c3c6d9f3f23acc207064ac5af543e154386b22679f6525b216",
       "video_sha256": "92fd8404132e90878de22dd452d6659aaffc014dd70437e107f48336d5d83a1c",
@@ -66,7 +68,7 @@
     {
       "video_id": "UM7dh4L75og",
       "youtube_url": "https://youtu.be/UM7dh4L75og",
-      "track_title": "The Jade Courtyard at First Light — Korean Gugak",
+      "track_title": "The Jade Courtyard at First Light \u2014 Korean Gugak",
       "style": "Instrumental Korean gugak chamber / courtly jeongak ensemble with pentatonic ujo melody and heterophonic acoustic instrumentation",
       "audio_sha256": "0b7a40ade6dec08b9eca5ae06b5ae2fb20cab4727641ea2e913d8c306acd5e01",
       "video_sha256": "6ed1c8ccd0920c3412db8dbd2db80f6c6873d112f77d5147f3ca1cb868c472b5",
@@ -79,7 +81,7 @@
       "short_url": "https://youtu.be/A9OHx8aAq8M",
       "full_video_id": "pH1BCfgtHus",
       "full_url": "https://youtu.be/pH1BCfgtHus",
-      "track_title": "Midnight Pavilion 61221 — Korean Gugak",
+      "track_title": "Midnight Pavilion 61221 \u2014 Korean Gugak",
       "style": "Instrumental Korean gugak chamber / courtly jeongak ensemble with pentatonic ujo melody and heterophonic acoustic instrumentation",
       "audio_sha256": "46f0aa095617fce86095e756972f9d107f8e55e7cd22f8bd83e32e3a1c5e3b9e",
       "short_video_sha256": "73559691d4c519af01f0648eac0b81db2b0edd8279a65ac7ed70655c2a45ad08",
@@ -267,7 +269,7 @@
     {
       "short_video_id": "yn6z2DazOV4",
       "short_url": "https://youtu.be/yn6z2DazOV4",
-      "track_title": "Neon Afterglow — Late Night Session",
+      "track_title": "Neon Afterglow \u2014 Late Night Session",
       "style": "Electro Instrumental",
       "audio_sha256": "51309343094da052494b2b66521ede88151e8fe17826a5e49cfe9a75d75719b4",
       "short_video_sha256": "d0b9be506467bd7a80a2f424b25a74174a479f71850528309d73778f94bcb925",
@@ -324,7 +326,7 @@
     {
       "short_video_id": "errjKxbi4Zg",
       "short_url": "https://youtu.be/errjKxbi4Zg",
-      "track_title": "A Room Full of Sunday — Late Night Session",
+      "track_title": "A Room Full of Sunday \u2014 Late Night Session",
       "style": "Lo-fi",
       "audio_sha256": "f41d34a3d89047fbdc24a14b82d477fbd9e903ca9dca54256a098f4ac073ffca",
       "short_video_sha256": "05c5b236462c87f759f293b162c8c61ee123538017427ab2da8eb2bf9fd97604",
@@ -411,7 +413,7 @@
     {
       "short_video_id": "nqtgvgxCr3Q",
       "short_url": "https://youtu.be/nqtgvgxCr3Q",
-      "track_title": "One More for the Road — Late Night Session",
+      "track_title": "One More for the Road \u2014 Late Night Session",
       "style": "Jazz",
       "public_genre": "Jazz",
       "audio_sha256": "95d65cbec1c7cbf0fe4b071e400e611de71de344d16e2b0c6c7bf1824f2b11fd",
@@ -487,9 +489,29 @@
       "full_video_id": "d_CJUiYvnY0",
       "full_url": "https://youtu.be/d_CJUiYvnY0",
       "full_published_at": "2026-11-24T11:15:41.638969+00:00"
+    },
+    {
+      "short_video_id": "bCxuDWAwuEQ",
+      "short_url": "https://youtu.be/bCxuDWAwuEQ",
+      "track_title": "A Little After Midnight",
+      "style": "Jazz",
+      "public_genre": "Jazz",
+      "audio_sha256": "0c9b13db4f60668a20d9f368e119f30ae6c88e099729bb35b9be60ee2081e710",
+      "short_video_sha256": "690b3b5693ca10828b54eb0e8fdef4e226aed2f2331380ade25a8d9726c7a650",
+      "full_video_sha256": "7f4091d1f30c26686f8f12c51e5f46b416d7715bf3d55b7f702044b1cd79bf75",
+      "visual_sha256": "42827b9fa49b66118acf7cc6012c1af3e3f89f1fadc7145683fb757c9f40c587",
+      "blender_version": null,
+      "blender_render_sha256": null,
+      "duration_seconds": 186.0,
+      "short_published_at": "2026-11-24T15:19:59.037281+00:00",
+      "production_run_id": "45421034936",
+      "full_upload_status": "published",
+      "full_video_id": "lBtL7N8Q1Xk",
+      "full_url": "https://youtu.be/lBtL7N8Q1Xk",
+      "full_published_at": "2026-11-24T15:20:00.272484+00:00"
     }
   ],
-  "_last_published_at": "2026-11-24T11:15:40.296615+00:00",
+  "_last_published_at": "2026-11-24T15:19:59.037281+00:00",
   "_published_full_video_sha256": [
     "6a5b07b2d1dafd64f597825d9e06f573c592afe56e284d9abde0c762bcb5fd87",
     "6e823d6a8e6313aeec9d906870deec9bfc0587572c3fa7ea961eb5dfce2da1ae",
@@ -512,7 +534,8 @@
     "13fe8a200f0e2bc3ce3328a8fffca1447a27844ec3c04824b20da36a5f7bf546",
     "411502b89b97aca2e275dbf69c371ed39f1de36b903ccaf5b42888edd388047d",
     "e5239d18e5069b1f074400f8fe0e98fa6a38be9274060fa7ba29421852edb17c",
-    "a8c0776b38259ef34f2007f627724638e1e829d359ef51e59c787f2eb251b9ef"
+    "a8c0776b38259ef34f2007f627724638e1e829d359ef51e59c787f2eb251b9ef",
+    "7f4091d1f30c26686f8f12c51e5f46b416d7715bf3d55b7f702044b1cd79bf75"
   ],
   "_processed_utc_slots": [
     "2026-11-21T21:00:00Z",
