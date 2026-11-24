@@ -200,7 +200,6 @@ jobs:
           raise SystemExit("Colab session state was not confirmed empty within 20 minutes; refusing overlapping generation.")
           PY
       - name: Reserve UTC slot, enforce cooldown, or recover pending pair
-      - name: Reserve UTC slot, enforce cooldown, or recover pending pair
         id: reserve-slot
         run: |
           set -euo pipefail
@@ -429,7 +428,6 @@ jobs:
             colab --auth oauth2 new -s tv-off-prod --gpu T4
           done
       - name: Package and verify generated assets on Colab (retry transient CLI errors)
-      - name: Package and verify generated assets on Colab (retry transient CLI errors)
         if: steps.reserve-slot.outputs.should_run == 'true'
         timeout-minutes: 30
         run: |
@@ -518,7 +516,6 @@ jobs:
             exit 1
           fi
           echo "Colab confirms that no active sessions remain."
-      - name: Install optional Blender renderer (non-blocking)
       - name: Install optional Blender renderer (non-blocking)
         if: steps.reserve-slot.outputs.should_run == 'true' || steps.reserve-slot.outputs.should_resume_pending == 'true'
         continue-on-error: true
