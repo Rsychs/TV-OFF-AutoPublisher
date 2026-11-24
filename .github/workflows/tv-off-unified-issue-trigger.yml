@@ -377,8 +377,8 @@ jobs:
               exit "$ALLOC_RC"
             fi
             if [ "$attempt" -lt 5 ]; then
-              delay="\${delays[$((attempt - 1))]}"
-              echo "Colab confirms no active sessions; waiting \${delay}s before the next bounded attempt."
+              delay="${delays[$((attempt - 1))]}"
+              echo "Colab confirms no active sessions; waiting ${delay}s before the next bounded attempt."
               sleep "$delay"
             fi
           done
