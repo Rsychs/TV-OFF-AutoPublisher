@@ -33,7 +33,8 @@
     "558dd4a8b50dfc3e29c79a0a408112445553db2f8e27c9a1714192584e69b7a2",
     "89d12c0df0b859bc37f850457dcbfd800c334b7768a51838b93c17f5cb97d42e",
     "3402c606f8df4c04e6e88b4283e8295189ced4ed7ca243e5e7b105f6811f4e6d",
-    "22d75a84a16f23a300a98ba3300cd292b45a2a539d925db725dcbed9657de652"
+    "22d75a84a16f23a300a98ba3300cd292b45a2a539d925db725dcbed9657de652",
+    "7fcd37e7800c67b307631e3d670090615bef4e8216278fe97d4be4d2bd63c66c"
   ],
   "_published_video_sha256": [
     "92fd8404132e90878de22dd452d6659aaffc014dd70437e107f48336d5d83a1c",
@@ -69,13 +70,14 @@
     "f57b79d5f16cffe11b38521eaadbcbccd392630597ebf2984f16f9e7edf12633",
     "7403c28d2170c56b49a29d00f0cfda6ab19a5d301003c9992f653e7b81b929b3",
     "9539e8c06db83e70907ec09d462739ab559dcf2a2b60072edb9f78896b702701",
-    "500a0cecad3049d82bd68b911f75061bf54e464e59559d9a405b9526660f5330"
+    "500a0cecad3049d82bd68b911f75061bf54e464e59559d9a405b9526660f5330",
+    "ccd3bd4a63f21df94ab7b2c6c2f0fff9bf09c68afb0787d59db166cad87c02b9"
   ],
   "published_tracks": [
     {
       "video_id": "5JN6UYU8LDk",
       "youtube_url": "https://youtu.be/5JN6UYU8LDk",
-      "track_title": "Calle de Sal — Afro-Cuban Son Montuno",
+      "track_title": "Calle de Sal \u2014 Afro-Cuban Son Montuno",
       "style": "Afro-Cuban son montuno / rumba guaguanco instrumental, 3-2 clave",
       "audio_sha256": "6e86f786636647c3c6d9f3f23acc207064ac5af543e154386b22679f6525b216",
       "video_sha256": "92fd8404132e90878de22dd452d6659aaffc014dd70437e107f48336d5d83a1c",
@@ -86,7 +88,7 @@
     {
       "video_id": "UM7dh4L75og",
       "youtube_url": "https://youtu.be/UM7dh4L75og",
-      "track_title": "The Jade Courtyard at First Light — Korean Gugak",
+      "track_title": "The Jade Courtyard at First Light \u2014 Korean Gugak",
       "style": "Instrumental Korean gugak chamber / courtly jeongak ensemble with pentatonic ujo melody and heterophonic acoustic instrumentation",
       "audio_sha256": "0b7a40ade6dec08b9eca5ae06b5ae2fb20cab4727641ea2e913d8c306acd5e01",
       "video_sha256": "6ed1c8ccd0920c3412db8dbd2db80f6c6873d112f77d5147f3ca1cb868c472b5",
@@ -99,7 +101,7 @@
       "short_url": "https://youtu.be/A9OHx8aAq8M",
       "full_video_id": "pH1BCfgtHus",
       "full_url": "https://youtu.be/pH1BCfgtHus",
-      "track_title": "Midnight Pavilion 61221 — Korean Gugak",
+      "track_title": "Midnight Pavilion 61221 \u2014 Korean Gugak",
       "style": "Instrumental Korean gugak chamber / courtly jeongak ensemble with pentatonic ujo melody and heterophonic acoustic instrumentation",
       "audio_sha256": "46f0aa095617fce86095e756972f9d107f8e55e7cd22f8bd83e32e3a1c5e3b9e",
       "short_video_sha256": "73559691d4c519af01f0648eac0b81db2b0edd8279a65ac7ed70655c2a45ad08",
@@ -287,7 +289,7 @@
     {
       "short_video_id": "yn6z2DazOV4",
       "short_url": "https://youtu.be/yn6z2DazOV4",
-      "track_title": "Neon Afterglow — Late Night Session",
+      "track_title": "Neon Afterglow \u2014 Late Night Session",
       "style": "Electro Instrumental",
       "audio_sha256": "51309343094da052494b2b66521ede88151e8fe17826a5e49cfe9a75d75719b4",
       "short_video_sha256": "d0b9be506467bd7a80a2f424b25a74174a479f71850528309d73778f94bcb925",
@@ -344,7 +346,7 @@
     {
       "short_video_id": "errjKxbi4Zg",
       "short_url": "https://youtu.be/errjKxbi4Zg",
-      "track_title": "A Room Full of Sunday — Late Night Session",
+      "track_title": "A Room Full of Sunday \u2014 Late Night Session",
       "style": "Lo-fi",
       "audio_sha256": "f41d34a3d89047fbdc24a14b82d477fbd9e903ca9dca54256a098f4ac073ffca",
       "short_video_sha256": "05c5b236462c87f759f293b162c8c61ee123538017427ab2da8eb2bf9fd97604",
@@ -431,7 +433,7 @@
     {
       "short_video_id": "nqtgvgxCr3Q",
       "short_url": "https://youtu.be/nqtgvgxCr3Q",
-      "track_title": "One More for the Road — Late Night Session",
+      "track_title": "One More for the Road \u2014 Late Night Session",
       "style": "Jazz",
       "public_genre": "Jazz",
       "audio_sha256": "95d65cbec1c7cbf0fe4b071e400e611de71de344d16e2b0c6c7bf1824f2b11fd",
@@ -531,7 +533,7 @@
     {
       "short_video_id": "Chf01qY5_9E",
       "short_url": "https://youtu.be/Chf01qY5_9E",
-      "track_title": "Windowlight Reverie — Late Night Session",
+      "track_title": "Windowlight Reverie \u2014 Late Night Session",
       "style": "Lo-fi",
       "public_genre": "Lo-fi",
       "audio_sha256": "4a3f1b59560283c5faabe90ed7c26ae7db57022d66541461740531f72bd0cfe8",
@@ -571,7 +573,7 @@
     {
       "short_video_id": "h-FSUrC2neU",
       "short_url": "https://youtu.be/h-FSUrC2neU",
-      "track_title": "A Quiet Kind of Swing — Late Night Session",
+      "track_title": "A Quiet Kind of Swing \u2014 Late Night Session",
       "style": "Jazz",
       "public_genre": "Jazz",
       "audio_sha256": "945d349433744338031becb48964f6d7cbb467cd79715bc590431eabd96c6725",
@@ -591,7 +593,7 @@
     {
       "short_video_id": "jKknHK2UQMw",
       "short_url": "https://youtu.be/jKknHK2UQMw",
-      "track_title": "Glass City Dreams — Late Night Session",
+      "track_title": "Glass City Dreams \u2014 Late Night Session",
       "style": "Electro Instrumental",
       "public_genre": "Electro Instrumental",
       "audio_sha256": "f6550334e3be5f152619574b253d174866acc5540cc721e2406ca55e8cbed934",
@@ -611,7 +613,7 @@
     {
       "short_video_id": "YmjTnj-_7_Q",
       "short_url": "https://youtu.be/YmjTnj-_7_Q",
-      "track_title": "After the Last Train — Late Night Session",
+      "track_title": "After the Last Train \u2014 Late Night Session",
       "style": "Lo-fi",
       "public_genre": "Lo-fi",
       "audio_sha256": "0e6f1c7dc2b53c17ae4ed039afde8a83643b3db5071bba1681640d0edb566c7b",
@@ -631,7 +633,7 @@
     {
       "short_video_id": "u433AAJHyoM",
       "short_url": "https://youtu.be/u433AAJHyoM",
-      "track_title": "Letters in the Rain — Late Night Session",
+      "track_title": "Letters in the Rain \u2014 Late Night Session",
       "style": "Lo-fi",
       "public_genre": "Lo-fi",
       "audio_sha256": "558dd4a8b50dfc3e29c79a0a408112445553db2f8e27c9a1714192584e69b7a2",
@@ -691,7 +693,7 @@
     {
       "short_video_id": "HLKJCaBWWYw",
       "short_url": "https://youtu.be/HLKJCaBWWYw",
-      "track_title": "Soft Focus Memories — Late Night Session",
+      "track_title": "Soft Focus Memories \u2014 Late Night Session",
       "style": "Lo-fi",
       "public_genre": "Lo-fi",
       "audio_sha256": "22d75a84a16f23a300a98ba3300cd292b45a2a539d925db725dcbed9657de652",
@@ -707,9 +709,29 @@
       "full_video_id": "cL1xFPva0W4",
       "full_url": "https://youtu.be/cL1xFPva0W4",
       "full_published_at": "2026-11-25T15:36:44.761947+00:00"
+    },
+    {
+      "short_video_id": "vl5kmwpuCqk",
+      "short_url": "https://youtu.be/vl5kmwpuCqk",
+      "track_title": "The Long Way Home \u2014 Late Night Session",
+      "style": "Jazz",
+      "public_genre": "Jazz",
+      "audio_sha256": "7fcd37e7800c67b307631e3d670090615bef4e8216278fe97d4be4d2bd63c66c",
+      "short_video_sha256": "ccd3bd4a63f21df94ab7b2c6c2f0fff9bf09c68afb0787d59db166cad87c02b9",
+      "full_video_sha256": "491336e0f241d6b0e14acd0f1983a359f19d4c1760c93180574bb9f963aa8861",
+      "visual_sha256": "793c796b7d2a5441bffb96680cfa3ec89152a57bcad3394d5015a10b9d76a172",
+      "blender_version": null,
+      "blender_render_sha256": null,
+      "duration_seconds": 174.0,
+      "short_published_at": "2026-11-25T23:53:16.434114+00:00",
+      "production_run_id": "45723665250",
+      "full_upload_status": "published",
+      "full_video_id": "0dNF3hSJ4Ys",
+      "full_url": "https://youtu.be/0dNF3hSJ4Ys",
+      "full_published_at": "2026-11-25T23:53:17.922117+00:00"
     }
   ],
-  "_last_published_at": "2026-11-25T15:36:42.649294+00:00",
+  "_last_published_at": "2026-11-25T23:53:16.434114+00:00",
   "_published_full_video_sha256": [
     "6a5b07b2d1dafd64f597825d9e06f573c592afe56e284d9abde0c762bcb5fd87",
     "6e823d6a8e6313aeec9d906870deec9bfc0587572c3fa7ea961eb5dfce2da1ae",
@@ -742,7 +764,8 @@
     "f5d20b3205e503020e6538a3627ca55f7a27b54cc8f95364bdab4ca98706502e",
     "da5d1ab88bd8ab546f83db3aba2c14c7bfd99ecb4a1b14cadb540efcfe1f1635",
     "9e413512819da29075e72ce62c31522d89b8b368982b42a77415d3787c402011",
-    "601c96f4e2ae129a1e4c4a10e3725c801d1ed7888af137b4a71d24987d78a66a"
+    "601c96f4e2ae129a1e4c4a10e3725c801d1ed7888af137b4a71d24987d78a66a",
+    "491336e0f241d6b0e14acd0f1983a359f19d4c1760c93180574bb9f963aa8861"
   ],
   "_processed_utc_slots": [
     "2026-11-21T21:00:00Z",
