@@ -1,7 +1,8 @@
 name: TV OFF Unified ACE-Step + SDXL — production publish
 on:
   schedule:
-    - cron: '20 * * * *'
+    # Poll during the hour so the UTC-slot ledger can launch as soon as the 60-minute cooldown expires.
+    - cron: '*/10 * * * *'
   workflow_dispatch:
     inputs:
       launch_reason:
